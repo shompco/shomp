@@ -63,18 +63,34 @@ defmodule Shomp.Products do
   Creates a product.
   """
   def create_product(attrs \\ %{}) do
+    IO.puts("=== CREATING PRODUCT ===")
+    IO.puts("Attributes: #{inspect(attrs)}")
+    
     %Product{}
     |> Product.create_changeset(attrs)
     |> Repo.insert()
     |> case do
       {:ok, product} ->
+        IO.puts("Product created in DB with ID: #{product.id}")
+        
         # Create Stripe product
         case create_stripe_product(product) do
           {:ok, stripe_product} ->
+            IO.puts("Stripe product created: #{stripe_product.id}")
+            
             # Update product with Stripe ID
-            product
+            IO.puts("Updating product #{product.id} with Stripe ID: #{stripe_product.id}")
+            case product
             |> Product.changeset(%{stripe_product_id: stripe_product.id})
-            |> Repo.update()
+            |> Repo.update() do
+              {:ok, updated_product} ->
+                IO.puts("Product updated successfully with Stripe ID: #{updated_product.stripe_product_id}")
+                {:ok, updated_product}
+              
+              {:error, changeset} ->
+                IO.puts("Failed to update product with Stripe ID: #{inspect(changeset.errors)}")
+                {:ok, product} # Return original product if update fails
+            end
           
           {:error, reason} ->
             # Log the error but still return success
@@ -83,7 +99,9 @@ defmodule Shomp.Products do
             {:ok, product}
         end
       
-      error -> error
+      error -> 
+        IO.puts("Failed to create product: #{inspect(error)}")
+        error
     end
   end
 

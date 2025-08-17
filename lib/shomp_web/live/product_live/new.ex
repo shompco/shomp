@@ -105,16 +105,21 @@ defmodule ShompWeb.ProductLive.New do
   end
 
   def handle_event("save", %{"product" => product_params}, socket) do
+    IO.puts("=== SAVE EVENT TRIGGERED ===")
+    IO.puts("Product params: #{inspect(product_params)}")
+    
     product_params = Map.put(product_params, "store_id", socket.assigns.store.id)
 
     case Products.create_product(product_params) do
       {:ok, _product} ->
+        IO.puts("Product created successfully, redirecting...")
         {:noreply,
          socket
          |> put_flash(:info, "Product created successfully!")
          |> push_navigate(to: ~p"/#{socket.assigns.store.slug}")}
 
       {:error, %Ecto.Changeset{} = changeset} ->
+        IO.puts("Product creation failed: #{inspect(changeset.errors)}")
         {:noreply, assign_form(socket, changeset, socket.assigns.store)}
     end
   end

@@ -6,3 +6,7 @@ git clone repo
 mix deps.get
 mix ecto.create && mix ecto.migrate
 mix phx.server
+
+export STRIPE_SECRET_KEY=sk_test_51OTV90F3aKQcrakgHXpEVyjlGJOH4AvBfzgVma0okh7AUN0IQWjV3EIRoX1csbbhdRAshiQwzBoubw1uv4U4FU9K00Z1epYdPR
+export STRIPE_PUBLISHABLE_KEY=pk_test_51OTV90F3aKQcrakgcDy7WFQy4ks2Vf7HaK6UFlhNYfpeXT6c6LV1j5DOJKApCv1Yifho25pXrbsxzQKcZaW9pYCD005IsF8RJI
+mix phx.server

@@ -22,7 +22,7 @@ defmodule Shomp.Products.Product do
   """
   def changeset(product, attrs) do
     product
-    |> cast(attrs, [:title, :description, :price, :type, :file_path, :store_id])
+    |> cast(attrs, [:title, :description, :price, :type, :file_path, :store_id, :stripe_product_id])
     |> validate_required([:title, :price, :type, :store_id])
     |> validate_length(:title, min: 2, max: 200)
     |> validate_length(:description, max: 2000)
