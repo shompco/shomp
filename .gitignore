@@ -6,6 +6,7 @@
 /.fetch
 *.ez
 erl_crash.dump
+.env
 
 # Test artifacts
 .excoveralls
