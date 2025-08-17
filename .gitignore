@@ -1,0 +1,15 @@
+# Elixir
+/_build
+/cover
+/deps
+/doc
+/.fetch
+*.ez
+erl_crash.dump
+
+# Test artifacts
+.excoveralls
+
+# Mix local
+/.elixir_ls
+
