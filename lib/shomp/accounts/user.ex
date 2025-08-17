@@ -4,12 +4,56 @@ defmodule Shomp.Accounts.User do
 
   schema "users" do
     field :email, :string
+    field :name, :string
+    field :role, :string, default: "user"
     field :password, :string, virtual: true, redact: true
     field :hashed_password, :string, redact: true
     field :confirmed_at, :utc_datetime
     field :authenticated_at, :utc_datetime, virtual: true
+    has_many :stores, Shomp.Stores.Store
+    has_many :payments, Shomp.Payments.Payment
 
     timestamps(type: :utc_datetime)
+  end
+
+  @doc """
+  A user changeset for registration.
+
+  It requires email and name to be present. Password is optional for magic link users.
+  Users can set passwords later and use both authentication methods.
+  """
+  def registration_changeset(user, attrs, opts \\ []) do
+    user
+    |> cast(attrs, [:email, :password, :name])
+    |> validate_email(opts)
+    |> validate_required([:name])
+    |> validate_length(:name, min: 2, max: 100)
+    |> maybe_validate_password(opts)
+  end
+
+  @doc """
+  A user changeset for password-based registration.
+
+  It requires email, password, and name to be present.
+  """
+  def password_registration_changeset(user, attrs, opts \\ []) do
+    user
+    |> cast(attrs, [:email, :password, :name])
+    |> validate_email(opts)
+    |> validate_password(opts)
+    |> validate_required([:name])
+    |> validate_length(:name, min: 2, max: 100)
+  end
+
+  @doc """
+  A user changeset for adding/updating a password.
+
+  Can be used to add a password to a magic link user or update existing password.
+  """
+  def add_password_changeset(user, attrs, opts \\ []) do
+    user
+    |> cast(attrs, [:password])
+    |> validate_password(opts)
   end
 
   @doc """
@@ -101,6 +145,16 @@ defmodule Shomp.Accounts.User do
       # would keep the database transaction open longer and hurt performance.
       |> put_change(:hashed_password, Bcrypt.hash_pwd_salt(password))
       |> delete_change(:password)
+    else
+      changeset
+    end
+  end
+
+  defp maybe_validate_password(changeset, opts) do
+    password = get_change(changeset, :password)
+    
+    if password do
+      validate_password(changeset, opts)
     else
       changeset
     end

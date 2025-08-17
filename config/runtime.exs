@@ -104,7 +104,7 @@ if config_env() == :prod do
   # In production you need to configure the mailer to use a different adapter.
   # Here is an example configuration for Mailgun:
   #
-  #     config :shomp, Shomp.Mailer,
+  #     config :shomp, :mailer,
   #       adapter: Swoosh.Adapters.Mailgun,
   #       api_key: System.get_env("MAILGUN_API_KEY"),
   #       domain: System.get_env("MAILGUN_DOMAIN")
@@ -117,3 +117,12 @@ if config_env() == :prod do
   #
   # See https://hexdocs.pm/swoosh/Swoosh.html#module-installation for details.
 end
+
+# Stripe Configuration - Load from environment variables at runtime
+config :stripity_stripe,
+  api_key: System.get_env("STRIPE_SECRET_KEY"),
+  signing_secret: System.get_env("STRIPE_WEBHOOK_SECRET")
+
+config :shomp,
+  stripe_webhook_secret: System.get_env("STRIPE_WEBHOOK_SECRET"),
+  stripe_publishable_key: System.get_env("STRIPE_PUBLISHABLE_KEY")

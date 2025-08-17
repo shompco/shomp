@@ -55,9 +55,7 @@
 - Currency conversion support
 - Payment receipt generation
 - Subscription payment handling
-- Split payments to sellers
 - Payment dispute management
-- PCI compliance measures
 
 ## Post-Purchase Donations (Shomp.Donations)
 - Display donation prompt after successful purchase

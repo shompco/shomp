@@ -14,7 +14,16 @@ defmodule Shomp.AccountsFixtures do
 
   def valid_user_attributes(attrs \\ %{}) do
     Enum.into(attrs, %{
-      email: unique_user_email()
+      email: unique_user_email(),
+      name: "Test User"
+    })
+  end
+
+  def valid_user_password_attributes(attrs \\ %{}) do
+    Enum.into(attrs, %{
+      email: unique_user_email(),
+      name: "Test User",
+      password: valid_user_password()
     })
   end
 
@@ -27,7 +36,30 @@ defmodule Shomp.AccountsFixtures do
     user
   end
 
+  def unconfirmed_user_with_password_fixture(attrs \\ %{}) do
+    {:ok, user} =
+      attrs
+      |> valid_user_password_attributes()
+      |> Accounts.register_user()
+
+    user
+  end
+
   def user_fixture(attrs \\ %{}) do
+    # For password-based users, we need to confirm them differently
+    user = unconfirmed_user_with_password_fixture(attrs)
+    
+    # Confirm the user by updating the confirmed_at field
+    {:ok, confirmed_user} = 
+      user
+      |> Ecto.Changeset.change(%{confirmed_at: DateTime.utc_now(:second)})
+      |> Shomp.Repo.update()
+    
+    confirmed_user
+  end
+
+  def magic_link_user_fixture(attrs \\ %{}) do
+    # Create a user without password for magic link testing
     user = unconfirmed_user_fixture(attrs)
 
     token =
@@ -41,6 +73,23 @@ defmodule Shomp.AccountsFixtures do
     user
   end
 
+  def mixed_auth_user_fixture(attrs \\ %{}) do
+    # Create a user that can use both magic links and passwords
+    user = unconfirmed_user_fixture(attrs)
+    
+    # Confirm the user first
+    {:ok, confirmed_user} = 
+      user
+      |> Ecto.Changeset.change(%{confirmed_at: DateTime.utc_now(:second)})
+      |> Shomp.Repo.update()
+    
+    # Add a password
+    {:ok, user_with_password} = 
+      Accounts.add_user_password(confirmed_user, %{password: valid_user_password()})
+    
+    user_with_password
+  end
+
   def user_scope_fixture do
     user = user_fixture()
     user_scope_fixture(user)
@@ -49,6 +98,18 @@ defmodule Shomp.AccountsFixtures do
   def user_scope_fixture(user) do
     Scope.for_user(user)
   end
+
+  def magic_link_user_scope_fixture do
+    user = magic_link_user_fixture()
+    user_scope_fixture(user)
+  end
+
+  def mixed_auth_user_scope_fixture do
+    user = mixed_auth_user_fixture()
+    user_scope_fixture(user)
+  end
+
+
 
   def set_password(user) do
     {:ok, {user, _expired_tokens}} =

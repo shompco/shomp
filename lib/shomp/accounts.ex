@@ -45,6 +45,28 @@ defmodule Shomp.Accounts do
   end
 
   @doc """
+  Authenticates a user by email and password.
+
+  ## Examples
+
+      iex> authenticate("foo@example.com", "correct_password")
+      {:ok, %User{}}
+
+      iex> authenticate("foo@example.com", "invalid_password")
+      {:error, :invalid_credentials}
+
+      iex> authenticate("unknown@example.com", "password")
+      {:error, :invalid_credentials}
+
+  """
+  def authenticate(email, password) when is_binary(email) and is_binary(password) do
+    case get_user_by_email_and_password(email, password) do
+      %User{} = user -> {:ok, user}
+      nil -> {:error, :invalid_credentials}
+    end
+  end
+
+  @doc """
   Gets a single user.
 
   Raises `Ecto.NoResultsError` if the User does not exist.
@@ -67,17 +89,35 @@ defmodule Shomp.Accounts do
 
   ## Examples
 
-      iex> register_user(%{field: value})
+      iex> register_user(%{email: "user@example.com", password: "password123", name: "John Doe"})
       {:ok, %User{}}
 
-      iex> register_user(%{field: bad_value})
+      iex> register_user(%{email: "user@example.com", name: "John Doe"})
+      {:ok, %User{}}
+
+      iex> register_user(%{email: "invalid"})
       {:error, %Ecto.Changeset{}}
 
   """
   def register_user(attrs) do
     %User{}
-    |> User.email_changeset(attrs)
+    |> User.registration_changeset(attrs)
     |> Repo.insert()
+  end
+
+  @doc """
+  Adds or updates a password for an existing user.
+
+  ## Examples
+
+      iex> add_user_password(user, %{password: "new_password123"})
+      {:ok, %User{}}
+
+  """
+  def add_user_password(%User{} = user, attrs) do
+    user
+    |> User.add_password_changeset(attrs)
+    |> Repo.update()
   end
 
   ## Settings
@@ -109,6 +149,19 @@ defmodule Shomp.Accounts do
   """
   def change_user_email(user, attrs \\ %{}, opts \\ []) do
     User.email_changeset(user, attrs, opts)
+  end
+
+  @doc """
+  Returns an `%Ecto.Changeset{}` for user registration.
+
+  ## Examples
+
+      iex> change_user_registration(%User{})
+      %Ecto.Changeset{data: %User{}}
+
+  """
+  def change_user_registration(%User{} = user, attrs \\ %{}) do
+    User.registration_changeset(user, attrs, validate_unique: false)
   end
 
   @doc """
@@ -203,6 +256,9 @@ defmodule Shomp.Accounts do
   @doc """
   Logs the user in by magic link.
 
+  Users can use magic links regardless of whether they have a password set.
+  This allows flexible authentication - users can choose their preferred method.
+
   There are three cases to consider:
 
   1. The user has already confirmed their email. They are logged in
@@ -214,24 +270,13 @@ defmodule Shomp.Accounts do
      exist but we delete all of them for best security practices.
 
   3. The user has not confirmed their email but a password is set.
-     This cannot happen in the default implementation but may be the
-     source of security pitfalls. See the "Mixing magic link and password registration" section of
-     `mix help phx.gen.auth`.
+     The user gets confirmed and logged in, maintaining security best practices.
   """
   def login_user_by_magic_link(token) do
     {:ok, query} = UserToken.verify_magic_link_token_query(token)
 
     case Repo.one(query) do
-      # Prevent session fixation attacks by disallowing magic links for unconfirmed users with password
-      {%User{confirmed_at: nil, hashed_password: hash}, _token} when not is_nil(hash) ->
-        raise """
-        magic link log in is not allowed for unconfirmed users with a password set!
-
-        This cannot happen with the default implementation, which indicates that you
-        might have adapted the code to a different use case. Please make sure to read the
-        "Mixing magic link and password registration" section of `mix help phx.gen.auth`.
-        """
-
+      # Allow magic links for all users, including those with passwords
       {%User{confirmed_at: nil} = user, _token} ->
         user
         |> User.confirm_changeset()

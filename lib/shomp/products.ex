@@ -1,0 +1,214 @@
+defmodule Shomp.Products do
+  @moduledoc """
+  The Products context.
+  """
+
+  import Ecto.Query, warn: false
+  alias Shomp.Repo
+  alias Shomp.Products.Product
+
+  @doc """
+  Returns the list of products.
+  """
+  def list_products do
+    Repo.all(Product)
+  end
+
+  @doc """
+  Returns the list of products for a specific store.
+  """
+  def list_products_by_store(store_id) do
+    Product
+    |> where(store_id: ^store_id)
+    |> Repo.all()
+  end
+
+  @doc """
+  Gets a single product.
+
+  Raises `Ecto.NoResultsError` if the Product does not exist.
+
+  ## Examples
+
+      iex> get_product!(123)
+      %Product{}
+
+      iex> get_product!(456)
+      ** (Ecto.NoResultsError)
+
+  """
+  def get_product!(id), do: Repo.get!(Product, id)
+
+  @doc """
+  Gets a single product with store association loaded.
+
+  Raises `Ecto.NoResultsError` if the Product does not exist.
+
+  ## Examples
+
+      iex> get_product_with_store!(123)
+      %Product{store: %Store{}}
+
+      iex> get_product_with_store!(456)
+      ** (Ecto.NoResultsError)
+
+  """
+  def get_product_with_store!(id) do
+    Product
+    |> Repo.get!(id)
+    |> Repo.preload(:store)
+  end
+
+  @doc """
+  Creates a product.
+  """
+  def create_product(attrs \\ %{}) do
+    %Product{}
+    |> Product.create_changeset(attrs)
+    |> Repo.insert()
+    |> case do
+      {:ok, product} ->
+        # Create Stripe product
+        case create_stripe_product(product) do
+          {:ok, stripe_product} ->
+            # Update product with Stripe ID
+            product
+            |> Product.changeset(%{stripe_product_id: stripe_product.id})
+            |> Repo.update()
+          
+          {:error, reason} ->
+            # Log the error but still return success
+            # In production, you might want to handle this differently
+            IO.puts("Warning: Failed to create Stripe product: #{inspect(reason)}")
+            {:ok, product}
+        end
+      
+      error -> error
+    end
+  end
+
+  @doc """
+  Syncs a product with Stripe (creates Stripe product if missing).
+  """
+  def sync_product_with_stripe(%Product{} = product) do
+    if product.stripe_product_id do
+      {:ok, product}
+    else
+      case create_stripe_product(product) do
+        {:ok, stripe_product} ->
+          product
+          |> Product.changeset(%{stripe_product_id: stripe_product.id})
+          |> Repo.update()
+        
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  Syncs all products without Stripe IDs.
+  """
+  def sync_all_products_with_stripe do
+    Product
+    |> where([p], is_nil(p.stripe_product_id))
+    |> Repo.all()
+    |> Enum.map(&sync_product_with_stripe/1)
+  end
+
+  @doc """
+  Updates a product.
+  """
+  def update_product(%Product{} = product, attrs) do
+    product
+    |> Product.changeset(attrs)
+    |> Repo.update()
+    |> case do
+      {:ok, updated_product} ->
+        # Update Stripe product if price or description changed
+        if Map.has_key?(attrs, :price) or Map.has_key?(attrs, :description) or Map.has_key?(attrs, :title) do
+          update_stripe_product(updated_product)
+        end
+        {:ok, updated_product}
+      
+      error -> error
+    end
+  end
+
+  @doc """
+  Deletes a product.
+  """
+  def delete_product(%Product{} = product) do
+    # Delete Stripe product and prices if they exist
+    if product.stripe_product_id do
+      delete_stripe_product_and_prices(product.stripe_product_id)
+    end
+    
+    Repo.delete(product)
+  end
+
+  @doc """
+  Returns an `%Ecto.Changeset{}` for tracking product changes.
+
+  ## Examples
+
+      iex> change_product(product)
+      %Ecto.Changeset{data: %Product{}}
+
+  """
+  def change_product(%Product{} = product, attrs \\ %{}) do
+    Product.changeset(product, attrs)
+  end
+
+  @doc """
+  Returns an `%Ecto.Changeset{}` for creating a product.
+
+  ## Examples
+
+      iex> change_product_creation(product)
+      %Ecto.Changeset{data: %Product{}}
+
+  """
+  def change_product_creation(%Product{} = product, attrs \\ %{}) do
+    Product.create_changeset(product, attrs)
+  end
+
+  # Private functions
+
+  defp create_stripe_product(product) do
+    Stripe.Product.create(%{
+      name: product.title,
+      description: product.description,
+      metadata: %{
+        product_id: product.id,
+        store_id: product.store_id,
+        product_type: product.type
+      }
+    })
+  end
+
+  defp update_stripe_product(product) do
+    if product.stripe_product_id do
+      Stripe.Product.update(product.stripe_product_id, %{
+        name: product.title,
+        description: product.description
+      })
+    end
+  end
+
+  defp delete_stripe_product_and_prices(stripe_product_id) do
+    # Delete associated Stripe prices first
+    case Stripe.Price.list(%{product: stripe_product_id, active: true}) do
+      %{data: prices} when is_list(prices) ->
+        Enum.each(prices, fn price ->
+          Stripe.Price.update(price.id, %{active: false})
+        end)
+      
+      _ ->
+        :ok
+    end
+
+    # Delete Stripe product
+    Stripe.Product.delete(stripe_product_id)
+  end
+end

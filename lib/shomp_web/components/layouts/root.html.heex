@@ -8,6 +8,9 @@
       {assigns[:page_title]}
     </.live_title>
     <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
+    <script>
+      window.stripePublishableKey = "<%= Application.get_env(:shomp, :stripe_publishable_key) %>";
+    </script>
     <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
     </script>
     <script>
@@ -32,7 +35,13 @@
   </head>
   <body>
     <ul class="menu menu-horizontal w-full relative z-10 flex items-center gap-4 px-4 sm:px-6 lg:px-8 justify-end">
+      <li>
+        <.link href={~p"/stores"}>Browse Stores</.link>
+      </li>
       <%= if @current_scope do %>
+        <li>
+          <.link href={~p"/stores/new"} class="btn btn-primary btn-sm">Create Store</.link>
+        </li>
         <li>
           {@current_scope.user.email}
         </li>

@@ -23,10 +23,44 @@ defmodule ShompWeb.Router do
     get "/", PageController, :home
   end
 
-  # Other scopes may use custom stacks.
-  # scope "/api", ShompWeb do
-  #   pipe_through :api
-  # end
+  scope "/stores", ShompWeb do
+    pipe_through :browser
+
+    live "/new", StoreLive.New, :new
+    live "/", StoreLive.Index, :index
+  end
+
+  scope "/payments", ShompWeb do
+    pipe_through :browser
+
+    post "/checkout", PaymentController, :create_checkout
+    post "/webhook", PaymentController, :webhook
+    get "/success", PaymentController, :success
+    get "/cancel", PaymentController, :cancel
+  end
+
+  scope "/checkout", ShompWeb do
+    pipe_through [:browser, :require_authenticated_user]
+
+    live "/:product_id", CheckoutLive.Show, :show
+  end
+
+  ## Authentication routes
+
+  scope "/", ShompWeb do
+    pipe_through [:browser, :require_authenticated_user]
+
+    live_session :require_authenticated_user,
+      on_mount: [{ShompWeb.UserAuth, :require_authenticated}] do
+      live "/users/settings", UserLive.Settings, :edit
+      live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
+      live "/dashboard/store", StoreLive.Edit, :edit
+      live "/dashboard/products/new", ProductLive.New, :new
+      live "/dashboard/products/:id/edit", ProductLive.Edit, :edit
+    end
+
+    post "/users/update-password", UserSessionController, :update_password
+  end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
   if Application.compile_env(:shomp, :dev_routes) do
@@ -45,19 +79,19 @@ defmodule ShompWeb.Router do
     end
   end
 
-  ## Authentication routes
-
+  # CATCH-ALL ROUTES - MUST BE LAST!
+  # These routes are very broad and will catch anything that doesn't match above
   scope "/", ShompWeb do
-    pipe_through [:browser, :require_authenticated_user]
+    pipe_through :browser
 
-    live_session :require_authenticated_user,
-      on_mount: [{ShompWeb.UserAuth, :require_authenticated}] do
-      live "/users/settings", UserLive.Settings, :edit
-      live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
-    end
-
-    post "/users/update-password", UserSessionController, :update_password
+    live "/:slug", StoreLive.Show, :show
+    live "/:store_slug/products/:id", ProductLive.Show, :show
   end
+
+  # Other scopes may use custom stacks.
+  # scope "/api", ShompWeb do
+  #   pipe_through :api
+  # end
 
   scope "/", ShompWeb do
     pipe_through [:browser]

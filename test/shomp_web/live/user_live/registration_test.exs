@@ -28,7 +28,7 @@ defmodule ShompWeb.UserLive.RegistrationTest do
       result =
         lv
         |> element("#registration_form")
-        |> render_change(user: %{"email" => "with spaces"})
+        |> render_change(user: %{"email" => "with spaces", "name" => "Test User", "password" => "password123"})
 
       assert result =~ "Register"
       assert result =~ "must have the @ sign and no spaces"
@@ -40,14 +40,14 @@ defmodule ShompWeb.UserLive.RegistrationTest do
       {:ok, lv, _html} = live(conn, ~p"/users/register")
 
       email = unique_user_email()
-      form = form(lv, "#registration_form", user: valid_user_attributes(email: email))
+      form = form(lv, "#registration_form", user: valid_user_password_attributes(email: email))
 
       {:ok, _lv, html} =
         render_submit(form)
         |> follow_redirect(conn, ~p"/users/log-in")
 
       assert html =~
-               ~r/An email was sent to .*, please access it to confirm your account/
+               ~r/Account created successfully! Please check your email to confirm your account/
     end
 
     test "renders errors for duplicated email", %{conn: conn} do

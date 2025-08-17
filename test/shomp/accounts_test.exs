@@ -77,11 +77,11 @@ defmodule Shomp.AccountsTest do
       assert "has already been taken" in errors_on(changeset).email
     end
 
-    test "registers users without password" do
+    test "registers users with password" do
       email = unique_user_email()
-      {:ok, user} = Accounts.register_user(valid_user_attributes(email: email))
+      {:ok, user} = Accounts.register_user(valid_user_password_attributes(email: email))
       assert user.email == email
-      assert is_nil(user.hashed_password)
+      assert user.hashed_password
       assert is_nil(user.confirmed_at)
       assert is_nil(user.password)
     end
@@ -309,7 +309,7 @@ defmodule Shomp.AccountsTest do
 
   describe "get_user_by_magic_link_token/1" do
     setup do
-      user = user_fixture()
+      user = magic_link_user_fixture()
       {encoded_token, _hashed_token} = generate_user_magic_link_token(user)
       %{user: user, token: encoded_token}
     end
@@ -342,7 +342,7 @@ defmodule Shomp.AccountsTest do
     end
 
     test "returns user and (deleted) token for confirmed user" do
-      user = user_fixture()
+      user = magic_link_user_fixture()
       assert user.confirmed_at
       {encoded_token, _hashed_token} = generate_user_magic_link_token(user)
       assert {:ok, {^user, []}} = Accounts.login_user_by_magic_link(encoded_token)
@@ -350,14 +350,15 @@ defmodule Shomp.AccountsTest do
       assert {:error, :not_found} = Accounts.login_user_by_magic_link(encoded_token)
     end
 
-    test "raises when unconfirmed user has password set" do
+    test "allows magic link for unconfirmed user with password set" do
       user = unconfirmed_user_fixture()
-      {1, nil} = Repo.update_all(User, set: [hashed_password: "hashed"])
-      {encoded_token, _hashed_token} = generate_user_magic_link_token(user)
+      # Add a password to the user
+      {:ok, user_with_password} = Accounts.add_user_password(user, %{password: "test_password123"})
+      {encoded_token, _hashed_token} = generate_user_magic_link_token(user_with_password)
 
-      assert_raise RuntimeError, ~r/magic link log in is not allowed/, fn ->
-        Accounts.login_user_by_magic_link(encoded_token)
-      end
+      # Magic links should work even for users with passwords
+      assert {:ok, {confirmed_user, _}} = Accounts.login_user_by_magic_link(encoded_token)
+      assert confirmed_user.confirmed_at
     end
   end
 
@@ -392,6 +393,34 @@ defmodule Shomp.AccountsTest do
   describe "inspect/2 for the User module" do
     test "does not include password" do
       refute inspect(%User{password: "123456"}) =~ "password: \"123456\""
+    end
+  end
+
+  describe "add_user_password/2" do
+    test "adds password to user without password" do
+      user = unconfirmed_user_fixture()
+      assert is_nil(user.hashed_password)
+
+      {:ok, user_with_password} = Accounts.add_user_password(user, %{password: "new_password123"})
+      assert user_with_password.hashed_password
+      assert User.valid_password?(user_with_password, "new_password123")
+    end
+
+    test "updates existing password" do
+      user = user_fixture()
+      assert user.hashed_password
+
+      {:ok, user_with_new_password} = Accounts.add_user_password(user, %{password: "updated_password123"})
+      assert user_with_new_password.hashed_password
+      assert User.valid_password?(user_with_new_password, "updated_password123")
+      refute User.valid_password?(user_with_new_password, valid_user_password())
+    end
+
+    test "validates password requirements" do
+      user = unconfirmed_user_fixture()
+      
+      {:error, changeset} = Accounts.add_user_password(user, %{password: "short"})
+      assert "should be at least 12 character(s)" in errors_on(changeset).password
     end
   end
 end

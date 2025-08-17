@@ -30,6 +30,7 @@
 - `/stores/new` - create store
 - `/:store_slug` - public store page
 - `/dashboard/store` - edit store
+- `/stores` - show all the stores we have
 
 ## 3. Create Product Listing (Shomp.Products)
 ### Context & Schema
@@ -131,18 +132,38 @@
 - `/donations/process` - handle donation
 - `/donations/thank-you` - success page
 
-## Supporting Infrastructure
-### Database
-- Ecto migrations for all schemas
-- Database indexes for performance
-- Foreign key constraints
 
-### Configuration
-- Stripe API keys in config
-- File upload configuration
-- Email configuration
+## 8. Feature Requests (Shomp.FeatureRequests)
+### Context & Schema
+- `Shomp.FeatureRequests.Request` schema (title, description, category, status, user_id, priority, created_at)
+- `Shomp.FeatureRequests.Vote` schema (request_id, user_id, weight)
+- `Shomp.FeatureRequests.Comment` schema (request_id, user_id, content, created_at)
+- `Shomp.FeatureRequests` context (create_request, vote_request, add_comment, merge_requests)
 
-### Background Jobs
-- Oban for background processing
-- Email sending jobs
-- Webhook processing jobs
+### Voting & Prioritization
+- Vote weight calculation based on user activity
+- Admin priority override system
+- Duplicate detection and merging
+- Status tracking workflow
+
+### Notification System
+- Email notifications for status changes
+- Comment notifications
+- Request updates to submitters
+- Roadmap milestone notifications
+
+### Web Layer
+- `ShompWeb.FeatureRequestLive.Index` (browse all requests)
+- `ShompWeb.FeatureRequestLive.New` (submit new request)
+- `ShompWeb.FeatureRequestLive.Show` (request detail with comments)
+- `ShompWeb.FeatureRequestLive.Admin` (admin management interface)
+- `ShompWeb.RoadmapLive` (public roadmap display)
+
+### Routes
+- `/features` - browse feature requests
+- `/features/new` - submit feature request
+- `/features/:id` - feature request detail
+- `/features/search` - search requests
+- `/dashboard/features` - user's submitted requests
+- `/admin/features` - admin feature management
+- `/roadmap` - public feature roadmap

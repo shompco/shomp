@@ -8,15 +8,28 @@ defmodule Shomp.Application do
   @impl true
   def start(_type, _args) do
     children = [
+      # Start the Telemetry supervisor
       ShompWeb.Telemetry,
+      # Start the Ecto repository
       Shomp.Repo,
-      {DNSCluster, query: Application.get_env(:shomp, :dns_cluster_query) || :ignore},
+      # Start the PubSub system
       {Phoenix.PubSub, name: Shomp.PubSub},
-      # Start a worker by calling: Shomp.Worker.start_link(arg)
-      # {Shomp.Worker, arg},
-      # Start to serve requests, typically the last entry
+      # Start Finch
+      {Finch, name: Shomp.Finch},
+      # Start the Endpoint (http/https)
       ShompWeb.Endpoint
+      # Start a worker by calling: Shomp.Worker.start_link(arg)
+      # {Shomp.Worker, arg}
     ]
+
+    # Log Stripe configuration
+    stripe_api_key = Application.get_env(:stripity_stripe, :api_key)
+    stripe_publishable = Application.get_env(:shomp, :stripe_publishable_key)
+    
+    IO.puts("=== STRIPE CONFIGURATION ===")
+    IO.puts("API Key: #{if stripe_api_key, do: String.slice(stripe_api_key, 0, 20) <> "...", else: "NOT SET"}")
+    IO.puts("Publishable Key: #{if stripe_publishable, do: String.slice(stripe_publishable, 0, 20) <> "...", else: "NOT SET"}")
+    IO.puts("=============================")
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
