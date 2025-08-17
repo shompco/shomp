@@ -1,32 +1,34 @@
 <div class="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
   <div class="sm:mx-auto sm:w-full sm:max-w-md">
-    <div class="text-center">
-      <svg class="mx-auto h-12 w-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-      <h2 class="mt-6 text-3xl font-extrabold text-gray-900">
-        Payment Successful!
-      </h2>
-      <p class="mt-2 text-sm text-gray-600">
-        Thank you for your purchase. Your order has been confirmed.
-      </p>
-    </div>
-  </div>
-
-  <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
     <div class="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
       <div class="text-center">
-        <p class="text-sm text-gray-600 mb-6">
-          Session ID: <code class="bg-gray-100 px-2 py-1 rounded"><%= @session_id %></code>
+        <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
+          <svg class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <h2 class="mt-6 text-3xl font-extrabold text-gray-900">
+          Payment Successful!
+        </h2>
+        <p class="mt-2 text-sm text-gray-600">
+          Thank you for your purchase. Your payment has been processed successfully.
         </p>
         
-        <div class="space-y-4">
+        <%= if @conn.params["session_id"] do %>
+          <div class="mt-4 p-3 bg-gray-50 rounded-md">
+            <p class="text-xs text-gray-500">Session ID: <%= @conn.params["session_id"] %></p>
+          </div>
+        <% end %>
+      </div>
+      
+      <div class="mt-8">
+        <div class="text-center space-y-3">
           <a href="/" class="btn btn-primary w-full">
             Return to Home
           </a>
           
-          <a href="/dashboard/purchases" class="btn btn-outline w-full">
-            View My Purchases
+          <a href="/dashboard" class="btn btn-outline w-full">
+            Go to Dashboard
           </a>
         </div>
       </div>

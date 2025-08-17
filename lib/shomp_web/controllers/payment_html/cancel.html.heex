@@ -1,32 +1,24 @@
 <div class="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
   <div class="sm:mx-auto sm:w-full sm:max-w-md">
-    <div class="text-center">
-      <svg class="mx-auto h-12 w-12 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-      <h2 class="mt-6 text-3xl font-extrabold text-gray-900">
-        Payment Cancelled
-      </h2>
-      <p class="mt-2 text-sm text-gray-600">
-        Your payment was cancelled. No charges were made to your account.
-      </p>
-    </div>
-  </div>
-
-  <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
     <div class="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
       <div class="text-center">
-        <p class="text-sm text-gray-600 mb-6">
-          You can try again anytime or contact support if you need help.
+        <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+          <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </div>
+        <h2 class="mt-6 text-3xl font-extrabold text-gray-900">
+          Payment Cancelled
+        </h2>
+        <p class="mt-2 text-sm text-gray-600">
+          Your payment was cancelled. No charges were made to your account.
         </p>
-        
-        <div class="space-y-4">
-          <a href="/" class="btn btn-primary w-full">
+      </div>
+      
+      <div class="mt-8">
+        <div class="text-center">
+          <a href="/" class="btn btn-primary">
             Return to Home
-          </a>
-          
-          <a href="/stores" class="btn btn-outline w-full">
-            Browse More Stores
           </a>
         </div>
       </div>

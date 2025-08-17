@@ -18,25 +18,36 @@ defmodule ShompWeb.CheckoutLive.Show do
   end
 
   def handle_event("checkout", _params, socket) do
+    IO.puts("=== CHECKOUT BUTTON CLICKED ===")
+    IO.puts("Product ID: #{socket.assigns.product.id}")
+    IO.puts("Product Title: #{socket.assigns.product.title}")
+    IO.puts("User ID: #{socket.assigns.current_scope.user.id}")
+    
     product = socket.assigns.product
+    
+    IO.puts("Creating Stripe checkout session...")
     
     # Create Stripe checkout session
     case Payments.create_checkout_session(
       product.id,
       socket.assigns.current_scope.user.id,
-      ~p"/payments/success?session_id={CHECKOUT_SESSION_ID}",
-      ~p"/payments/cancel"
+      "http://localhost:4000/payments/success?session_id={CHECKOUT_SESSION_ID}",
+      "http://localhost:4000/payments/cancel"
     ) do
       {:ok, session, _payment} ->
+        IO.puts("Checkout session created successfully: #{session.id}")
+        IO.puts("Redirecting to: #{session.url}")
         # Redirect to Stripe Checkout
-        {:noreply, push_navigate(socket, external: session.url)}
+        {:noreply, redirect(socket, external: session.url)}
       
       {:error, :no_stripe_product} ->
+        IO.puts("Error: No Stripe product found")
         {:noreply, 
          socket
          |> put_flash(:error, "This product is not available for purchase at the moment. Please contact support.")}
       
-      {:error, _reason} ->
+      {:error, reason} ->
+        IO.puts("Error creating checkout session: #{inspect(reason)}")
         {:noreply, 
          socket
          |> put_flash(:error, "Failed to create checkout session. Please try again.")}
