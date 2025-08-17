@@ -16,10 +16,16 @@
       </div>
       
       <div class="mt-8">
-        <div class="text-center">
-          <a href="/" class="btn btn-primary">
+        <div class="text-center space-y-3">
+          <a href="/" class="btn btn-primary w-full">
             Return to Home
           </a>
+          
+          <%= if @conn.params["store_slug"] do %>
+            <a href={"/#{@conn.params["store_slug"]}"} class="btn btn-outline w-full">
+              Return to Store
+            </a>
+          <% end %>
         </div>
       </div>
     </div>

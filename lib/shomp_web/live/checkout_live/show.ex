@@ -31,8 +31,8 @@ defmodule ShompWeb.CheckoutLive.Show do
     case Payments.create_checkout_session(
       product.id,
       socket.assigns.current_scope.user.id,
-      "http://localhost:4000/payments/success?session_id={CHECKOUT_SESSION_ID}",
-      "http://localhost:4000/payments/cancel"
+      "http://localhost:4000/payments/success?session_id={CHECKOUT_SESSION_ID}&store_slug=#{product.store.slug}",
+      "http://localhost:4000/payments/cancel?store_slug=#{product.store.slug}"
     ) do
       {:ok, session, _payment} ->
         IO.puts("Checkout session created successfully: #{session.id}")

@@ -27,6 +27,12 @@
             Return to Home
           </a>
           
+          <%= if @conn.params["store_slug"] do %>
+            <a href={"/#{@conn.params["store_slug"]}"} class="btn btn-outline w-full">
+              Return to Store
+            </a>
+          <% end %>
+          
           <a href="/dashboard" class="btn btn-outline w-full">
             Go to Dashboard
           </a>
