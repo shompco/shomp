@@ -139,7 +139,7 @@ defmodule Shomp.Payments do
           # Create new price
           Stripe.Price.create(%{
             product: product.stripe_product_id,
-            unit_amount: trunc(product.price * 100), # Convert to cents
+            unit_amount: trunc(Decimal.to_float(product.price) * 100), # Convert to cents
             currency: "usd",
             active: true
           })
