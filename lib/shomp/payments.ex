@@ -76,6 +76,42 @@ defmodule Shomp.Payments do
   end
 
   @doc """
+  Creates a Stripe checkout session for a cart with multiple items.
+  """
+  def create_cart_checkout_session(cart_id, user_id) do
+    alias Shomp.Carts
+    
+    IO.puts("=== PAYMENTS CHECKOUT DEBUG ===")
+    IO.puts("Looking for cart_id: #{cart_id}, user_id: #{user_id}")
+    
+    # Find the cart by ID for the user
+    all_carts = Carts.list_user_carts(user_id)
+    IO.puts("User has #{length(all_carts)} carts")
+    
+    cart = all_carts |> Enum.find(&(&1.id == cart_id))
+    IO.puts("Found cart: #{inspect(cart != nil)}")
+    
+    case cart do
+      nil ->
+        IO.puts("Cart not found!")
+        {:error, :cart_not_found}
+      
+      cart ->
+        IO.puts("Cart found, creating Stripe session...")
+        case create_cart_stripe_session(cart, user_id) do
+          {:ok, session} ->
+            IO.puts("Stripe session created successfully")
+            # Don't create payment records yet - let the webhook handle it after payment
+            {:ok, session}
+          
+          {:error, reason} ->
+            IO.puts("Failed to create Stripe session: #{inspect(reason)}")
+            {:error, reason}
+        end
+    end
+  end
+
+  @doc """
   Handles Stripe webhook events.
   """
   def handle_webhook(event) do
@@ -99,6 +135,15 @@ defmodule Shomp.Payments do
   """
   def get_payment_by_stripe_id(stripe_payment_id) do
     Repo.get_by(Payment, stripe_payment_id: stripe_payment_id)
+  end
+
+  @doc """
+  Lists all payments by Stripe payment ID (for cart payments).
+  """
+  def list_payments_by_stripe_id(stripe_payment_id) do
+    Payment
+    |> where([p], p.stripe_payment_id == ^stripe_payment_id)
+    |> Repo.all()
   end
 
   @doc """
@@ -223,11 +268,31 @@ defmodule Shomp.Payments do
   end
 
   defp handle_checkout_completed(session) do
+    # Check if this is a cart payment or single product payment
+    case session.metadata do
+      %{"cart_id" => _cart_id, "type" => "cart_order"} ->
+        # This is a cart order payment - handle the entire cart
+        handle_cart_order_completed(session)
+      
+      %{"cart_id" => _cart_id} ->
+        # This is a legacy cart payment - handle multiple products
+        handle_cart_checkout_completed(session)
+      
+      _ ->
+        # This is a single product payment
+        handle_single_product_checkout_completed(session)
+    end
+  end
+
+  defp handle_single_product_checkout_completed(session) do
     case get_payment_by_stripe_id(session.id) do
       nil -> {:error, :payment_not_found}
       payment -> 
         case update_payment_status(payment, "succeeded") do
           {:ok, updated_payment} ->
+            # Update store balance
+            update_store_balance_from_payment(updated_payment)
+            
             # Try to create download, but don't fail if it doesn't work
             case create_download_for_product(updated_payment) do
               {:ok, _download} -> {:ok, updated_payment}
@@ -241,6 +306,85 @@ defmodule Shomp.Payments do
     end
   end
 
+  defp handle_cart_order_completed(session) do
+    # This is a cart order payment - create payment records for all cart items
+    cart_id = String.to_integer(session.metadata["cart_id"])
+    user_id = String.to_integer(session.metadata["user_id"])
+    
+    # Get the cart and create payment records for each item
+    alias Shomp.Carts
+    case Carts.get_cart!(cart_id) do
+      nil ->
+        {:error, :cart_not_found}
+      
+      cart ->
+        # Create payment records for each cart item
+        payments = Enum.map(cart.cart_items, fn cart_item ->
+          create_payment(%{
+            amount: Decimal.mult(cart_item.price, cart_item.quantity),
+            stripe_payment_id: session.id,
+            product_id: cart_item.product_id,
+            user_id: user_id
+          })
+        end)
+        
+        # Check if all payments were created successfully
+        case Enum.find(payments, &match?({:error, _}, &1)) do
+          {:error, reason} ->
+            {:error, reason}
+          
+          nil ->
+            # Mark all payments as succeeded
+            Enum.each(payments, fn {:ok, payment} ->
+              update_payment_status(payment, "succeeded")
+              update_store_balance_from_payment(payment)
+            end)
+            
+            # Complete the cart
+            Carts.complete_cart(cart_id)
+            
+            {:ok, :cart_order_completed}
+        end
+    end
+  end
+
+  defp handle_cart_checkout_completed(session) do
+    # Get all payments for this session
+    payments = list_payments_by_stripe_id(session.id)
+    
+    case payments do
+      [] -> {:error, :no_payments_found}
+      
+      payments ->
+        # Update all payment statuses
+        Enum.each(payments, fn payment ->
+          update_payment_status(payment, "succeeded")
+          update_store_balance_from_payment(payment)
+        end)
+        
+        # Complete the cart
+        alias Shomp.Carts
+        cart_id = String.to_integer(session.metadata["cart_id"])
+        Carts.complete_cart(cart_id)
+        
+        {:ok, :cart_completed}
+    end
+  end
+
+  defp update_store_balance_from_payment(payment) do
+    # Get the product to find the store
+    case Shomp.Products.get_product!(payment.product_id) do
+      nil -> 
+        IO.puts("Warning: Product not found for payment #{payment.id}")
+        {:error, :product_not_found}
+      
+      product ->
+        # Update store balance
+        alias Shomp.Stores.StoreBalances
+        StoreBalances.add_sale(product.store_id, payment.amount)
+    end
+  end
+
   defp handle_payment_succeeded(_payment_intent) do
     # Handle successful payment intent
     {:ok, :payment_succeeded}
@@ -249,5 +393,137 @@ defmodule Shomp.Payments do
   defp handle_payment_failed(_payment_intent) do
     # Handle failed payment intent
     {:ok, :payment_failed}
+  end
+
+  defp create_cart_stripe_session(cart, user_id) do
+    IO.puts("=== CREATING CART STRIPE SESSION ===")
+    IO.puts("Cart ID: #{cart.id}")
+    IO.puts("Cart Total: #{cart.total_amount}")
+    IO.puts("Cart Items: #{length(cart.cart_items)}")
+    
+    # Create a single Stripe product for the entire cart order
+    cart_total = cart.total_amount
+    
+    # Create a cart product name that describes the order
+    product_names = cart.cart_items 
+    |> Enum.map(fn item -> "#{item.quantity}x #{item.product.title}" end)
+    |> Enum.join(", ")
+    
+    cart_product_name = "Cart Order - #{cart.store.name}"
+    cart_product_description = "Items: #{product_names}"
+    
+    IO.puts("Creating Stripe product: #{cart_product_name}")
+    IO.puts("Description: #{cart_product_description}")
+    IO.puts("Total amount: #{cart_total}")
+    
+    # Create a Stripe product for this cart order
+    case create_cart_stripe_product(cart_product_name, cart_product_description, cart_total) do
+      {:ok, stripe_product, stripe_price} ->
+        IO.puts("=== CREATING STRIPE SESSION ===")
+        # Create Stripe session with single line item
+        success_url = "#{ShompWeb.Endpoint.url()}/payments/success?session_id={CHECKOUT_SESSION_ID}&store_slug=#{cart.store.slug}"
+        cancel_url = "#{ShompWeb.Endpoint.url()}/payments/cancel?store_slug=#{cart.store.slug}"
+        
+        IO.puts("Success URL: #{success_url}")
+        IO.puts("Cancel URL: #{cancel_url}")
+        IO.puts("Calling Stripe.Session.create...")
+        
+        result = Stripe.Session.create(%{
+          payment_method_types: ["card"],
+          line_items: [
+            %{
+              price: stripe_price.id,
+              quantity: 1
+            }
+          ],
+          mode: "payment",
+          success_url: success_url,
+          cancel_url: cancel_url,
+          metadata: %{
+            cart_id: cart.id,
+            store_id: cart.store_id,
+            user_id: user_id,
+            type: "cart_order"
+          }
+        })
+        
+        case result do
+          {:ok, session} ->
+            IO.puts("Stripe session created successfully: #{session.id}")
+            IO.puts("Session URL: #{session.url}")
+            {:ok, session}
+          
+          {:error, reason} ->
+            IO.puts("Failed to create Stripe session: #{inspect(reason)}")
+            {:error, reason}
+        end
+      
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp create_cart_stripe_product(product_name, description, total_amount) do
+    IO.puts("=== CREATING STRIPE PRODUCT ===")
+    IO.puts("Product Name: #{product_name}")
+    IO.puts("Description: #{description}")
+    IO.puts("Total Amount: #{total_amount}")
+    
+    # Convert decimal to cents for Stripe
+    unit_amount = trunc(Decimal.to_float(total_amount) * 100)
+    IO.puts("Unit Amount (cents): #{unit_amount}")
+    
+    # Create a Stripe product for this cart order
+    IO.puts("Calling Stripe.Product.create...")
+    case Stripe.Product.create(%{
+      name: product_name,
+      description: description
+    }) do
+      {:ok, stripe_product} ->
+        IO.puts("Stripe product created successfully: #{stripe_product.id}")
+        # Create a price for this product
+        IO.puts("Calling Stripe.Price.create...")
+        case Stripe.Price.create(%{
+          product: stripe_product.id,
+          unit_amount: unit_amount,
+          currency: "usd",
+          active: true
+        }) do
+          {:ok, stripe_price} ->
+            IO.puts("Stripe price created successfully: #{stripe_price.id}")
+            {:ok, stripe_product, stripe_price}
+          
+          {:error, reason} ->
+            IO.puts("Failed to create Stripe price: #{inspect(reason)}")
+            # Clean up the product if price creation fails
+            Stripe.Product.delete(stripe_product.id)
+            {:error, reason}
+        end
+      
+      {:error, reason} ->
+        IO.puts("Failed to create Stripe product: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
+
+  defp create_cart_payment_records(cart, user_id, session_id) do
+    # Create payment records for each cart item
+    payments = Enum.map(cart.cart_items, fn cart_item ->
+      create_payment(%{
+        amount: Decimal.mult(cart_item.price, cart_item.quantity),
+        stripe_payment_id: session_id,
+        product_id: cart_item.product_id,
+        user_id: user_id
+      })
+    end)
+
+    # Check if all payments were created successfully
+    case Enum.find(payments, &match?({:error, _}, &1)) do
+      {:error, reason} ->
+        {:error, reason}
+      
+      nil ->
+        {:ok, Enum.map(payments, fn {:ok, payment} -> payment end)}
+    end
   end
 end

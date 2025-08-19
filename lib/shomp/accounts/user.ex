@@ -13,6 +13,7 @@ defmodule Shomp.Accounts.User do
     has_many :stores, Shomp.Stores.Store
     has_many :payments, Shomp.Payments.Payment
     has_many :downloads, Shomp.Downloads.Download
+    has_many :carts, Shomp.Carts.Cart
 
     timestamps(type: :utc_datetime)
   end

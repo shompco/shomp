@@ -14,6 +14,22 @@
     <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
     </script>
     <script>
+      // Cart count update handler
+      function updateCartCount(count) {
+        const cartCountElement = document.getElementById("cart-count");
+        if (cartCountElement) {
+          cartCountElement.textContent = `(${count})`;
+        } else {
+          // Retry after a short delay in case the DOM isn't ready yet
+          setTimeout(() => updateCartCount(count), 100);
+        }
+      }
+      
+      window.addEventListener("phx:cart-count-updated", (e) => {
+        updateCartCount(e.detail.count);
+      });
+    </script>
+    <script>
       (() => {
         const setTheme = (theme) => {
           if (theme === "system") {
@@ -46,6 +62,9 @@
           <.link href={~p"/stores/new"} class="btn btn-primary btn-sm">Create Store</.link>
         </li>
         <li>
+          <.link href={~p"/dashboard/store/balance"}>Store Balance</.link>
+        </li>
+        <li>
           {@current_scope.user.email}
         </li>
         <li>
@@ -56,6 +75,12 @@
         </li>
         <li>
           <.link href={~p"/users/log-out"} method="delete">Log out</.link>
+        </li>
+        <li>
+          <.link href={~p"/cart"} class="flex items-center space-x-1">
+            <span>🛒</span>
+            <span class="cart-count" id="cart-count">(0)</span>
+          </.link>
         </li>
       <% else %>
         <li>

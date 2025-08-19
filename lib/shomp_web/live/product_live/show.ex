@@ -82,6 +82,18 @@ defmodule ShompWeb.ProductLive.Show do
                     Buy Now - $<%= @product.price %>
                   </button>
                   
+                  <%= if @current_scope && @current_scope.user do %>
+                    <button 
+                      phx-click="add_to_cart"
+                      phx-value-product_id={@product.id}
+                      phx-value-store_id={@product.store_id}
+                      phx-disable-with="Adding to cart..."
+                      class="btn btn-outline w-full"
+                    >
+                      🛒 Add to Cart
+                    </button>
+                  <% end %>
+                  
                   <%= if @current_scope && @current_scope.user && @current_scope.user.id == @product.store.user_id do %>
                     <div class="flex gap-2">
                       <.link
@@ -135,6 +147,41 @@ defmodule ShompWeb.ProductLive.Show do
         {:noreply,
          socket
          |> put_flash(:error, "Failed to delete product. Please try again.")}
+    end
+  end
+
+  def handle_event("add_to_cart", %{"product_id" => product_id, "store_id" => store_id}, socket) do
+    user_id = socket.assigns.current_scope.user.id
+    
+    case Shomp.Carts.get_or_create_cart(user_id, store_id) do
+      {:ok, cart} ->
+        case Shomp.Carts.add_to_cart(cart.id, product_id) do
+          {:ok, _cart_item} ->
+            # Update cart count
+            cart_count = Shomp.Carts.list_user_carts(user_id)
+            |> Enum.reduce(0, fn cart, acc -> 
+              acc + Shomp.Carts.Cart.item_count(cart)
+            end)
+            
+            socket = assign(socket, :cart_count, cart_count)
+            
+            # Push the updated count to the client
+            socket = push_event(socket, "cart-count-updated", %{count: cart_count})
+            
+            {:noreply, 
+             socket
+             |> put_flash(:info, "Product added to cart!")}
+          
+          {:error, _changeset} ->
+            {:noreply, 
+             socket
+             |> put_flash(:error, "Failed to add product to cart.")}
+        end
+      
+      {:error, _changeset} ->
+        {:noreply, 
+         socket
+         |> put_flash(:error, "Failed to create cart.")}
     end
   end
 

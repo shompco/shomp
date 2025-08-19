@@ -10,6 +10,9 @@ defmodule Shomp.Stores.Store do
     field :description, :string
     belongs_to :user, User
     has_many :products, Shomp.Products.Product
+    has_many :carts, Shomp.Carts.Cart
+    has_one :store_balance, Shomp.Stores.StoreBalance
+    has_one :store_kyc, Shomp.Stores.StoreKYC
 
     timestamps(type: :utc_datetime)
   end
