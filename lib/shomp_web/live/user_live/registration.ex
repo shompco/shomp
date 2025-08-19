@@ -33,10 +33,19 @@ defmodule ShompWeb.UserLive.Registration do
           />
 
           <.input
+            field={@form[:username]}
+            type="text"
+            label="Username"
+            autocomplete="username"
+            required
+            placeholder="Choose a unique username (3-30 characters)"
+          />
+
+          <.input
             field={@form[:email]}
             type="email"
             label="Email"
-            autocomplete="username"
+            autocomplete="email"
             required
           />
 

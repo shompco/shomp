@@ -29,6 +29,20 @@ defmodule ShompWeb.UserLive.Settings do
 
       <div class="divider" />
 
+      <.form for={@username_form} id="username_form" phx-submit="update_username" phx-change="validate_username">
+        <.input
+          field={@username_form[:username]}
+          type="text"
+          label="Username"
+          autocomplete="username"
+          required
+          placeholder="Choose a unique username (3-30 characters)"
+        />
+        <.button variant="primary" phx-disable-with="Changing...">Change Username</.button>
+      </.form>
+
+      <div class="divider" />
+
       <.form
         for={@password_form}
         id="password_form"
@@ -83,12 +97,14 @@ defmodule ShompWeb.UserLive.Settings do
   def mount(_params, _session, socket) do
     user = socket.assigns.current_scope.user
     email_changeset = Accounts.change_user_email(user, %{}, validate_unique: false)
+    username_changeset = Accounts.change_user_username(user, %{}, validate_unique: false)
     password_changeset = Accounts.change_user_password(user, %{}, hash_password: false)
 
     socket =
       socket
       |> assign(:current_email, user.email)
       |> assign(:email_form, to_form(email_changeset))
+      |> assign(:username_form, to_form(username_changeset))
       |> assign(:password_form, to_form(password_changeset))
       |> assign(:trigger_submit, false)
 

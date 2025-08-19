@@ -25,11 +25,77 @@ import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/shomp"
 import topbar from "../vendor/topbar"
 
+// Custom hooks for real-time features
+const VoteUpdates = {
+  mounted() {
+    this.handleEvent("update_vote_total", ({request_id, total, username, action, weight}) => {
+      const voteTotalElement = document.getElementById(`vote-total-${request_id}`)
+      if (voteTotalElement) {
+        // Add a subtle animation effect
+        voteTotalElement.style.transform = "scale(1.1)"
+        voteTotalElement.style.transition = "transform 0.2s ease-in-out"
+        
+        // Update the vote count
+        voteTotalElement.textContent = total
+        
+        // Reset the animation
+        setTimeout(() => {
+          voteTotalElement.style.transform = "scale(1)"
+        }, 200)
+        
+        // Show a detailed notification
+        this.showVoteNotification(request_id, total, username, action, weight)
+      }
+    })
+  },
+  
+  showVoteNotification(request_id, total, username, action, weight) {
+    // Create a floating notification with more details
+    const notification = document.createElement('div')
+    notification.className = 'fixed top-4 right-4 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 transform translate-x-full transition-transform duration-300 max-w-sm'
+    
+    // Create detailed message
+    let message = ''
+    if (action === 'voted') {
+      const voteType = weight > 0 ? 'upvoted' : 'downvoted'
+      message = `@${username} ${voteType} this request`
+    } else if (action === 'removed vote') {
+      message = `@${username} removed their vote`
+    } else if (action === 'updated vote') {
+      const voteType = weight > 0 ? 'upvoted' : 'downvoted'
+      message = `@${username} changed to ${voteType}`
+    }
+    
+    notification.innerHTML = `
+      <div class="font-medium">${message}</div>
+      <div class="text-sm opacity-90">New total: ${total} votes</div>
+    `
+    
+    document.body.appendChild(notification)
+    
+    // Slide in
+    setTimeout(() => {
+      notification.style.transform = 'translateX(0)'
+    }, 100)
+    
+    // Slide out and remove
+    setTimeout(() => {
+      notification.style.transform = 'translateX(full)'
+      setTimeout(() => {
+        document.body.removeChild(notification)
+      }, 300)
+    }, 3000)
+  }
+}
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks},
+  hooks: {
+    ...colocatedHooks,
+    VoteUpdates
+  },
 })
 
 // Show progress bar on live navigation and form submits

@@ -4,6 +4,7 @@ defmodule Shomp.Accounts.User do
 
   schema "users" do
     field :email, :string
+    field :username, :string
     field :name, :string
     field :role, :string, default: "user"
     field :password, :string, virtual: true, redact: true
@@ -14,6 +15,7 @@ defmodule Shomp.Accounts.User do
     has_many :payments, Shomp.Payments.Payment
     has_many :downloads, Shomp.Downloads.Download
     has_many :carts, Shomp.Carts.Cart
+    has_many :requests, Shomp.FeatureRequests.Request
 
     timestamps(type: :utc_datetime)
   end
@@ -26,10 +28,12 @@ defmodule Shomp.Accounts.User do
   """
   def registration_changeset(user, attrs, opts \\ []) do
     user
-    |> cast(attrs, [:email, :password, :name])
+    |> cast(attrs, [:email, :password, :name, :username])
     |> validate_email(opts)
-    |> validate_required([:name])
+    |> validate_username(opts)
+    |> validate_required([:name, :username])
     |> validate_length(:name, min: 2, max: 100)
+    |> validate_length(:username, min: 3, max: 30)
     |> maybe_validate_password(opts)
   end
 
@@ -40,11 +44,13 @@ defmodule Shomp.Accounts.User do
   """
   def password_registration_changeset(user, attrs, opts \\ []) do
     user
-    |> cast(attrs, [:email, :password, :name])
+    |> cast(attrs, [:email, :password, :name, :username])
     |> validate_email(opts)
+    |> validate_username(opts)
     |> validate_password(opts)
-    |> validate_required([:name])
+    |> validate_required([:name, :username])
     |> validate_length(:name, min: 2, max: 100)
+    |> validate_length(:username, min: 3, max: 30)
   end
 
   @doc """
@@ -75,6 +81,21 @@ defmodule Shomp.Accounts.User do
     |> validate_email(opts)
   end
 
+  @doc """
+  A user changeset for changing the username.
+
+  ## Options
+
+    * `:validate_unique` - Set to false if you don't want to validate the
+      uniqueness of the username, useful when displaying live validations.
+      Defaults to `true`.
+  """
+  def username_changeset(user, attrs, opts \\ []) do
+    user
+    |> cast(attrs, [:username])
+    |> validate_username(opts)
+  end
+
   defp validate_email(changeset, opts) do
     changeset =
       changeset
@@ -97,6 +118,24 @@ defmodule Shomp.Accounts.User do
   defp validate_email_changed(changeset) do
     if get_field(changeset, :email) && get_change(changeset, :email) == nil do
       add_error(changeset, :email, "did not change")
+    else
+      changeset
+    end
+  end
+
+  defp validate_username(changeset, opts) do
+    changeset =
+      changeset
+      |> validate_required([:username])
+      |> validate_format(:username, ~r/^[a-zA-Z0-9_-]+$/,
+        message: "can only contain letters, numbers, underscores, and hyphens"
+      )
+      |> validate_length(:username, min: 3, max: 30)
+
+    if Keyword.get(opts, :validate_unique, true) do
+      changeset
+      |> unsafe_validate_unique(:username, Shomp.Repo)
+      |> unique_constraint(:username)
     else
       changeset
     end

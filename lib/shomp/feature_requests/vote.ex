@@ -16,7 +16,7 @@ defmodule Shomp.FeatureRequests.Vote do
     vote
     |> cast(attrs, [:weight, :request_id, :user_id])
     |> validate_required([:weight, :request_id, :user_id])
-    |> validate_number(:weight, greater_than: 0, less_than_or_equal_to: 5)
+    |> validate_number(:weight, greater_than_or_equal_to: -1, less_than_or_equal_to: 1)
     |> foreign_key_constraint(:request_id)
     |> foreign_key_constraint(:user_id)
     |> unique_constraint([:request_id, :user_id], name: :votes_request_id_user_id_index)
@@ -26,8 +26,8 @@ defmodule Shomp.FeatureRequests.Vote do
   Creates a changeset for a new vote.
   """
   def create_changeset(vote, attrs, user_id) do
+    attrs_with_user = Map.put(attrs, :user_id, user_id)
     vote
-    |> changeset(attrs)
-    |> put_change(:user_id, user_id)
+    |> changeset(attrs_with_user)
   end
 end

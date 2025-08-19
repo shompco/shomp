@@ -7,17 +7,16 @@ defmodule Shomp.FeatureRequestsFixtures do
   @doc """
   Generate a request.
   """
-  def request_fixture(scope, attrs \\ %{}) do
+  def request_fixture(user_id, attrs \\ %{}) do
     attrs =
       Enum.into(attrs, %{
-        category: "some category",
         description: "some description",
         priority: 42,
-        status: "some status",
+        status: "open",
         title: "some title"
       })
 
-    {:ok, request} = Shomp.FeatureRequests.create_request(scope, attrs)
+    {:ok, request} = Shomp.FeatureRequests.create_request(attrs, user_id)
     request
   end
 end

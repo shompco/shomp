@@ -111,15 +111,29 @@ defmodule Shomp.FeatureRequests do
     case get_vote_by_request_and_user(request_id, user_id) do
       nil ->
         # Create new vote
-        create_vote(%{request_id: request_id, weight: weight}, user_id)
+        case create_vote(%{request_id: request_id, weight: weight}, user_id) do
+          {:ok, vote} ->
+            # Get user info for real-time updates
+            user = Shomp.Accounts.get_user!(user_id)
+            {:ok, vote, user, "voted"}
+          error -> error
+        end
       
       existing_vote ->
         if existing_vote.weight == weight do
           # Same weight, remove vote
-          delete_vote(existing_vote)
+          user = Shomp.Accounts.get_user!(user_id)
+          case delete_vote(existing_vote) do
+            {:ok, _} -> {:ok, nil, user, "removed vote"}
+            error -> error
+          end
         else
           # Update weight
-          update_vote(existing_vote, %{weight: weight})
+          user = Shomp.Accounts.get_user!(user_id)
+          case update_vote(existing_vote, %{weight: weight}) do
+            {:ok, vote} -> {:ok, vote, user, "updated vote"}
+            error -> error
+          end
         end
     end
   end
