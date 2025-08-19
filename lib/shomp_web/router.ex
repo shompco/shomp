@@ -35,8 +35,8 @@ defmodule ShompWeb.Router do
 
     post "/checkout", PaymentController, :create_checkout
     post "/webhook", PaymentController, :webhook
-    get "/success", PaymentController, :success
-    get "/cancel", PaymentController, :cancel
+    live "/success", PaymentLive.Success, :show
+    live "/cancel", PaymentLive.Cancel, :show
   end
 
   scope "/checkout", ShompWeb do

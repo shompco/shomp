@@ -21,6 +21,41 @@
         <% end %>
       </div>
       
+      <!-- Donation Section -->
+      <div class="mt-8 pt-6 border-t border-gray-200">
+        <h3 class="text-lg font-medium text-gray-900 text-center mb-4">
+          Want to show extra support?
+        </h3>
+        <div class="space-y-3">
+          <button 
+            phx-click="donate" 
+            phx-value-amount="5" 
+            class="w-full btn btn-outline btn-sm"
+          >
+            💝 Tip $5
+          </button>
+          <button 
+            phx-click="donate" 
+            phx-value-amount="10" 
+            class="w-full btn btn-outline btn-sm"
+          >
+            💝 Tip $10
+          </button>
+          <button 
+            phx-click="donate" 
+            phx-value-amount="20" 
+            class="w-full btn btn-outline btn-sm"
+          >
+            💝 Tip $20
+          </button>
+          <div class="text-center">
+            <p class="text-xs text-gray-500 mt-2">
+              Your support helps creators continue making amazing content!
+            </p>
+          </div>
+        </div>
+      </div>
+      
       <div class="mt-8">
         <div class="text-center space-y-3">
           <a href="/" class="btn btn-primary w-full">

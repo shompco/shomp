@@ -9,6 +9,60 @@ defmodule Shomp.Payments do
   alias Shomp.Products
 
   @doc """
+  Creates a Stripe checkout session for a donation.
+  frequency: "one_time" | "monthly"
+  """
+  def create_donation_session(amount_dollars, frequency, store_slug, success_url, cancel_url) do
+    unit_amount = amount_dollars * 100
+
+    line_item =
+      case frequency do
+        "monthly" ->
+          %{
+            price_data: %{
+              currency: "usd",
+              product_data: %{
+                name: "Donate to Shomp (Monthly)",
+                description: "Recurring monthly donation"
+              },
+              recurring: %{interval: "month"},
+              unit_amount: unit_amount
+            },
+            quantity: 1
+          }
+
+        _ ->
+          %{
+            price_data: %{
+              currency: "usd",
+              product_data: %{
+                name: "Donate to Shomp (One-Time)",
+                description: "One-time donation"
+              },
+              unit_amount: unit_amount
+            },
+            quantity: 1
+          }
+      end
+
+    mode = if frequency == "monthly", do: "subscription", else: "payment"
+
+    Stripe.Session.create(%{
+      payment_method_types: ["card"],
+      line_items: [line_item],
+      mode: mode,
+      success_url: success_url,
+      cancel_url: cancel_url,
+      metadata: %{
+        type: "donation",
+        store_slug: store_slug,
+        amount_dollars: amount_dollars,
+        frequency: frequency
+      }
+    })
+  end
+
+  @doc """
   Creates a Stripe checkout session for a product.
   """
   def create_checkout_session(product_id, user_id, success_url, cancel_url) do
