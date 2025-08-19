@@ -2,19 +2,25 @@ defmodule ShompWeb.AboutLive.Show do
   use ShompWeb, :live_view
 
   alias Shomp.Payments
+  alias ShompWeb.Endpoint
 
   def mount(_params, _session, socket) do
-    socket = assign(socket, :page_title, "About Shomp")
+    socket = socket
+             |> assign(:page_title, "About Shomp")
     {:ok, socket}
   end
 
   def handle_event("donate", %{"amount" => amount, "frequency" => frequency}, socket) do
+    # Get the current host from the endpoint configuration
+    # This will automatically use the correct domain in production
+    host = Endpoint.url()
+    
     case Payments.create_donation_session(
       String.to_integer(amount),
       frequency,
       "shomp", # Using "shomp" as the store_slug for platform donations
-      "http://localhost:4000/payments/success?session_id={CHECKOUT_SESSION_ID}&source=about",
-      "http://localhost:4000/payments/cancel?source=about"
+      "#{host}/payments/success?session_id={CHECKOUT_SESSION_ID}&source=about",
+      "#{host}/payments/cancel?source=about"
     ) do
       {:ok, session} ->
         {:noreply, redirect(socket, external: session.url)}

@@ -2,6 +2,7 @@ defmodule ShompWeb.PaymentLive.Cancel do
   use ShompWeb, :live_view
 
   alias Shomp.Payments
+  alias ShompWeb.Endpoint
 
   def mount(params, _session, socket) do
     socket = 
@@ -13,13 +14,13 @@ defmodule ShompWeb.PaymentLive.Cancel do
   end
 
   def handle_event("donate", %{"amount" => amount, "frequency" => frequency}, socket) do
-    case Payments.create_donation_session(
-      String.to_integer(amount),
-      frequency,
-      socket.assigns.store_slug,
-      "http://localhost:4000/payments/success?session_id={CHECKOUT_SESSION_ID}&store_slug=#{socket.assigns.store_slug}",
-      "http://localhost:4000/payments/cancel?store_slug=#{socket.assigns.store_slug}"
-    ) do
+            case Payments.create_donation_session(
+          String.to_integer(amount),
+          frequency,
+          socket.assigns.store_slug,
+          "#{Endpoint.url()}/payments/success?session_id={CHECKOUT_SESSION_ID}&store_slug=#{socket.assigns.store_slug}",
+          "#{Endpoint.url()}/payments/cancel?store_slug=#{socket.assigns.store_slug}"
+        ) do
       {:ok, session} ->
         {:noreply, redirect(socket, external: session.url)}
       {:error, _reason} ->
