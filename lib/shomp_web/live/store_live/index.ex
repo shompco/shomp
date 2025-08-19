@@ -37,6 +37,15 @@ defmodule ShompWeb.StoreLive.Index do
             Discover Stores
             <:subtitle>Find amazing products from creators around the world</:subtitle>
           </.header>
+          
+          <div class="mt-6">
+            <.link
+              navigate={~p"/about"}
+              class="text-blue-600 hover:text-blue-800 text-sm font-medium"
+            >
+              About Shomp
+            </.link>
+          </div>
         </div>
 
         <div class="mb-8">

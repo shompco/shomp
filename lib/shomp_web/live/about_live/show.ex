@@ -1,0 +1,145 @@
+defmodule ShompWeb.AboutLive.Show do
+  use ShompWeb, :live_view
+
+  alias Shomp.Payments
+
+  def mount(_params, _session, socket) do
+    socket = assign(socket, :page_title, "About Shomp")
+    {:ok, socket}
+  end
+
+  def handle_event("donate", %{"amount" => amount, "frequency" => frequency}, socket) do
+    case Payments.create_donation_session(
+      String.to_integer(amount),
+      frequency,
+      "shomp", # Using "shomp" as the store_slug for platform donations
+      "http://localhost:4000/payments/success?session_id={CHECKOUT_SESSION_ID}&source=about",
+      "http://localhost:4000/payments/cancel?source=about"
+    ) do
+      {:ok, session} ->
+        {:noreply, redirect(socket, external: session.url)}
+      
+      {:error, _reason} ->
+        {:noreply, 
+         socket
+         |> put_flash(:error, "Failed to create donation session. Please try again.")}
+    end
+  end
+
+  def render(assigns) do
+    ~H"""
+    <div class="min-h-screen bg-gray-50 py-12">
+      <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+          <!-- Header -->
+          <div class="px-6 py-8 border-b border-gray-200">
+            <h1 class="text-4xl font-bold text-gray-900 text-center">About Shomp</h1>
+            <p class="text-xl text-gray-600 text-center mt-4">
+              Empowering creators to build sustainable livelihoods
+            </p>
+          </div>
+
+          <!-- Main Content -->
+          <div class="px-6 py-8">
+            <div class="prose prose-lg max-w-none">
+              <div class="text-center mb-8">
+                <h2 class="text-2xl font-semibold text-gray-900 mb-4">Our Mission</h2>
+                <p class="text-lg text-gray-700 leading-relaxed">
+                  Our mission is to empower creators and artists to make gainful livelihood through selling their creations.
+                </p>
+              </div>
+
+              <div class="grid md:grid-cols-2 gap-8 mt-12">
+                <div class="text-center">
+                  <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-blue-100 mb-4">
+                    <svg class="h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                  </div>
+                  <h3 class="text-lg font-semibold text-gray-900 mb-2">Open Source</h3>
+                  <p class="text-gray-600">
+                    Shomp is an open-source project built on Elixir (Erlang), ensuring transparency and community-driven development.
+                  </p>
+                </div>
+
+                <div class="text-center">
+                  <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+                    <svg class="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                    </svg>
+                  </div>
+                  <h3 class="text-lg font-semibold text-gray-900 mb-2">No Platform Fees</h3>
+                  <p class="text-gray-600">
+                    Shomp has no platform fee, ensuring creators keep 100% of their earnings from sales.
+                  </p>
+                </div>
+              </div>
+
+              <div class="mt-12 text-center">
+                <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-purple-100 mb-4">
+                  <svg class="h-8 w-8 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                  </svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Sustained by Donations</h3>
+                <p class="text-lg text-gray-700 leading-relaxed">
+                  Shomp is sustained completely by donations from the community who believe in our mission.
+                </p>
+                <p class="text-gray-600 mt-4">
+                  Every contribution helps us continue building tools that empower creators worldwide.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Donation Section -->
+          <div class="px-6 py-8 bg-gray-50 border-t border-gray-200">
+            <h3 class="text-2xl font-semibold text-gray-900 text-center mb-6">Support Shomp</h3>
+            <p class="text-center text-gray-600 mb-8">
+              Help us continue building a platform that empowers creators
+            </p>
+            
+            <div class="max-w-2xl mx-auto">
+              <div class="grid grid-cols-2 gap-4">
+                <button phx-click="donate" phx-value-amount="5" phx-value-frequency="one_time" class="btn btn-outline w-full">
+                  Donate $5 (One-Time)
+                </button>
+                <button phx-click="donate" phx-value-amount="5" phx-value-frequency="monthly" class="btn btn-outline w-full">
+                  Donate $5 (Monthly)
+                </button>
+                <button phx-click="donate" phx-value-amount="10" phx-value-frequency="one_time" class="btn btn-outline w-full">
+                  Donate $10 (One-Time)
+                </button>
+                <button phx-click="donate" phx-value-amount="10" phx-value-frequency="monthly" class="btn btn-outline w-full">
+                  Donate $10 (Monthly)
+                </button>
+                <button phx-click="donate" phx-value-amount="25" phx-value-frequency="one_time" class="btn btn-outline w-full">
+                  Donate $25 (One-Time)
+                </button>
+                <button phx-click="donate" phx-value-amount="25" phx-value-frequency="monthly" class="btn btn-outline w-full">
+                  Donate $25 (Monthly)
+                </button>
+              </div>
+              
+              <div class="text-center mt-6">
+                <p class="text-sm text-gray-500">
+                  All donations are processed securely through Stripe
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Call to Action -->
+          <div class="px-6 py-6 bg-white border-t border-gray-200">
+            <div class="text-center">
+              <a href="/" class="btn btn-primary">
+                Back to Home
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    """
+  end
+end

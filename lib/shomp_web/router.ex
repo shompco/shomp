@@ -21,6 +21,7 @@ defmodule ShompWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+    live "/about", AboutLive.Show, :show
   end
 
   scope "/stores", ShompWeb do
