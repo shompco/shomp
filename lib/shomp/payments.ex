@@ -7,6 +7,7 @@ defmodule Shomp.Payments do
   alias Shomp.Repo
   alias Shomp.Payments.Payment
   alias Shomp.Products
+  alias Shomp.Downloads
 
   @doc """
   Creates a Stripe checkout session for a donation.
@@ -212,10 +213,31 @@ defmodule Shomp.Payments do
     })
   end
 
+  defp create_download_for_product(payment) do
+    # Only create downloads for digital products
+    if payment.product.type == "digital" do
+      Downloads.create_download_for_payment(payment.product_id, payment.user_id)
+    else
+      {:ok, :not_digital}
+    end
+  end
+
   defp handle_checkout_completed(session) do
     case get_payment_by_stripe_id(session.id) do
       nil -> {:error, :payment_not_found}
-      payment -> update_payment_status(payment, "succeeded")
+      payment -> 
+        case update_payment_status(payment, "succeeded") do
+          {:ok, updated_payment} ->
+            # Try to create download, but don't fail if it doesn't work
+            case create_download_for_product(updated_payment) do
+              {:ok, _download} -> {:ok, updated_payment}
+              {:error, reason} -> 
+                IO.puts("Warning: Failed to create download for payment #{session.id}: #{inspect(reason)}")
+                {:ok, updated_payment}
+            end
+          
+          {:error, reason} -> {:error, reason}
+        end
     end
   end
 

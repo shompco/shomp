@@ -61,6 +61,11 @@ defmodule ShompWeb.Router do
     end
 
     post "/users/update-password", UserSessionController, :update_password
+    
+    # Download routes
+    get "/downloads/:token", DownloadController, :show
+    get "/downloads/:token/download", DownloadController, :download
+    get "/purchases", DownloadController, :purchases
   end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development

@@ -13,6 +13,7 @@ defmodule Shomp.Products.Product do
     field :stripe_product_id, :string
     belongs_to :store, Store
     has_many :payments, Shomp.Payments.Payment
+    has_many :downloads, Shomp.Downloads.Download
 
     timestamps(type: :utc_datetime)
   end

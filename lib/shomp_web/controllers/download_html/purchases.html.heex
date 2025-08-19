@@ -1,0 +1,127 @@
+<div class="min-h-screen bg-gray-50 py-12">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+    <!-- Header -->
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold text-gray-900">My Purchases</h1>
+      <p class="text-lg text-gray-600 mt-2">All your purchased products and download history</p>
+    </div>
+
+    <!-- Stats -->
+    <%= if @stats do %>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="bg-white rounded-lg shadow p-6">
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+              </svg>
+            </div>
+            <div class="ml-4">
+              <p class="text-sm font-medium text-gray-500">Total Purchases</p>
+              <p class="text-2xl font-semibold text-gray-900"><%= @stats.total_purchases || 0 %></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <div class="ml-4">
+              <p class="text-sm font-medium text-gray-500">Total Downloads</p>
+              <p class="text-2xl font-semibold text-gray-900"><%= @stats.total_downloads || 0 %></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+              </svg>
+            </div>
+            <div class="ml-4">
+              <p class="text-sm font-medium text-gray-500">Unique Products</p>
+              <p class="text-2xl font-semibold text-gray-900"><%= @stats.unique_products || 0 %></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    <% end %>
+
+    <!-- Purchases List -->
+    <div class="bg-white shadow rounded-lg">
+      <%= if Enum.empty?(@downloads) do %>
+        <div class="text-center py-12">
+          <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+          </svg>
+          <h3 class="mt-2 text-sm font-medium text-gray-900">No purchases yet</h3>
+          <p class="mt-1 text-sm text-gray-500">Start shopping to see your purchases here.</p>
+          <div class="mt-6">
+            <a href="/" class="btn btn-primary">
+              Browse Products
+            </a>
+          </div>
+        </div>
+      <% else %>
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h2 class="text-lg font-medium text-gray-900">Recent Purchases</h2>
+        </div>
+        
+        <ul class="divide-y divide-gray-200">
+          <%= for download <- @downloads do %>
+            <li class="px-6 py-4">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                  <div class="flex-shrink-0">
+                    <div class="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center">
+                      <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                  </div>
+                  
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-gray-900 truncate">
+                      <%= download.product.title %>
+                    </p>
+                    <p class="text-sm text-gray-500 truncate">
+                      <%= download.product.store.name %> • $<%= download.product.price %>
+                    </p>
+                    <div class="flex items-center space-x-4 mt-1">
+                      <span class="text-xs text-gray-500">
+                        Purchased <%= Calendar.strftime(download.inserted_at, "%B %d, %Y") %>
+                      </span>
+                      <span class="text-xs text-gray-500">
+                        Downloads: <%= download.download_count %>
+                      </span>
+                      <%= if download.last_downloaded_at do %>
+                        <span class="text-xs text-gray-500">
+                          Last: <%= Calendar.strftime(download.last_downloaded_at, "%b %d") %>
+                        </span>
+                      <% end %>
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="flex items-center space-x-2">
+                  <a href={~p"/downloads/#{download.token}"} class="btn btn-sm btn-outline">
+                    View
+                  </a>
+                  <a href={~p"/downloads/#{download.token}/download"} class="btn btn-sm btn-primary">
+                    Download
+                  </a>
+                </div>
+              </div>
+            </li>
+          <% end %>
+        </ul>
+      <% end %>
+    </div>
+  </div>
+</div>
