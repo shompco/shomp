@@ -152,6 +152,19 @@ defmodule Shomp.Accounts do
   end
 
   @doc """
+  Returns an `%Ecto.Changeset{}` for changing the user username.
+
+  ## Examples
+
+      iex> change_user_username(user)
+      %Ecto.Changeset{data: %User{}}
+
+  """
+  def change_user_username(user, attrs \\ %{}, opts \\ []) do
+    User.username_changeset(user, attrs, opts)
+  end
+
+  @doc """
   Returns an `%Ecto.Changeset{}` for user registration.
 
   ## Examples
@@ -218,6 +231,26 @@ defmodule Shomp.Accounts do
     user
     |> User.password_changeset(attrs)
     |> update_user_and_delete_all_tokens()
+  end
+
+  @doc """
+  Updates the user username.
+
+  Returns a tuple with the updated user.
+
+  ## Examples
+
+      iex> update_user_username(user, %{username: "newusername"})
+      {:ok, %User{}}
+
+      iex> update_user_username(user, %{username: "too"})
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def update_user_username(user, attrs) do
+    user
+    |> User.username_changeset(attrs)
+    |> Repo.update()
   end
 
   ## Session

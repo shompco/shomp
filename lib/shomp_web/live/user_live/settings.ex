@@ -36,8 +36,11 @@ defmodule ShompWeb.UserLive.Settings do
           label="Username"
           autocomplete="username"
           required
-          placeholder="Choose a unique username (3-30 characters)"
+          placeholder={@current_scope.user.username || "Choose a unique username (3-30 characters)"}
         />
+        <div class="text-sm text-gray-600 mb-2">
+          Current username: <span class="font-medium">@<%= @current_scope.user.username %></span>
+        </div>
         <.button variant="primary" phx-disable-with="Changing...">Change Username</.button>
       </.form>
 
@@ -122,6 +125,39 @@ defmodule ShompWeb.UserLive.Settings do
       |> to_form()
 
     {:noreply, assign(socket, email_form: email_form)}
+  end
+
+  def handle_event("validate_username", params, socket) do
+    %{"user" => user_params} = params
+
+    username_form =
+      socket.assigns.current_scope.user
+      |> Accounts.change_user_username(user_params, validate_unique: false)
+      |> Map.put(:action, :validate)
+      |> to_form()
+
+    {:noreply, assign(socket, username_form: username_form)}
+  end
+
+  def handle_event("update_username", params, socket) do
+    %{"user" => user_params} = params
+    user = socket.assigns.current_scope.user
+    true = Accounts.sudo_mode?(user)
+
+    case Accounts.update_user_username(user, user_params) do
+      {:ok, updated_user} ->
+        # Update the current_scope with the fresh user data
+        updated_current_scope = %{socket.assigns.current_scope | user: updated_user}
+        
+        {:noreply, 
+         socket
+         |> assign(:current_scope, updated_current_scope)
+         |> put_flash(:info, "Username updated successfully!")
+         |> assign(:username_form, to_form(Accounts.change_user_username(updated_user, %{}, validate_unique: false)))}
+
+      {:error, changeset} ->
+        {:noreply, assign(socket, :username_form, to_form(changeset, action: :insert))}
+    end
   end
 
   def handle_event("update_email", params, socket) do
