@@ -81,6 +81,7 @@ defmodule Shomp.Carts do
         |> Repo.insert()
         |> case do
           {:ok, cart_item} ->
+            # Try to update cart total, but don't fail if it doesn't work
             update_cart_total(cart_id)
             {:ok, cart_item}
           {:error, changeset} ->
@@ -105,6 +106,7 @@ defmodule Shomp.Carts do
         Repo.delete(cart_item)
         |> case do
           {:ok, _} ->
+            # Try to update cart total, but don't fail if it doesn't work
             update_cart_total(cart_id)
             {:ok, :removed}
           {:error, _} ->
@@ -119,11 +121,17 @@ defmodule Shomp.Carts do
   def update_cart_item_quantity(cart_item_id, quantity) do
     cart_item = Repo.get!(CartItem, cart_item_id)
     
+    IO.puts("=== UPDATING CART ITEM QUANTITY ===")
+    IO.puts("Cart Item ID: #{cart_item_id}")
+    IO.puts("Current Quantity: #{cart_item.quantity}")
+    IO.puts("New Quantity: #{quantity}")
+    
     cart_item
     |> CartItem.update_quantity_changeset(%{quantity: quantity})
     |> Repo.update()
     |> case do
       {:ok, updated_item} ->
+        # Try to update cart total, but don't fail if it doesn't work
         update_cart_total(updated_item.cart_id)
         {:ok, updated_item}
       {:error, changeset} ->
@@ -174,6 +182,10 @@ defmodule Shomp.Carts do
     cart
     |> Cart.update_total_changeset(total)
     |> Repo.update()
+    |> case do
+      {:ok, updated_cart} -> {:ok, updated_cart}
+      {:error, _changeset} -> {:error, :update_failed}
+    end
   end
 
   @doc """

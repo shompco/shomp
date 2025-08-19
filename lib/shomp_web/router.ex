@@ -17,6 +17,19 @@ defmodule ShompWeb.Router do
     plug :accepts, ["json"]
   end
 
+  # Feature Request routes - must come FIRST to avoid conflicts
+  scope "/requests", ShompWeb do
+    pipe_through :browser
+
+    live_session :feature_requests,
+      on_mount: [{ShompWeb.UserAuth, :mount_current_scope}, {ShompWeb.CartHook, :default}] do
+      live "/", RequestLive.Index, :index
+      live "/new", RequestLive.Form, :new
+      live "/:id", RequestLive.Show, :show
+      live "/:id/edit", RequestLive.Form, :edit
+    end
+  end
+
   scope "/", ShompWeb do
     pipe_through :browser
 
@@ -62,12 +75,12 @@ defmodule ShompWeb.Router do
       on_mount: [{ShompWeb.UserAuth, :require_authenticated}, {ShompWeb.CartHook, :default}] do
       live "/users/settings", UserLive.Settings, :edit
       live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
-                 live "/dashboard/store", StoreLive.Edit, :edit
-           live "/dashboard/store/balance", StoreLive.Balance, :show
-                 live "/dashboard/products/new", ProductLive.New, :new
-           live "/dashboard/products/:id/edit", ProductLive.Edit, :edit
-           live "/cart", CartLive.Show, :show
-           live "/checkout/cart/:cart_id", CheckoutLive.Cart, :show
+      live "/dashboard/store", StoreLive.Edit, :edit
+      live "/dashboard/store/balance", StoreLive.Balance, :show
+      live "/dashboard/products/new", ProductLive.New, :new
+      live "/dashboard/products/:id/edit", ProductLive.Edit, :edit
+      live "/cart", CartLive.Show, :show
+      live "/checkout/cart/:cart_id", CheckoutLive.Cart, :show
     end
 
     post "/users/update-password", UserSessionController, :update_password
@@ -94,6 +107,8 @@ defmodule ShompWeb.Router do
       forward "/mailbox", Plug.Swoosh.MailboxPreview
     end
   end
+
+
 
   # CATCH-ALL ROUTES - MUST BE LAST!
   # These routes are very broad and will catch anything that doesn't match above
