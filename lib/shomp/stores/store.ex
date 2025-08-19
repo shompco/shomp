@@ -8,6 +8,7 @@ defmodule Shomp.Stores.Store do
     field :name, :string
     field :slug, :string
     field :description, :string
+    field :store_id, :string  # Immutable store identifier
     belongs_to :user, User
     has_many :products, Shomp.Products.Product
     has_many :carts, Shomp.Carts.Cart
@@ -39,12 +40,14 @@ defmodule Shomp.Stores.Store do
     store
     |> cast(attrs, [:name, :slug, :description, :user_id])
     |> generate_slug()
-    |> validate_required([:name, :slug, :user_id])
+    |> generate_store_id()
+    |> validate_required([:name, :slug, :user_id, :store_id])
     |> validate_length(:name, min: 2, max: 100)
     |> validate_length(:slug, min: 3, max: 50)
     |> validate_format(:slug, ~r/^[a-z0-9-]+$/, message: "must contain only lowercase letters, numbers, and hyphens")
     |> validate_length(:description, max: 1000)
     |> unique_constraint(:slug)
+    |> unique_constraint(:store_id)
     |> foreign_key_constraint(:user_id)
   end
 
@@ -63,6 +66,17 @@ defmodule Shomp.Stores.Store do
         else
           changeset
         end
+      _ ->
+        changeset
+    end
+  end
+
+  defp generate_store_id(changeset) do
+    case get_change(changeset, :store_id) do
+      nil ->
+        # Generate a unique, immutable store ID
+        store_id = Ecto.UUID.generate()
+        put_change(changeset, :store_id, store_id)
       _ ->
         changeset
     end

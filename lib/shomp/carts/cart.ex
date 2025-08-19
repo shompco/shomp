@@ -5,9 +5,10 @@ defmodule Shomp.Carts.Cart do
   schema "carts" do
     field :status, :string, default: "active" # active, abandoned, completed
     field :total_amount, :decimal, default: Decimal.new(0)
+    field :store_id, :string  # Reference to store's immutable store_id
+    field :store, :map, virtual: true  # Virtual field to hold store data
     
     belongs_to :user, Shomp.Accounts.User
-    belongs_to :store, Shomp.Stores.Store
     has_many :cart_items, Shomp.Carts.CartItem
     
     timestamps()
@@ -20,8 +21,8 @@ defmodule Shomp.Carts.Cart do
     |> validate_required([:user_id, :store_id])
     |> validate_inclusion(:status, ["active", "abandoned", "completed"])
     |> validate_number(:total_amount, greater_than_or_equal_to: 0)
+    |> validate_length(:store_id, min: 1)
     |> foreign_key_constraint(:user_id)
-    |> foreign_key_constraint(:store_id)
   end
 
   @doc """

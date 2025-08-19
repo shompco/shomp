@@ -7,6 +7,7 @@ defmodule Shomp.Products do
   alias Shomp.Repo
   alias Shomp.Products.Product
 
+
   @doc """
   Returns the list of products.
   """
@@ -40,7 +41,7 @@ defmodule Shomp.Products do
   def get_product!(id), do: Repo.get!(Product, id)
 
   @doc """
-  Gets a single product with store association loaded.
+  Gets a single product with store data loaded.
 
   Raises `Ecto.NoResultsError` if the Product does not exist.
 
@@ -54,9 +55,16 @@ defmodule Shomp.Products do
 
   """
   def get_product_with_store!(id) do
-    Product
-    |> Repo.get!(id)
-    |> Repo.preload(:store)
+    product = Repo.get!(Product, id)
+    
+    # Manually fetch the store data using the store_id
+    case Shomp.Stores.get_store_by_store_id(product.store_id) do
+      nil -> 
+        raise Ecto.NoResultsError, message: "Store not found for product"
+      store -> 
+        # Add the store data to the product struct using the virtual field
+        Map.put(product, :store, store)
+    end
   end
 
   @doc """

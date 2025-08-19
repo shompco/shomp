@@ -7,6 +7,7 @@ defmodule Shomp.Carts do
   alias Shomp.Repo
   alias Shomp.Carts.{Cart, CartItem}
   alias Shomp.Products.Product
+  alias Shomp.Stores
 
   @doc """
   Gets or creates an active cart for a user in a specific store.
@@ -26,7 +27,7 @@ defmodule Shomp.Carts do
   def get_active_cart(user_id, store_id) do
     Cart
     |> where([c], c.user_id == ^user_id and c.store_id == ^store_id and c.status == "active")
-    |> preload([cart_items: [product: :store]])
+    |> preload([cart_items: [product: []]])
     |> Repo.one()
   end
 
@@ -36,7 +37,7 @@ defmodule Shomp.Carts do
   def get_cart!(id) do
     Cart
     |> Repo.get!(id)
-    |> Repo.preload([cart_items: [product: :store], store: []])
+    |> Repo.preload([cart_items: [product: []]])
   end
 
   @doc """
@@ -45,8 +46,19 @@ defmodule Shomp.Carts do
   def list_user_carts(user_id) do
     Cart
     |> where([c], c.user_id == ^user_id and c.status == "active")
-    |> preload([cart_items: [product: :store], store: []])
+    |> preload([cart_items: [product: []]])
     |> Repo.all()
+    |> Enum.map(fn cart ->
+      # Manually fetch the store data using the store_id
+      case Shomp.Stores.get_store_by_store_id(cart.store_id) do
+        nil -> 
+          # If store not found, create a placeholder
+          %{cart | store: %{name: "Unknown Store", slug: "unknown"}}
+        store -> 
+          # Add the store data to the cart struct
+          Map.put(cart, :store, store)
+      end
+    end)
   end
 
   @doc """
@@ -154,7 +166,7 @@ defmodule Shomp.Carts do
   def list_cart_items(cart_id) do
     CartItem
     |> where([ci], ci.cart_id == ^cart_id)
-    |> preload([product: :store])
+    |> preload([product: []])
     |> Repo.all()
   end
 

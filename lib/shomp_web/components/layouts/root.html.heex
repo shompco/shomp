@@ -68,7 +68,9 @@
           <.link href={~p"/dashboard/store/balance"}>Store Balance</.link>
         </li>
         <li>
-          {@current_scope.user.email}
+          <span class="text-sm text-gray-700">
+            <%= @current_scope.user.username || "User" %>
+          </span>
         </li>
         <li>
           <.link href={~p"/purchases"}>My Purchases</.link>

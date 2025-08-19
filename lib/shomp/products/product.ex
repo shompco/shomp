@@ -2,8 +2,6 @@ defmodule Shomp.Products.Product do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias Shomp.Stores.Store
-
   schema "products" do
     field :title, :string
     field :description, :string
@@ -11,7 +9,8 @@ defmodule Shomp.Products.Product do
     field :type, :string
     field :file_path, :string
     field :stripe_product_id, :string
-    belongs_to :store, Store
+    field :store_id, :string  # Reference to store's immutable store_id
+    field :store, :map, virtual: true  # Virtual field to hold store data
     has_many :payments, Shomp.Payments.Payment
     has_many :downloads, Shomp.Downloads.Download
 
@@ -30,7 +29,7 @@ defmodule Shomp.Products.Product do
     |> validate_number(:price, greater_than: 0)
     |> validate_inclusion(:type, ["digital", "physical", "service"])
     |> validate_length(:file_path, max: 500)
-    |> foreign_key_constraint(:store_id)
+    |> validate_length(:store_id, min: 1)
   end
 
   @doc """

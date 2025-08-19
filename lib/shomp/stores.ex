@@ -110,6 +110,43 @@ defmodule Shomp.Stores do
   end
 
   @doc """
+  Gets a store by its immutable store_id.
+
+  ## Examples
+
+      iex> get_store_by_store_id("uuid-here")
+      %Store{}
+
+      iex> get_store_by_store_id("unknown-uuid")
+      nil
+
+  """
+  def get_store_by_store_id(store_id) do
+    Repo.get_by(Store, store_id: store_id)
+  end
+
+  @doc """
+  Gets a store by its immutable store_id with user association loaded.
+
+  ## Examples
+
+      iex> get_store_by_store_id_with_user("uuid-here")
+      %Store{user: %User{}}
+
+      iex> get_store_by_store_id_with_user("unknown-uuid")
+      nil
+
+  """
+  def get_store_by_store_id_with_user(store_id) do
+    Store
+    |> Repo.get_by(store_id: store_id)
+    |> case do
+      nil -> nil
+      store -> Repo.preload(store, :user)
+    end
+  end
+
+  @doc """
   Creates a store.
 
   ## Examples

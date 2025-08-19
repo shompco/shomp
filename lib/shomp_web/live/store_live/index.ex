@@ -115,7 +115,7 @@ defmodule ShompWeb.StoreLive.Index do
                   
                   <div class="flex items-center justify-between">
                     <div class="text-sm text-gray-500">
-                      by <%= store.user.email %>
+                      by <%= store.user.username || "Creator" %>
                     </div>
                     <.link
                       navigate={~p"/#{store.slug}"}

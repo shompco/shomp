@@ -1,4 +1,9 @@
+
+
 # Shomp MVP - Elixir Feature Breakdown
+
+# Never expose user emails
+# Never expose user fullname
 
 ## 1. User Auth (Shomp.Accounts)
 ### Context & Schema

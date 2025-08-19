@@ -15,8 +15,8 @@ defmodule ShompWeb.StoreLive.Show do
          |> push_navigate(to: ~p"/")}
 
       store ->
-        # Load products for this store
-        products = Shomp.Products.list_products_by_store(store.id)
+        # Load products for this store using the immutable store_id
+        products = Shomp.Products.list_products_by_store(store.store_id)
         {:ok, assign(socket, store: store, products: products)}
     end
   end
@@ -66,7 +66,7 @@ defmodule ShompWeb.StoreLive.Show do
               </div>
             <% else %>
               <div class="text-gray-500">
-                <p>Store owner: <%= @store.user.email %></p>
+                <p>Store owner: <%= @store.user.username || "Creator" %></p>
               </div>
             <% end %>
           </div>

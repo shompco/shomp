@@ -7,23 +7,16 @@ defmodule ShompWeb.ProductLive.Show do
 
   @impl true
   def mount(%{"store_slug" => store_slug, "id" => id}, _session, socket) do
-    case Products.get_product_with_store!(id) do
-      nil ->
-        {:ok,
-         socket
-         |> put_flash(:error, "Product not found")
-         |> push_navigate(to: ~p"/")}
-
-      product ->
-        # Verify the product belongs to the store with the given slug
-        if product.store.slug == store_slug do
-          {:ok, assign(socket, product: product)}
-        else
-          {:ok,
-           socket
-           |> put_flash(:error, "Product not found in this store")
-           |> push_navigate(to: ~p"/#{store_slug}")}
-        end
+    product = Products.get_product_with_store!(id)
+    
+    # Verify the product belongs to the store with the given slug
+    if product.store.slug == store_slug do
+      {:ok, assign(socket, product: product)}
+    else
+      {:ok,
+       socket
+       |> put_flash(:error, "Product not found in this store")
+       |> push_navigate(to: ~p"/#{store_slug}")}
     end
   end
 
