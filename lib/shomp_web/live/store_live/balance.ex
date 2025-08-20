@@ -19,10 +19,10 @@ defmodule ShompWeb.StoreLive.Balance do
 
       store ->
         # Get or create store balance
-        {:ok, store_balance} = StoreBalances.get_or_create_store_balance(store.store_id)
+        {:ok, store_balance} = StoreBalances.get_or_create_store_balance_by_store_id(store.store_id)
         
         # Get KYC status
-        kyc_record = StoreKYCContext.get_kyc(store.store_id)
+        kyc_record = StoreKYCContext.get_kyc_by_store_id(store.store_id)
         
         socket = socket
                  |> assign(:store, store)

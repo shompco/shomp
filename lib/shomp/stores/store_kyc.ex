@@ -31,6 +31,7 @@ defmodule Shomp.Stores.StoreKYC do
     field :admin_notes, :string
     
     belongs_to :store, Shomp.Stores.Store
+    field :store_data, :map, virtual: true  # Virtual field to hold store data
     
     timestamps()
   end

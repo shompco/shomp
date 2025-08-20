@@ -6,9 +6,34 @@ defmodule Shomp.Stores.StoreKYCContext do
   import Ecto.Query, warn: false
   alias Shomp.Repo
   alias Shomp.Stores.StoreKYC
+  alias Shomp.Stores
 
   @doc """
-  Gets or creates a KYC record for a store.
+  Gets or creates a KYC record for a store using string store_id.
+  """
+  def get_or_create_kyc_by_store_id(store_id_string) do
+    case Stores.get_store_by_store_id(store_id_string) do
+      nil ->
+        {:error, :store_not_found}
+      store ->
+        get_or_create_kyc(store.id)
+    end
+  end
+
+  @doc """
+  Gets KYC by string store_id.
+  """
+  def get_kyc_by_store_id(store_id_string) do
+    case Stores.get_store_by_store_id(store_id_string) do
+      nil ->
+        nil
+      store ->
+        get_kyc(store.id)
+    end
+  end
+
+  @doc """
+  Gets or creates a KYC record for a store using integer ID.
   """
   def get_or_create_kyc(store_id) do
     case get_kyc(store_id) do
@@ -20,7 +45,7 @@ defmodule Shomp.Stores.StoreKYCContext do
   end
 
   @doc """
-  Gets KYC by store ID.
+  Gets KYC by store ID using integer ID.
   """
   def get_kyc(store_id) do
     StoreKYC
@@ -38,7 +63,19 @@ defmodule Shomp.Stores.StoreKYCContext do
   end
 
   @doc """
-  Submits KYC documents for a store.
+  Submits KYC documents for a store using string store_id.
+  """
+  def submit_kyc_by_store_id(store_id_string, attrs) do
+    case Stores.get_store_by_store_id(store_id_string) do
+      nil ->
+        {:error, :store_not_found}
+      store ->
+        submit_kyc(store.id, attrs)
+    end
+  end
+
+  @doc """
+  Submits KYC documents for a store using integer ID.
   """
   def submit_kyc(store_id, attrs) do
     case get_or_create_kyc(store_id) do
@@ -53,7 +90,19 @@ defmodule Shomp.Stores.StoreKYCContext do
   end
 
   @doc """
-  Verifies KYC for a store.
+  Verifies KYC for a store using string store_id.
+  """
+  def verify_kyc_by_store_id(store_id_string) do
+    case Stores.get_store_by_store_id(store_id_string) do
+      nil ->
+        {:error, :store_not_found}
+      store ->
+        verify_kyc(store.id)
+    end
+  end
+
+  @doc """
+  Verifies KYC for a store using integer ID.
   """
   def verify_kyc(store_id) do
     case get_kyc(store_id) do
@@ -68,7 +117,19 @@ defmodule Shomp.Stores.StoreKYCContext do
   end
 
   @doc """
-  Rejects KYC for a store.
+  Rejects KYC for a store using string store_id.
+  """
+  def reject_kyc_by_store_id(store_id_string, reason) do
+    case Stores.get_store_by_store_id(store_id_string) do
+      nil ->
+        {:error, :store_not_found}
+      store ->
+        reject_kyc(store.id, reason)
+    end
+  end
+
+  @doc """
+  Rejects KYC for a store using integer ID.
   """
   def reject_kyc(store_id, reason) do
     case get_kyc(store_id) do
@@ -83,7 +144,19 @@ defmodule Shomp.Stores.StoreKYCContext do
   end
 
   @doc """
-  Gets KYC with store information.
+  Gets KYC with store information using string store_id.
+  """
+  def get_kyc_with_store_by_store_id(store_id_string) do
+    case Stores.get_store_by_store_id(store_id_string) do
+      nil ->
+        nil
+      store ->
+        get_kyc_with_store(store.id)
+    end
+  end
+
+  @doc """
+  Gets KYC with store information using integer ID.
   """
   def get_kyc_with_store(store_id) do
     StoreKYC
@@ -140,7 +213,19 @@ defmodule Shomp.Stores.StoreKYCContext do
   end
 
   @doc """
-  Updates admin notes for KYC.
+  Updates admin notes for KYC using string store_id.
+  """
+  def update_admin_notes_by_store_id(store_id_string, notes) do
+    case Stores.get_store_by_store_id(store_id_string) do
+      nil ->
+        {:error, :store_not_found}
+      store ->
+        update_admin_notes(store.id, notes)
+    end
+  end
+
+  @doc """
+  Updates admin notes for KYC using integer ID.
   """
   def update_admin_notes(store_id, notes) do
     case get_kyc(store_id) do
@@ -155,7 +240,17 @@ defmodule Shomp.Stores.StoreKYCContext do
   end
 
   @doc """
-  Checks if a store has verified KYC.
+  Checks if a store has verified KYC using string store_id.
+  """
+  def kyc_verified_by_store_id?(store_id_string) do
+    case Stores.get_store_by_store_id(store_id_string) do
+      nil -> false
+      store -> kyc_verified?(store.id)
+    end
+  end
+
+  @doc """
+  Checks if a store has verified KYC using integer ID.
   """
   def kyc_verified?(store_id) do
     case get_kyc(store_id) do
@@ -165,7 +260,17 @@ defmodule Shomp.Stores.StoreKYCContext do
   end
 
   @doc """
-  Checks if a store has submitted KYC documents.
+  Checks if a store has submitted KYC documents using string store_id.
+  """
+  def kyc_submitted_by_store_id?(store_id_string) do
+    case Stores.get_store_by_store_id(store_id_string) do
+      nil -> false
+      store -> kyc_submitted?(store.id)
+    end
+  end
+
+  @doc """
+  Checks if a store has submitted KYC documents using integer ID.
   """
   def kyc_submitted?(store_id) do
     case get_kyc(store_id) do

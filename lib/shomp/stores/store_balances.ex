@@ -6,9 +6,34 @@ defmodule Shomp.Stores.StoreBalances do
   import Ecto.Query, warn: false
   alias Shomp.Repo
   alias Shomp.Stores.StoreBalance
+  alias Shomp.Stores
 
   @doc """
-  Gets or creates a store balance for a store.
+  Gets or creates a store balance for a store using string store_id.
+  """
+  def get_or_create_store_balance_by_store_id(store_id_string) do
+    case Stores.get_store_by_store_id(store_id_string) do
+      nil ->
+        {:error, :store_not_found}
+      store ->
+        get_or_create_store_balance(store.id)
+    end
+  end
+
+  @doc """
+  Gets a store balance by string store_id.
+  """
+  def get_store_balance_by_store_id(store_id_string) do
+    case Stores.get_store_by_store_id(store_id_string) do
+      nil ->
+        nil
+      store ->
+        get_store_balance(store.id)
+    end
+  end
+
+  @doc """
+  Gets or creates a store balance for a store using integer ID.
   """
   def get_or_create_store_balance(store_id) do
     case get_store_balance(store_id) do
@@ -38,7 +63,19 @@ defmodule Shomp.Stores.StoreBalances do
   end
 
   @doc """
-  Updates a store balance when a sale is made.
+  Updates a store balance when a sale is made using string store_id.
+  """
+  def add_sale_by_store_id(store_id_string, sale_amount) do
+    case Stores.get_store_by_store_id(store_id_string) do
+      nil ->
+        {:error, :store_not_found}
+      store ->
+        add_sale(store.id, sale_amount)
+    end
+  end
+
+  @doc """
+  Updates a store balance when a sale is made using integer ID.
   """
   def add_sale(store_id, sale_amount) do
     case get_or_create_store_balance(store_id) do
@@ -53,7 +90,19 @@ defmodule Shomp.Stores.StoreBalances do
   end
 
   @doc """
-  Processes a payout for a store.
+  Processes a payout for a store using string store_id.
+  """
+  def process_payout_by_store_id(store_id_string, payout_amount) do
+    case Stores.get_store_by_store_id(store_id_string) do
+      nil ->
+        {:error, :store_not_found}
+      store ->
+        process_payout(store.id, payout_amount)
+    end
+  end
+
+  @doc """
+  Processes a payout for a store using integer ID.
   """
   def process_payout(store_id, payout_amount) do
     case get_store_balance(store_id) do
@@ -118,7 +167,19 @@ defmodule Shomp.Stores.StoreBalances do
   end
 
   @doc """
-  Gets store balance with store information.
+  Gets store balance with store information using string store_id.
+  """
+  def get_store_balance_with_store_by_store_id(store_id_string) do
+    case Stores.get_store_by_store_id(store_id_string) do
+      nil ->
+        nil
+      store ->
+        get_store_balance_with_store(store.id)
+    end
+  end
+
+  @doc """
+  Gets store balance with store information using integer ID.
   """
   def get_store_balance_with_store(store_id) do
     StoreBalance
@@ -137,7 +198,19 @@ defmodule Shomp.Stores.StoreBalances do
   end
 
   @doc """
-  Updates KYC verification status.
+  Updates KYC verification status using string store_id.
+  """
+  def update_kyc_status_by_store_id(store_id_string, verified) do
+    case Stores.get_store_by_store_id(store_id_string) do
+      nil ->
+        {:error, :store_not_found}
+      store ->
+        update_kyc_status(store.id, verified)
+    end
+  end
+
+  @doc """
+  Updates KYC verification status using integer ID.
   """
   def update_kyc_status(store_id, verified) do
     case get_store_balance(store_id) do
@@ -158,7 +231,19 @@ defmodule Shomp.Stores.StoreBalances do
   end
 
   @doc """
-  Marks KYC documents as submitted.
+  Marks KYC documents as submitted using string store_id.
+  """
+  def mark_kyc_submitted_by_store_id(store_id_string) do
+    case Stores.get_store_by_store_id(store_id_string) do
+      nil ->
+        {:error, :store_not_found}
+      store ->
+        mark_kyc_submitted(store.id)
+    end
+  end
+
+  @doc """
+  Marks KYC documents as submitted using integer ID.
   """
   def mark_kyc_submitted(store_id) do
     case get_store_balance(store_id) do

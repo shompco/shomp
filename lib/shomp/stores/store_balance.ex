@@ -13,6 +13,7 @@ defmodule Shomp.Stores.StoreBalance do
     field :kyc_submitted_at, :utc_datetime
     
     belongs_to :store, Shomp.Stores.Store
+    field :store_data, :map, virtual: true  # Virtual field to hold store data
     
     timestamps()
   end
