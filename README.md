@@ -1,9 +1,9 @@
 # Shomp 🛒
 
-**Sell stuff online and keep 100%**
+**Sell stuff online with no platform fee**
 
 Shomp is an open-source e-commerce platform built on Elixir (Erlang) that empowers creators and artists to make a gainful livelihood through selling their creations.
-We aspire to be a 501c3 nonprofit to help US-based artists keep 100% of their proceeds when selling on Shomp.
+We are applying to be a 501c3 nonprofit to help US-based artists keep more of their proceeds when selling on Shomp.
 
 ## 🎯 Our Mission
 

@@ -47,8 +47,8 @@
 - Review components for store/product pages
 
 ### Routes
-- `/stores/:store_slug/reviews` - store reviews
-- `/stores/:store_slug/products/:id/reviews` - product reviews
+- `/:store_slug/reviews` - store reviews
+- `/:store_slug/products/:id/reviews` - product reviews
 - `/dashboard/reviews` - manage store reviews
 - `/reviews/write/:product_id` - write review
 
