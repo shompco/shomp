@@ -145,6 +145,30 @@ defmodule ShompWeb.AboutLive.Show do
               </a>
             </div>
           </div>
+          
+          <!-- Footer -->
+          <div class="px-6 py-8 bg-gray-100 border-t border-gray-200">
+            <div class="text-center">
+              <h4 class="text-lg font-semibold text-gray-900 mb-4">Learn More About Our Mission</h4>
+              <p class="text-gray-600 mb-4">
+                Read our latest thoughts on nonprofit marketplaces and the future of creator economies.
+              </p>
+              <a 
+                href="https://shompco.wordpress.com/2025/08/20/it-might-be-the-right-time-for-nonprofits/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+                Read Our Blog Post
+              </a>
+              <p class="text-xs text-gray-500 mt-3">
+                "It Might Be the Right Time for Nonprofits" - August 20, 2025
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
