@@ -7,6 +7,7 @@
 
 ## 1. User Auth (Shomp.Accounts)
 ### Context & Schema
+- users get immutable id
 - `Shomp.Accounts.User` schema (email, password_hash, name, role)
 - `Shomp.Accounts` context functions (register_user, authenticate, get_user)
 
@@ -23,6 +24,7 @@
 
 ## 2. Create Store (Shomp.Stores)
 ### Context & Schema
+- stores get immutable id
 - `Shomp.Stores.Store` schema (name, slug, description, user_id)
 - `Shomp.Stores` context (create_store, get_store_by_slug, update_store)
 
@@ -36,9 +38,11 @@
 - `/:store_slug` - public store page
 - `/dashboard/store` - edit store
 - `/stores` - show all the stores we have
+- place the catch-all slug at the bottom of the router
 
 ## 3. Create Product Listing (Shomp.Products)
 ### Context & Schema
+- products get a unique id and also a human readable slug 
 - `Shomp.Products.Product` schema (title, description, price, type, file_path, store_id)
 - `Shomp.Products` context (create_product, list_products, get_product)
 
@@ -55,6 +59,7 @@
 ### Routes
 - `/dashboard/products/new` - create product
 - `/:store_slug/products/:id` - product page
+- `/:store_slug/products/:human-readable-product-id`
 - `/dashboard/products/:id/edit` - edit product
 
 ## 4. Stripe Buy Now Button (Shomp.Payments)

@@ -46,6 +46,50 @@ defmodule ShompWeb.UserLive.Settings do
 
       <div class="divider" />
 
+      <!-- Current Plan Section -->
+      <%= if @current_scope.user.tier do %>
+        <div class="bg-gray-50 rounded-lg p-6 mb-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Current Plan</h3>
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-2xl font-bold text-blue-600"><%= @current_scope.user.tier.name %></p>
+              <p class="text-gray-600">
+                $<%= @current_scope.user.tier.monthly_price %>/month
+              </p>
+              <p class="text-sm text-gray-500 mt-1">
+                <%= @current_scope.user.tier.store_limit %> stores • 
+                <%= @current_scope.user.tier.product_limit_per_store %> products per store
+              </p>
+            </div>
+            <div class="text-right">
+              <a 
+                href={~p"/users/tier-upgrade"}
+                class="btn btn-outline btn-primary">
+                Change Plan
+              </a>
+            </div>
+          </div>
+        </div>
+      <% else %>
+        <div class="bg-yellow-50 rounded-lg p-6 mb-6 border border-yellow-200">
+          <h3 class="text-lg font-semibold text-yellow-800 mb-4">No Plan Selected</h3>
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-yellow-700 mb-2">
+                You haven't selected a plan yet. Choose a plan to start using Shomp!
+              </p>
+            </div>
+            <div class="text-right">
+              <a 
+                href={~p"/users/tier-selection"}
+                class="btn btn-primary">
+                Choose Plan
+              </a>
+            </div>
+          </div>
+        </div>
+      <% end %>
+
       <.form
         for={@password_form}
         id="password_form"
@@ -99,17 +143,29 @@ defmodule ShompWeb.UserLive.Settings do
 
   def mount(_params, _session, socket) do
     user = socket.assigns.current_scope.user
-    email_changeset = Accounts.change_user_email(user, %{}, validate_unique: false)
-    username_changeset = Accounts.change_user_username(user, %{}, validate_unique: false)
-    password_changeset = Accounts.change_user_password(user, %{}, hash_password: false)
+    # Preload tier information
+    user_with_tier = Shomp.Repo.preload(user, :tier)
+    
+    # If user doesn't have a tier, assign the default tier
+    user_with_tier = if user_with_tier.tier_id && !user_with_tier.tier do
+      # The tier_id exists but tier wasn't loaded, try to reload
+      Shomp.Repo.preload(user_with_tier, :tier, force: true)
+    else
+      user_with_tier
+    end
+    
+    email_changeset = Accounts.change_user_email(user_with_tier, %{}, validate_unique: false)
+    username_changeset = Accounts.change_user_username(user_with_tier, %{}, validate_unique: false)
+    password_changeset = Accounts.change_user_password(user_with_tier, %{}, hash_password: false)
 
     socket =
       socket
-      |> assign(:current_email, user.email)
+      |> assign(:current_email, user_with_tier.email)
       |> assign(:email_form, to_form(email_changeset))
       |> assign(:username_form, to_form(username_changeset))
       |> assign(:password_form, to_form(password_changeset))
       |> assign(:trigger_submit, false)
+      |> assign(:current_scope, %{socket.assigns.current_scope | user: user_with_tier})
 
     {:ok, socket}
   end

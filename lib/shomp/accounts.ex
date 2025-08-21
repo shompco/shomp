@@ -6,7 +6,7 @@ defmodule Shomp.Accounts do
   import Ecto.Query, warn: false
   alias Shomp.Repo
 
-  alias Shomp.Accounts.{User, UserToken, UserNotifier}
+  alias Shomp.Accounts.{User, UserToken, UserNotifier, Tier}
 
   ## Database getters
 
@@ -100,8 +100,11 @@ defmodule Shomp.Accounts do
 
   """
   def register_user(attrs) do
+    default_tier = get_default_tier()
+    
     %User{}
     |> User.registration_changeset(attrs)
+    |> Ecto.Changeset.put_change(:tier_id, default_tier.id)
     |> Repo.insert()
   end
 
@@ -371,5 +374,76 @@ defmodule Shomp.Accounts do
         {:ok, {user, tokens_to_expire}}
       end
     end)
+  end
+
+  ## Tier management
+
+  @doc """
+  Gets a single tier by ID.
+  """
+  def get_tier!(id), do: Repo.get!(Tier, id)
+
+  @doc """
+  Gets a tier by slug.
+  """
+  def get_tier_by_slug(slug), do: Repo.get_by(Tier, slug: slug)
+
+  @doc """
+  Lists all active tiers ordered by sort_order.
+  """
+  def list_active_tiers do
+    Tier
+    |> where([t], t.is_active == true)
+    |> order_by([t], t.sort_order)
+    |> Repo.all()
+  end
+
+  @doc """
+  Gets the default free tier.
+  """
+  def get_default_tier, do: get_tier_by_slug("free")
+
+  @doc """
+  Assigns the default tier to users who don't have one.
+  """
+  def assign_default_tier_to_user(user) do
+    if !user.tier_id do
+      default_tier = get_default_tier()
+      upgrade_user_tier(user, default_tier)
+    else
+      {:ok, user}
+    end
+  end
+
+  @doc """
+  Upgrades a user to a new tier.
+  """
+  def upgrade_user_tier(user, tier) do
+    user
+    |> User.tier_changeset(%{tier_id: tier.id})
+    |> Repo.update()
+  end
+
+  @doc """
+  Checks user limits based on their current tier.
+  """
+  def check_user_limits(user) do
+    user = Repo.preload(user, :tier)
+    
+    %{
+      store_count: count_user_stores(user.id),
+      store_limit: user.tier.store_limit,
+      can_create_store: count_user_stores(user.id) < user.tier.store_limit,
+      product_count: count_user_products(user.id),
+      product_limit: user.tier.product_limit_per_store
+    }
+  end
+
+  defp count_user_stores(user_id) do
+    Shomp.Stores.count_user_stores(user_id)
+  end
+
+  defp count_user_products(user_id) do
+    Shomp.Products.count_user_products(user_id)
   end
 end

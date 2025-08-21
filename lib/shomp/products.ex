@@ -199,6 +199,31 @@ defmodule Shomp.Products do
     Product.create_changeset(product, attrs)
   end
 
+  @doc """
+  Counts the number of products for a specific user across all their stores.
+  """
+  def count_user_products(user_id) do
+    # Get all stores for the user
+    store_ids = Shomp.Stores.list_stores_by_user(user_id) |> Enum.map(& &1.id)
+    
+    if Enum.empty?(store_ids) do
+      0
+    else
+      Product
+      |> where([p], p.store_id in ^store_ids)
+      |> Repo.aggregate(:count, :id)
+    end
+  end
+
+  @doc """
+  Counts the number of products for a specific store.
+  """
+  def count_store_products(store_id) do
+    Product
+    |> where([p], p.store_id == ^store_id)
+    |> Repo.aggregate(:count, :id)
+  end
+
   # Private functions
 
   defp create_stripe_product(product) do

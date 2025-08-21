@@ -12,8 +12,47 @@
 
 # Create a test user for feature requests
 alias Shomp.Repo
-alias Shomp.Accounts.User
+alias Shomp.Accounts.{User, Tier}
 alias Shomp.FeatureRequests
+
+# Create default tiers if they don't exist
+tiers = [
+  %{
+    name: "Free",
+    slug: "free",
+    store_limit: 1,
+    product_limit_per_store: 100,
+    monthly_price: Decimal.new("0.00"),
+    features: ["Basic support"],
+    sort_order: 1
+  },
+  %{
+    name: "Plus",
+    slug: "plus", 
+    store_limit: 3,
+    product_limit_per_store: 500,
+    monthly_price: Decimal.new("10.00"),
+    features: ["Priority support", "Analytics", "Support Shomp"],
+    sort_order: 2
+  },
+  %{
+    name: "Pro",
+    slug: "pro",
+    store_limit: 10,
+    product_limit_per_store: 1000,
+    monthly_price: Decimal.new("20.00"),
+    features: ["Priority support", "Advanced analytics", "Support Shomp"],
+    sort_order: 3
+  }
+]
+
+for tier_attrs <- tiers do
+  %Tier{}
+  |> Tier.changeset(tier_attrs)
+  |> Repo.insert!(on_conflict: :nothing)
+end
+
+IO.puts("Created default tiers")
 
 # Create a test user if it doesn't exist
 test_user = case Repo.get_by(User, email: "test@example.com") do

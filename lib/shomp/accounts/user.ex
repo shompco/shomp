@@ -11,6 +11,9 @@ defmodule Shomp.Accounts.User do
     field :hashed_password, :string, redact: true
     field :confirmed_at, :utc_datetime
     field :authenticated_at, :utc_datetime, virtual: true
+    field :trial_ends_at, :utc_datetime
+    
+    belongs_to :tier, Shomp.Accounts.Tier, type: :binary_id
     has_many :stores, Shomp.Stores.Store
     has_many :payments, Shomp.Payments.Payment
     has_many :downloads, Shomp.Downloads.Download
@@ -199,6 +202,15 @@ defmodule Shomp.Accounts.User do
     else
       changeset
     end
+  end
+
+  @doc """
+  A user changeset for updating tier information.
+  """
+  def tier_changeset(user, attrs) do
+    user
+    |> cast(attrs, [:tier_id, :trial_ends_at])
+    |> validate_required([:tier_id])
   end
 
   @doc """

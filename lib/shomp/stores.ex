@@ -242,4 +242,22 @@ defmodule Shomp.Stores do
   def change_store_creation(%Store{} = store, attrs \\ %{}) do
     Store.create_changeset(store, attrs)
   end
+
+  @doc """
+  Counts the number of stores for a specific user.
+  """
+  def count_user_stores(user_id) do
+    Store
+    |> where([s], s.user_id == ^user_id)
+    |> Repo.aggregate(:count, :id)
+  end
+
+  @doc """
+  Lists stores by user ID.
+  """
+  def list_stores_by_user(user_id) do
+    Store
+    |> where([s], s.user_id == ^user_id)
+    |> Repo.all()
+  end
 end

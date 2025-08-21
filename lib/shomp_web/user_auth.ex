@@ -257,9 +257,13 @@ defmodule ShompWeb.UserAuth do
   end
 
   @doc "Returns the path to redirect to after log in."
-  # the user was already logged in, redirect to settings
-  def signed_in_path(%Plug.Conn{assigns: %{current_scope: %Scope{user: %Accounts.User{}}}}) do
-    ~p"/users/settings"
+  # Check if user has a tier, if not redirect to tier selection
+  def signed_in_path(%Plug.Conn{assigns: %{current_scope: %Scope{user: %Accounts.User{} = user}}}) do
+    if user.tier_id do
+      ~p"/dashboard/store"
+    else
+      ~p"/users/tier-selection"
+    end
   end
 
   def signed_in_path(_), do: ~p"/"
