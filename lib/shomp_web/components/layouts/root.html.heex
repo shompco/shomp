@@ -58,63 +58,79 @@
         <Layouts.theme_toggle />
       </li>
       <li>
-        <.link href={~p"/"}>Home</.link>
+        <.link href={~p"/"} class="btn btn-ghost btn-sm">Home</.link>
       </li>
       <li>
-        <.link href={~p"/stores"}>Browse Stores</.link>
+        <.link href={~p"/stores"} class="btn btn-ghost btn-sm">Browse Stores</.link>
       </li>
       <li>
-        <.link href={~p"/about"}>About</.link>
+        <.link href={~p"/about"} class="btn btn-ghost btn-sm">About</.link>
       </li>
       <li>
-        <.link href={~p"/requests"}>Feature Requests</.link>
+        <.link href={~p"/requests"} class="btn btn-ghost btn-sm">Feature Requests</.link>
       </li>
       <li>
-        <.link href={~p"/donations"} class="btn btn-secondary btn-sm">💝 Donate</.link>
+        <.link href={~p"/donations"} class="btn btn-ghost btn-sm">💝 Donate</.link>
       </li>
       <%= if @current_scope do %>
-        <li>
-          <.link href={~p"/stores/new"} class="btn btn-primary btn-sm">Create Store</.link>
-        </li>
-        <li>
-          <.link href={~p"/my/stores"}>
-            My Stores
-            <%= if @current_scope.user do %>
-              <span class="badge badge-sm badge-primary ml-1">
-                <%= Shomp.Stores.count_user_stores(@current_scope.user.id) %>
-              </span>
-            <% end %>
-          </.link>
-        </li>
-        <li>
-          <.link href={~p"/dashboard/store/balance"}>Store Balance</.link>
-        </li>
-        <li>
-          <span class="text-sm text-gray-700">
+        <li class="dropdown dropdown-end">
+          <div tabindex="0" role="button" class="btn btn-ghost btn-sm">
             <%= @current_scope.user.username || "User" %>
-          </span>
+            <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+          <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
+            <li>
+              <.link href={~p"/stores/new"} class="btn btn-ghost btn-sm justify-start">
+                🏪 Create Store
+              </.link>
+            </li>
+            <li>
+              <.link href={~p"/my/stores"} class="btn btn-ghost btn-sm justify-start">
+                🏪 My Stores
+                <%= if @current_scope.user do %>
+                  <span class="badge badge-sm badge-primary ml-auto">
+                    <%= Shomp.Stores.count_user_stores(@current_scope.user.id) %>
+                  </span>
+                <% end %>
+              </.link>
+            </li>
+            <li>
+              <.link href={~p"/dashboard/store/balance"} class="btn btn-ghost btn-sm justify-start">
+                💰 Store Balance
+              </.link>
+            </li>
+            <li>
+              <.link href={~p"/purchases"} class="btn btn-ghost btn-sm justify-start">
+                📦 My Purchases
+              </.link>
+            </li>
+            <li>
+              <.link href={~p"/users/settings"} class="btn btn-ghost btn-sm justify-start">
+                ⚙️ Settings
+              </.link>
+            </li>
+            <li class="divider"></li>
+            <li>
+              <.link href={~p"/users/log-out"} method="delete" class="btn btn-ghost btn-sm justify-start text-error">
+                🚪 Log out
+              </.link>
+            </li>
+          </ul>
         </li>
         <li>
-          <.link href={~p"/purchases"}>My Purchases</.link>
-        </li>
-        <li>
-          <.link href={~p"/users/settings"}>Settings</.link>
-        </li>
-        <li>
-          <.link href={~p"/users/log-out"} method="delete">Log out</.link>
-        </li>
-        <li>
-          <.link href={~p"/cart"} class="flex items-center space-x-1">
+          <.link href={~p"/cart"} class="btn btn-ghost btn-sm flex items-center space-x-1">
             <span>🛒</span>
             <span class="cart-count" id="cart-count">(0)</span>
           </.link>
         </li>
       <% else %>
         <li>
-          <.link href={~p"/users/register"}>Register</.link>
+          <.link href={~p"/users/register"} class="btn btn-ghost btn-sm">Register</.link>
         </li>
         <li>
-          <.link href={~p"/users/log-in"}>Log in</.link>
+          <.link href={~p"/users/log-in"} class="btn btn-ghost btn-sm">Log in</.link>
         </li>
       <% end %>
     </ul>
