@@ -34,9 +34,10 @@ defmodule Shomp.Carts.CartItem do
   @doc """
   Updates the quantity of a cart item.
   """
-  def update_quantity_changeset(cart_item, quantity) do
+  def update_quantity_changeset(cart_item, attrs) do
     cart_item
-    |> change(%{quantity: quantity})
+    |> cast(attrs, [:quantity])
+    |> validate_required([:quantity])
     |> validate_number(:quantity, greater_than: 0)
   end
 

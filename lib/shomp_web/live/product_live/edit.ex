@@ -90,6 +90,17 @@ defmodule ShompWeb.ProductLive.Edit do
               View Product
             </.link>
           </div>
+          
+          <div class="mt-6 pt-6 border-t border-base-300">
+            <button
+              type="button"
+              phx-click="delete_product"
+              phx-confirm="Are you sure you want to delete this product? This action cannot be undone."
+              class="btn btn-error w-full"
+            >
+              Delete Product
+            </button>
+          </div>
         </.form>
       </div>
     </Layouts.app>
@@ -116,6 +127,21 @@ defmodule ShompWeb.ProductLive.Edit do
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign(socket, form: to_form(changeset))}
+    end
+  end
+
+  def handle_event("delete_product", _params, socket) do
+    case Products.delete_product(socket.assigns.product) do
+      {:ok, _product} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Product deleted successfully!")
+         |> push_navigate(to: ~p"/#{socket.assigns.product.store.slug}")}
+
+      {:error, _changeset} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Failed to delete product. Please try again.")}
     end
   end
 end

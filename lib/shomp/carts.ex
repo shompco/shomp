@@ -77,8 +77,6 @@ defmodule Shomp.Carts do
     # Get the product to get the current price
     product = Repo.get!(Product, product_id)
     
-
-    
     # Check if item already exists in cart
     case get_cart_item(cart_id, product_id) do
       nil ->
@@ -100,9 +98,9 @@ defmodule Shomp.Carts do
             {:error, changeset}
         end
       
-      existing_item ->
-        # Update quantity of existing item
-        update_cart_item_quantity(existing_item.id, existing_item.quantity + quantity)
+      _existing_item ->
+        # Item already exists in cart - return specific error
+        {:error, :item_already_in_cart}
     end
   end
 

@@ -42,6 +42,11 @@ defmodule ShompWeb.CartLive.Show do
              socket
              |> put_flash(:info, "Product added to cart!")}
           
+          {:error, :item_already_in_cart} ->
+            {:noreply, 
+             socket
+             |> put_flash(:info, "This product is already in your cart!")}
+          
           {:error, _changeset} ->
             {:noreply, 
              socket

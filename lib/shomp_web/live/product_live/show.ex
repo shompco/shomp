@@ -95,14 +95,6 @@ defmodule ShompWeb.ProductLive.Show do
                       >
                         Edit Product
                       </.link>
-                      
-                      <button
-                        phx-click="delete_product"
-                        phx-confirm="Are you sure you want to delete this product?"
-                        class="btn btn-error flex-1"
-                      >
-                        Delete
-                      </button>
                     </div>
                   <% end %>
                 </div>
@@ -128,21 +120,6 @@ defmodule ShompWeb.ProductLive.Show do
   end
 
   @impl true
-  def handle_event("delete_product", _params, socket) do
-    case Products.delete_product(socket.assigns.product) do
-      {:ok, _product} ->
-        {:noreply,
-         socket
-         |> put_flash(:info, "Product deleted successfully!")
-         |> push_navigate(to: ~p"/#{socket.assigns.product.store.slug}")}
-
-      {:error, _changeset} ->
-        {:noreply,
-         socket
-         |> put_flash(:error, "Failed to delete product. Please try again.")}
-    end
-  end
-
   def handle_event("add_to_cart", %{"product_id" => product_id, "store_id" => store_id}, socket) do
     user_id = socket.assigns.current_scope.user.id
     
@@ -164,6 +141,11 @@ defmodule ShompWeb.ProductLive.Show do
             {:noreply, 
              socket
              |> put_flash(:info, "Product added to cart!")}
+          
+          {:error, :item_already_in_cart} ->
+            {:noreply, 
+             socket
+             |> put_flash(:info, "This product is already in your cart!")}
           
           {:error, _changeset} ->
             {:noreply, 
