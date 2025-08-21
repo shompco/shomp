@@ -25,6 +25,9 @@ import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/shomp"
 import topbar from "../vendor/topbar"
 
+// Import upload preview functionality
+import "./upload_preview.js"
+
 // Custom hooks for real-time features
 const VoteUpdates = {
   mounted() {

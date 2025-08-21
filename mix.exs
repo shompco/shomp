@@ -70,7 +70,8 @@ defmodule Shomp.MixProject do
       {:stripity_stripe, "~> 2.16"},
       {:oban, "~> 2.14"},
       {:waffle_ecto, "~> 0.0.10"},
-      {:ex_aws_s3, "~> 2.3"}
+      {:ex_aws_s3, "~> 2.3"},
+      {:mogrify, "~> 0.9"}
     ]
   end
 

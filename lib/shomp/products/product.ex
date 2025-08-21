@@ -12,6 +12,16 @@ defmodule Shomp.Products.Product do
     field :store_id, :string  # Reference to store's immutable store_id
     field :store, :map, virtual: true  # Virtual field to hold store data
     
+    # Product images
+    field :image_original, :string
+    field :image_thumb, :string
+    field :image_medium, :string
+    field :image_large, :string
+    field :image_extra_large, :string
+    field :image_ultra, :string
+    field :additional_images, {:array, :string}, default: []
+    field :primary_image_index, :integer, default: 0
+    
     belongs_to :category, Shomp.Categories.Category
     
     has_many :payments, Shomp.Payments.Payment
@@ -25,7 +35,7 @@ defmodule Shomp.Products.Product do
   """
   def changeset(product, attrs) do
     product
-    |> cast(attrs, [:title, :description, :price, :type, :file_path, :store_id, :stripe_product_id, :category_id])
+    |> cast(attrs, [:title, :description, :price, :type, :file_path, :store_id, :stripe_product_id, :category_id, :image_original, :image_thumb, :image_medium, :image_large, :image_extra_large, :image_ultra, :additional_images, :primary_image_index])
     |> validate_required([:title, :price, :type, :store_id])
     |> validate_length(:title, min: 2, max: 200)
     |> validate_length(:description, max: 2000)
@@ -33,6 +43,7 @@ defmodule Shomp.Products.Product do
     |> validate_inclusion(:type, ["digital", "physical"])
     |> validate_length(:file_path, max: 500)
     |> validate_length(:store_id, min: 1)
+    |> validate_image_paths()
   end
 
   @doc """
@@ -56,5 +67,24 @@ defmodule Shomp.Products.Product do
       _ ->
         changeset
     end
+  end
+  
+  defp validate_image_paths(changeset) do
+    # Validate image paths if they exist
+    image_fields = [:image_original, :image_thumb, :image_medium, :image_large, :image_extra_large, :image_ultra]
+    
+    Enum.reduce(image_fields, changeset, fn field, acc ->
+      case get_change(acc, field) do
+        nil -> acc
+        path when is_binary(path) and byte_size(path) > 0 ->
+          if String.starts_with?(path, "/uploads/") do
+            acc
+          else
+            add_error(acc, field, "must be a valid upload path")
+          end
+        _ ->
+          add_error(acc, field, "must be a valid path string")
+      end
+    end)
   end
 end
