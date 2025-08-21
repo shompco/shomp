@@ -328,3 +328,42 @@
 - `/admin` - admin dashboard
 - `/admin/users` - user management
 - `/admin/analytics` - platform analytics
+
+
+18. Creator Profile Page (Shomp.Profiles)
+Context & Schema
+
+Shomp.Profiles.Profile schema (immutable_id, user_id, display_name, bio, avatar_url, banner_url, location, website, social_links, verified, created_at, updated_at)
+Shomp.Profiles.SocialLink schema (profile_id, platform, url, verified, created_at)
+Shomp.Profiles context (create_profile, update_profile, get_profile_by_user, verify_social_links)
+
+Profile Features
+
+Public creator profile with bio and avatar
+Social media link verification
+Location display (city/state level only for privacy)
+Creator verification badges
+Portfolio/featured products section
+Creator story/background section
+Follower count display (if following system implemented)
+
+Privacy & Safety
+
+No email or full name exposure
+Optional location sharing
+Profile moderation capabilities
+Block/report functionality
+
+Web Layer
+
+ShompWeb.ProfileLive.Show (public creator profile)
+ShompWeb.ProfileLive.Edit (profile management)
+ShompWeb.Components.CreatorCard (creator preview component)
+Profile link integration in store pages
+
+Routes
+
+/creators/:immutable_id - public creator profile
+/dashboard/profile - edit creator profile
+/creators - browse all creators (discovery page)
+Profile links embedded in store and product pages

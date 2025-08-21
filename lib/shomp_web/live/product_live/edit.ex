@@ -4,6 +4,7 @@ defmodule ShompWeb.ProductLive.Edit do
   on_mount {ShompWeb.UserAuth, :require_authenticated}
 
   alias Shomp.Products
+  alias Shomp.Categories
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
@@ -13,7 +14,19 @@ defmodule ShompWeb.ProductLive.Edit do
     # Check if user owns the store
     if product.store.user_id == user.id do
       changeset = Products.change_product(product)
-      {:ok, assign(socket, product: product, form: to_form(changeset))}
+      
+      # Load categories based on current product type
+      filtered_category_options = if product.type do
+        Categories.get_categories_by_type(product.type)
+      else
+        []
+      end
+      
+      {:ok, assign(socket, 
+        product: product, 
+        form: to_form(changeset),
+        filtered_category_options: filtered_category_options
+      )}
     else
       {:ok,
        socket
@@ -62,10 +75,19 @@ defmodule ShompWeb.ProductLive.Edit do
             type="select"
             label="Product Type"
             options={[
-              {"Digital Product", "digital"},
               {"Physical Product", "physical"},
-              {"Service", "service"}
+              {"Digital Product", "digital"}
             ]}
+            required
+            phx-change="type_changed"
+          />
+
+          <.input
+            field={@form[:category_id]}
+            type="select"
+            label="Main Category"
+            options={@filtered_category_options}
+            prompt="Select a main category"
             required
           />
 
@@ -115,6 +137,17 @@ defmodule ShompWeb.ProductLive.Edit do
       |> Map.put(:action, :validate)
 
     {:noreply, assign(socket, form: to_form(changeset))}
+  end
+
+  def handle_event("type_changed", %{"product" => %{"type" => product_type}}, socket) do
+    filtered_category_options = if product_type && product_type != "" do
+      Categories.get_categories_by_type(product_type)
+    else
+      # If no type selected, show all categories
+      Categories.get_main_category_options()
+    end
+    
+    {:noreply, assign(socket, filtered_category_options: filtered_category_options)}
   end
 
   def handle_event("save", %{"product" => product_params}, socket) do
