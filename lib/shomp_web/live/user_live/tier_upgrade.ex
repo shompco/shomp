@@ -5,15 +5,24 @@ defmodule ShompWeb.UserLive.TierUpgrade do
   def mount(_params, _session, socket) do
     tiers = Accounts.list_active_tiers()
     current_user = socket.assigns.current_scope.user
-    limits = Accounts.check_user_limits(current_user)
     
-    {:ok, 
-     assign(socket, 
-       tiers: tiers,
-       current_tier: current_user.tier,
-       user_limits: limits,
-       page_title: "Upgrade Your Plan"
-     )}
+    # Preload tier information
+    user_with_tier = Shomp.Repo.preload(current_user, :tier)
+    
+    # If user doesn't have a tier, redirect to tier selection
+    if !user_with_tier.tier do
+      {:ok, push_navigate(socket, to: ~p"/users/tier-selection")}
+    else
+      limits = Accounts.check_user_limits(user_with_tier)
+      
+      {:ok, 
+       assign(socket, 
+         tiers: tiers,
+         current_tier: user_with_tier.tier,
+         user_limits: limits,
+         page_title: "Upgrade Your Plan"
+       )}
+    end
   end
 
   def render(assigns) do
@@ -146,7 +155,7 @@ defmodule ShompWeb.UserLive.TierUpgrade do
   def handle_event("upgrade_to_tier", %{"tier-id" => tier_id}, socket) do
     tier = Accounts.get_tier!(tier_id)
     
-    case Accounts.upgrade_user_tier(socket.assigns.current_user, tier) do
+    case Accounts.upgrade_user_tier(socket.assigns.current_scope.user, tier) do
       {:ok, _user} ->
         {:noreply,
          socket

@@ -50,7 +50,16 @@
     </script>
   </head>
   <body>
-    <ul class="menu menu-horizontal w-full relative z-10 flex items-center gap-4 px-4 sm:px-6 lg:px-8 justify-end">
+    <ul class="menu menu-horizontal w-full relative z-10 flex items-center gap-4 px-4 sm:px-6 lg:px-8">
+      <li class="mr-auto">
+        <.link href={~p"/"} class="text-xl font-bold text-primary">Shomp</.link>
+      </li>
+      <li>
+        <Layouts.theme_toggle />
+      </li>
+      <li>
+        <.link href={~p"/"}>Home</.link>
+      </li>
       <li>
         <.link href={~p"/stores"}>Browse Stores</.link>
       </li>

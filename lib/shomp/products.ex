@@ -204,7 +204,7 @@ defmodule Shomp.Products do
   """
   def count_user_products(user_id) do
     # Get all stores for the user
-    store_ids = Shomp.Stores.list_stores_by_user(user_id) |> Enum.map(& &1.id)
+    store_ids = Shomp.Stores.list_stores_by_user(user_id) |> Enum.map(& &1.store_id)
     
     if Enum.empty?(store_ids) do
       0
