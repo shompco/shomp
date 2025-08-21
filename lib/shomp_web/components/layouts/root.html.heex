@@ -74,6 +74,16 @@
           <.link href={~p"/stores/new"} class="btn btn-primary btn-sm">Create Store</.link>
         </li>
         <li>
+          <.link href={~p"/my/stores"}>
+            My Stores
+            <%= if @current_scope.user do %>
+              <span class="badge badge-sm badge-primary ml-1">
+                <%= Shomp.Stores.count_user_stores(@current_scope.user.id) %>
+              </span>
+            <% end %>
+          </.link>
+        </li>
+        <li>
           <.link href={~p"/dashboard/store/balance"}>Store Balance</.link>
         </li>
         <li>
