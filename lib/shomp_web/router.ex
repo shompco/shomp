@@ -38,6 +38,8 @@ defmodule ShompWeb.Router do
     live_session :public_with_cart,
       on_mount: [{ShompWeb.UserAuth, :mount_current_scope}, {ShompWeb.CartHook, :default}] do
       live "/about", AboutLive.Show, :show
+      live "/donations", DonationLive.Show, :show
+      live "/donations/thank-you", DonationLive.ThankYou, :show
     end
   end
 
