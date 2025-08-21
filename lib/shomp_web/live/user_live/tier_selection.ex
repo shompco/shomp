@@ -6,10 +6,11 @@ defmodule ShompWeb.UserLive.TierSelection do
     tiers = Accounts.list_active_tiers()
     current_user = socket.assigns.current_scope.user
     
-    # If user already has a tier, redirect to dashboard
+    # If user already has a tier, redirect to homepage
     if current_user.tier_id do
-      {:ok, push_navigate(socket, to: ~p"/dashboard/store")}
+      {:ok, push_navigate(socket, to: ~p"/")}
     else
+      # User is logged in but has no tier, show tier selection
       {:ok, 
        assign(socket, 
          tiers: tiers,
@@ -184,7 +185,7 @@ defmodule ShompWeb.UserLive.TierSelection do
         {:noreply,
          socket
          |> put_flash(:info, "Welcome to #{socket.assigns.selected_tier.name}! Let's get started building your marketplace.")
-         |> push_navigate(to: ~p"/dashboard/store")}
+         |> push_navigate(to: ~p"/")}
       
       {:error, _changeset} ->
         {:noreply,

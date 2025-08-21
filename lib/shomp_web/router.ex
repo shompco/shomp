@@ -76,6 +76,7 @@ defmodule ShompWeb.Router do
       live "/users/settings", UserLive.Settings, :edit
       live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
       live "/users/tier-upgrade", UserLive.TierUpgrade, :new
+      live "/users/tier-selection", UserLive.TierSelection, :new
       live "/dashboard/store", StoreLive.Edit, :edit
       live "/dashboard/store/balance", StoreLive.Balance, :show
       live "/dashboard/products/new", ProductLive.New, :new
@@ -136,7 +137,6 @@ defmodule ShompWeb.Router do
       live "/users/register", UserLive.Registration, :new
       live "/users/log-in", UserLive.Login, :new
       live "/users/log-in/:token", UserLive.Confirmation, :new
-      live "/users/tier-selection", UserLive.TierSelection, :new
     end
 
     post "/users/log-in", UserSessionController, :create

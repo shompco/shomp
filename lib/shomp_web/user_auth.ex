@@ -37,7 +37,7 @@ defmodule ShompWeb.UserAuth do
 
     conn
     |> create_or_extend_session(user, params)
-    |> redirect(to: user_return_to || signed_in_path(conn))
+    |> redirect(to: user_return_to || signed_in_path(user))
   end
 
   @doc """
@@ -258,9 +258,9 @@ defmodule ShompWeb.UserAuth do
 
   @doc "Returns the path to redirect to after log in."
   # Check if user has a tier, if not redirect to tier selection
-  def signed_in_path(%Plug.Conn{assigns: %{current_scope: %Scope{user: %Accounts.User{} = user}}}) do
+  def signed_in_path(%Accounts.User{} = user) do
     if user.tier_id do
-      ~p"/dashboard/store"
+      ~p"/"
     else
       ~p"/users/tier-selection"
     end
