@@ -5,6 +5,7 @@ defmodule ShompWeb.ProductLive.New do
 
   alias Shomp.Products
   alias Shomp.Stores
+  alias Shomp.Categories
 
   @impl true
   def render(assigns) do
@@ -58,10 +59,20 @@ defmodule ShompWeb.ProductLive.New do
             type="select"
             label="Product Type"
             options={[
-              {"Digital Product", "digital"},
               {"Physical Product", "physical"},
-              {"Service", "service"}
+              {"Digital Product", "digital"}
             ]}
+            value="physical"
+            required
+            phx-change="type_changed"
+          />
+
+          <.input
+            field={@form[:category_id]}
+            type="select"
+            label="Main Category"
+            options={@filtered_category_options}
+            prompt="Select a main category"
             required
           />
 
@@ -107,14 +118,19 @@ defmodule ShompWeb.ProductLive.New do
         # Pre-select the first store if only one exists
         selected_store_id = if length(stores) == 1, do: List.first(stores).store_id, else: nil
         
+        # Default to Physical Product and load physical categories
         changeset = Products.change_product_creation(%Products.Product{})
         changeset = if selected_store_id do
           Ecto.Changeset.put_change(changeset, :store_id, selected_store_id)
         else
           changeset
         end
+        changeset = Ecto.Changeset.put_change(changeset, :type, "physical")
         
-        {:ok, assign_form(socket, changeset, store_options, stores)}
+        # Load physical categories by default
+        physical_categories = Categories.get_categories_by_type("physical")
+        
+        {:ok, assign_form(socket, changeset, store_options, stores, physical_categories)}
     end
   end
 
@@ -125,7 +141,18 @@ defmodule ShompWeb.ProductLive.New do
       |> Products.change_product_creation(product_params)
       |> Map.put(:action, :validate)
 
-    {:noreply, assign_form(socket, changeset, socket.assigns.store_options, socket.assigns.stores)}
+    {:noreply, assign_form(socket, changeset, socket.assigns.store_options, socket.assigns.stores, socket.assigns.filtered_category_options)}
+  end
+
+  def handle_event("type_changed", %{"product" => %{"type" => product_type}}, socket) do
+    filtered_category_options = if product_type && product_type != "" do
+      Categories.get_categories_by_type(product_type)
+    else
+      # If no type selected, show all categories
+      Categories.get_main_category_options()
+    end
+    
+    {:noreply, assign(socket, filtered_category_options: filtered_category_options)}
   end
 
   def handle_event("save", %{"product" => product_params}, socket) do
@@ -147,12 +174,17 @@ defmodule ShompWeb.ProductLive.New do
 
       {:error, %Ecto.Changeset{} = changeset} ->
         IO.puts("Product creation failed: #{inspect(changeset.errors)}")
-        {:noreply, assign_form(socket, changeset, socket.assigns.store_options, socket.assigns.stores)}
+        {:noreply, assign_form(socket, changeset, socket.assigns.store_options, socket.assigns.stores, socket.assigns.filtered_category_options)}
     end
   end
 
-  defp assign_form(socket, %Ecto.Changeset{} = changeset, store_options, stores) do
+  defp assign_form(socket, %Ecto.Changeset{} = changeset, store_options, stores, filtered_category_options) do
     form = to_form(changeset, as: "product")
-    assign(socket, form: form, store_options: store_options, stores: stores)
+    assign(socket, 
+      form: form, 
+      store_options: store_options, 
+      stores: stores,
+      filtered_category_options: filtered_category_options
+    )
   end
 end
