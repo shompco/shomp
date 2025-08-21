@@ -67,6 +67,16 @@ defmodule Shomp.Downloads do
   end
 
   @doc """
+  Gets a download for a specific product and user.
+  """
+  def get_download_by_product_and_user(product_id, user_id) do
+    Download
+    |> where([d], d.product_id == ^product_id and d.user_id == ^user_id)
+    |> preload([:product, :user])
+    |> Repo.one()
+  end
+
+  @doc """
   Verifies if a user has access to download a product.
   """
   def verify_access(token, user_id) do

@@ -17,6 +17,11 @@ defmodule ShompWeb.Router do
     plug :accepts, ["json"]
   end
 
+  pipeline :webhook do
+    plug :accepts, ["json"]
+    plug :fetch_session
+  end
+
   # Feature Request routes - must come FIRST to avoid conflicts
   scope "/requests", ShompWeb do
     pipe_through :browser
@@ -57,9 +62,15 @@ defmodule ShompWeb.Router do
     pipe_through :browser
 
     post "/checkout", PaymentController, :create_checkout
-    post "/webhook", PaymentController, :webhook
     live "/success", PaymentLive.Success, :show
     live "/cancel", PaymentLive.Cancel, :show
+  end
+
+  # Webhook route with special pipeline (no CSRF protection)
+  scope "/payments", ShompWeb do
+    pipe_through :webhook
+
+    post "/webhook", PaymentController, :webhook
   end
 
   scope "/checkout", ShompWeb do

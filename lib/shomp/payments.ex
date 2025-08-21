@@ -2,6 +2,8 @@ defmodule Shomp.Payments do
   @moduledoc """
   The Payments context.
   """
+  
+  alias Phoenix.PubSub
 
   import Ecto.Query, warn: false
   alias Shomp.Repo
@@ -119,6 +121,9 @@ defmodule Shomp.Payments do
       "checkout.session.completed" ->
         handle_checkout_completed(event.data.object)
 
+      "charge.succeeded" ->
+        handle_charge_succeeded(event.data.object)
+
       "payment_intent.succeeded" ->
         handle_payment_succeeded(event.data.object)
 
@@ -135,6 +140,13 @@ defmodule Shomp.Payments do
   """
   def get_payment_by_stripe_id(stripe_payment_id) do
     Repo.get_by(Payment, stripe_payment_id: stripe_payment_id)
+  end
+
+  @doc """
+  Gets a payment by Stripe payment intent ID.
+  """
+  def get_payment_by_payment_intent_id(payment_intent_id) do
+    Repo.get_by(Payment, stripe_payment_id: payment_intent_id)
   end
 
   @doc """
@@ -267,41 +279,110 @@ defmodule Shomp.Payments do
     end
   end
 
+  defp handle_charge_succeeded(charge) do
+    IO.puts("=== CHARGE SUCCEEDED WEBHOOK ===")
+    IO.puts("Charge ID: #{charge.id}")
+    IO.puts("Charge amount: #{charge.amount}")
+    IO.puts("Charge metadata: #{inspect(charge.metadata)}")
+    
+    # Get the payment intent ID from the charge
+    payment_intent_id = charge.payment_intent
+    
+    # Look up the payment by the payment intent ID
+    case get_payment_by_payment_intent_id(payment_intent_id) do
+      nil ->
+        IO.puts("ERROR: No payment found for payment intent #{payment_intent_id}")
+        {:error, :payment_not_found}
+      
+      payment ->
+        IO.puts("Found payment: #{payment.id}")
+        # Update payment status to succeeded
+        case update_payment_status(payment, "succeeded") do
+          {:ok, updated_payment} ->
+            IO.puts("Payment status updated to succeeded")
+            # Update store balance
+            update_store_balance_from_payment(updated_payment)
+            IO.puts("Store balance updated")
+            
+            # Create order for review tracking
+            order_result = create_order_from_payment(updated_payment, updated_payment.stripe_payment_id)
+            IO.puts("Order creation result: #{inspect(order_result)}")
+            
+            # Create download for digital products
+            download_result = create_download_for_product(updated_payment)
+            IO.puts("Download creation result: #{inspect(download_result)}")
+            
+            {:ok, updated_payment}
+          
+          {:error, reason} ->
+            IO.puts("ERROR: Failed to update payment status: #{inspect(reason)}")
+            {:error, reason}
+        end
+    end
+  end
+
   defp handle_checkout_completed(session) do
+    IO.puts("=== CHECKOUT COMPLETED WEBHOOK ===")
+    IO.puts("Session ID: #{session.id}")
+    IO.puts("Session metadata: #{inspect(session.metadata)}")
+    
     # Check if this is a cart payment or single product payment
-    case session.metadata do
+    result = case session.metadata do
       %{"cart_id" => _cart_id, "type" => "cart_order"} ->
+        IO.puts("Handling cart order payment")
         # This is a cart order payment - handle the entire cart
         handle_cart_order_completed(session)
       
       %{"cart_id" => _cart_id} ->
+        IO.puts("Handling legacy cart payment")
         # This is a legacy cart payment - handle multiple products
         handle_cart_checkout_completed(session)
       
       _ ->
+        IO.puts("Handling single product payment")
         # This is a single product payment
         handle_single_product_checkout_completed(session)
     end
+    
+    IO.puts("Checkout completed result: #{inspect(result)}")
+    result
   end
 
   defp handle_single_product_checkout_completed(session) do
+    IO.puts("=== SINGLE PRODUCT CHECKOUT ===")
+    IO.puts("Looking for payment with session ID: #{session.id}")
+    
     case get_payment_by_stripe_id(session.id) do
-      nil -> {:error, :payment_not_found}
+      nil -> 
+        IO.puts("ERROR: Payment not found for session #{session.id}")
+        {:error, :payment_not_found}
       payment -> 
+        IO.puts("Found payment: #{payment.id}")
         case update_payment_status(payment, "succeeded") do
           {:ok, updated_payment} ->
+            IO.puts("Payment status updated to succeeded")
+            
             # Update store balance
             update_store_balance_from_payment(updated_payment)
+            IO.puts("Store balance updated")
+            
+            # Create order for review tracking
+            order_result = create_order_from_payment(updated_payment, session.id)
+            IO.puts("Order creation result: #{inspect(order_result)}")
             
             # Try to create download, but don't fail if it doesn't work
             case create_download_for_product(updated_payment) do
-              {:ok, _download} -> {:ok, updated_payment}
+              {:ok, _download} -> 
+                IO.puts("Download created successfully")
+                {:ok, updated_payment}
               {:error, reason} -> 
                 IO.puts("Warning: Failed to create download for payment #{session.id}: #{inspect(reason)}")
                 {:ok, updated_payment}
             end
           
-          {:error, reason} -> {:error, reason}
+          {:error, reason} -> 
+            IO.puts("ERROR: Failed to update payment status: #{inspect(reason)}")
+            {:error, reason}
         end
     end
   end
@@ -339,6 +420,9 @@ defmodule Shomp.Payments do
               update_payment_status(payment, "succeeded")
               update_store_balance_from_payment(payment)
             end)
+            
+            # Create order for review tracking
+            create_cart_order(cart, session.id, user_id)
             
             # Complete the cart
             Carts.complete_cart(cart_id)
@@ -379,9 +463,9 @@ defmodule Shomp.Payments do
         {:error, :product_not_found}
       
       product ->
-        # Update store balance
+        # Update store balance using string store_id
         alias Shomp.Stores.StoreBalances
-        StoreBalances.add_sale(product.store_id, payment.amount)
+        StoreBalances.add_sale_by_store_id(product.store_id, payment.amount)
     end
   end
 
@@ -524,6 +608,127 @@ defmodule Shomp.Payments do
       
       nil ->
         {:ok, Enum.map(payments, fn {:ok, payment} -> payment end)}
+    end
+  end
+
+  # Order creation functions for review tracking
+
+  defp create_order_from_payment(payment, session_id) do
+    alias Shomp.Orders
+    
+    IO.puts("=== CREATING ORDER FROM PAYMENT ===")
+    IO.puts("Payment ID: #{payment.id}")
+    IO.puts("Session ID: #{session_id}")
+    IO.puts("User ID: #{payment.user_id}")
+    IO.puts("Product ID: #{payment.product_id}")
+    IO.puts("Amount: #{payment.amount}")
+    
+    # Generate immutable ID for the order
+    immutable_id = Ecto.UUID.generate()
+    IO.puts("Generated order immutable ID: #{immutable_id}")
+    
+    # Create the order
+    order_attrs = %{
+      immutable_id: immutable_id,
+      total_amount: payment.amount,
+      stripe_session_id: session_id,
+      user_id: payment.user_id
+    }
+    IO.puts("Creating order with attrs: #{inspect(order_attrs)}")
+    
+    case Orders.create_order(order_attrs) do
+      {:ok, order} ->
+        IO.puts("Order created successfully: #{order.id}")
+        
+        # Create order item
+        order_item_attrs = %{
+          order_id: order.id,
+          product_id: payment.product_id,
+          quantity: 1,
+          price: payment.amount
+        }
+        IO.puts("Creating order item with attrs: #{inspect(order_item_attrs)}")
+        
+        case Orders.create_order_item(order_item_attrs) do
+          {:ok, order_item} ->
+            IO.puts("Order item created successfully: #{order_item.id}")
+            
+            # Update order status to completed
+            case Orders.update_order_status(order, "completed") do
+              {:ok, updated_order} ->
+                IO.puts("Order status updated to completed")
+                # Preload associations before broadcasting
+                order_with_details = Shomp.Repo.preload(updated_order, [order_items: :product])
+                # Broadcast to LiveView that order is ready
+                PubSub.broadcast(Shomp.PubSub, "order_created:#{session_id}", {:order_created, order_with_details})
+                {:ok, updated_order}
+              {:error, reason} ->
+                IO.puts("ERROR: Failed to update order status: #{inspect(reason)}")
+                # Still broadcast the order even if status update failed, but preload associations
+                order_with_details = Shomp.Repo.preload(order, [order_items: :product])
+                PubSub.broadcast(Shomp.PubSub, "order_created:#{session_id}", {:order_created, order_with_details})
+                {:ok, order}  # Return order even if status update fails
+            end
+          
+          {:error, reason} ->
+            IO.puts("ERROR: Failed to create order item: #{inspect(reason)}")
+            {:ok, order}  # Return order even if item creation fails
+        end
+        
+      {:error, reason} ->
+        IO.puts("ERROR: Failed to create order for payment #{payment.id}: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
+
+  defp create_cart_order(cart, session_id, user_id) do
+    alias Shomp.Orders
+    
+    # Calculate total amount
+    total_amount = Enum.reduce(cart.cart_items, Decimal.new(0), fn cart_item, acc ->
+      Decimal.add(acc, Decimal.mult(cart_item.price, cart_item.quantity))
+    end)
+    
+    # Generate immutable ID for the order
+    immutable_id = Ecto.UUID.generate()
+    
+    # Create the order
+    case Orders.create_order(%{
+      immutable_id: immutable_id,
+      total_amount: total_amount,
+      stripe_session_id: session_id,
+      user_id: user_id
+    }) do
+      {:ok, order} ->
+        # Create order items for each cart item
+        Enum.each(cart.cart_items, fn cart_item ->
+          Orders.create_order_item(%{
+            order_id: order.id,
+            product_id: cart_item.product_id,
+            quantity: cart_item.quantity,
+            price: cart_item.price
+          })
+        end)
+        
+        # Update order status to completed
+        case Orders.update_order_status(order, "completed") do
+          {:ok, updated_order} ->
+            # Preload associations before broadcasting
+            order_with_details = Shomp.Repo.preload(updated_order, [order_items: :product])
+            # Broadcast to LiveView that order is ready
+            PubSub.broadcast(Shomp.PubSub, "order_created:#{session_id}", {:order_created, order_with_details})
+            {:ok, updated_order}
+          {:error, reason} ->
+            IO.puts("Warning: Failed to update cart order status: #{inspect(reason)}")
+            # Still broadcast the order even if status update failed, but preload associations
+            order_with_details = Shomp.Repo.preload(order, [order_items: :product])
+            PubSub.broadcast(Shomp.PubSub, "order_created:#{session_id}", {:order_created, order_with_details})
+            {:ok, order}
+        end
+      
+      {:error, reason} ->
+        IO.puts("Warning: Failed to create cart order for session #{session_id}: #{inspect(reason)}")
+        {:error, reason}
     end
   end
 end

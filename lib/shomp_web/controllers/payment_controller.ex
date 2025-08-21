@@ -35,15 +35,35 @@ defmodule ShompWeb.PaymentController do
     signature = get_req_header(conn, "stripe-signature")
     payload = conn.assigns.raw_body
 
+    # Debug logging
+    IO.puts("=== WEBHOOK DEBUG ===")
+    IO.puts("Signature: #{inspect(signature)}")
+    IO.puts("Raw body length: #{if payload, do: byte_size(payload), else: "nil"}")
+    IO.puts("Raw body preview: #{if payload, do: String.slice(payload, 0, 100), else: "nil"}")
+
     case verify_webhook_signature(payload, signature) do
       {:ok, event} ->
-        Payments.handle_webhook(event)
-        json(conn, %{received: true})
+        IO.puts("Webhook signature verified successfully")
+        IO.puts("Event type: #{event.type}")
+        
+        try do
+          result = Payments.handle_webhook(event)
+          IO.puts("Webhook handling result: #{inspect(result)}")
+          json(conn, %{received: true})
+        rescue
+          e ->
+            IO.puts("ERROR: Exception during webhook handling: #{inspect(e)}")
+            IO.puts("Stacktrace: #{inspect(__STACKTRACE__)}")
+            conn
+            |> put_status(:internal_server_error)
+            |> json(%{error: "Webhook processing failed", details: inspect(e)})
+        end
 
-      {:error, _reason} ->
+      {:error, reason} ->
+        IO.puts("Webhook signature verification failed: #{inspect(reason)}")
         conn
         |> put_status(:bad_request)
-        |> json(%{error: "Invalid webhook signature"})
+        |> json(%{error: "Invalid webhook signature", details: inspect(reason)})
     end
   end
 
@@ -65,7 +85,15 @@ defmodule ShompWeb.PaymentController do
 
   defp verify_webhook_signature(payload, [signature]) do
     webhook_secret = Application.get_env(:shomp, :stripe_webhook_secret)
-    Stripe.Webhook.construct_event(payload, signature, webhook_secret)
+    IO.puts("Webhook secret from config: #{inspect(webhook_secret)}")
+    IO.puts("Environment STRIPE_WEBHOOK_SECRET: #{inspect(System.get_env("STRIPE_WEBHOOK_SECRET"))}")
+    
+    case webhook_secret do
+      nil ->
+        {:error, :missing_webhook_secret}
+      secret ->
+        Stripe.Webhook.construct_event(payload, signature, secret)
+    end
   end
 
   defp verify_webhook_signature(_payload, _signature) do

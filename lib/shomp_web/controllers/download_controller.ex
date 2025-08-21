@@ -73,13 +73,27 @@ defmodule ShompWeb.DownloadController do
   """
   def purchases(conn, _params) do
     user_id = conn.assigns.current_scope.user.id
-    downloads = Downloads.list_user_downloads(user_id)
+    
+    # Get all user orders with products and stores loaded
+    orders = Shomp.Orders.list_user_orders(user_id)
+    |> Shomp.Repo.preload([order_items: [product: :store]])
+    
+    # Get download stats for digital products
     stats = Downloads.get_user_download_stats(user_id)
 
     conn
-    |> assign(:downloads, downloads)
+    |> assign(:orders, orders)
     |> assign(:stats, stats)
+    |> assign(:get_download_token, &get_download_token/2)
     |> render(:purchases)
+  end
+
+  # Helper function to get download token for a product and user
+  defp get_download_token(product_id, user_id) do
+    case Downloads.get_download_by_product_and_user(product_id, user_id) do
+      nil -> nil
+      download -> download.token
+    end
   end
 
   # Private functions
