@@ -51,9 +51,11 @@ defmodule ShompWeb.AboutLive.Show do
               <div class="text-center mb-8">
                 <h2 class="text-2xl font-semibold text-gray-900 mb-4">Our Mission</h2>
                 <p class="text-lg text-gray-700 leading-relaxed">
-                  Our mission is to empower creators and artists to make gainful livelihood through selling their creations.
+                  Our mission is to empower US artists and creatives to make gainful livelihood through selling their creations.
                 </p>
               </div>
+
+
 
               <div class="grid md:grid-cols-2 gap-8 mt-12">
                 <div class="text-center">
