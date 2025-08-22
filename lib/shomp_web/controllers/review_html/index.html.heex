@@ -1,0 +1,166 @@
+<div class="min-h-screen bg-gray-50 py-12">
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <!-- Header -->
+    <div class="mb-8">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-3xl font-bold text-gray-900">Reviews for <%= @product.title %></h1>
+          <p class="text-lg text-gray-600 mt-2">Customer reviews and ratings</p>
+        </div>
+        <div class="flex items-center space-x-4">
+          <a href={~p"/#{@product.store.slug}/products/#{@product.id}"} class="btn btn-outline">
+            ← Back to Product
+          </a>
+          <%= if @current_scope && @current_scope.user do %>
+            <%= if !Shomp.Reviews.user_has_reviewed_product?(@current_scope.user.id, @product.id) && Shomp.Orders.user_purchased_product?(@current_scope.user.id, @product.id) do %>
+              <a href={~p"/#{@product.store.slug}/products/#{@product.id}/reviews/new"} class="btn btn-primary">
+                Write a Review
+              </a>
+            <% end %>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Product Summary -->
+    <div class="bg-white shadow rounded-lg mb-8">
+      <div class="px-6 py-4">
+        <div class="flex items-center space-x-4">
+          <div class="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center">
+            <svg class="w-10 h-10 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <div class="flex-1">
+            <h2 class="text-xl font-medium text-gray-900"><%= @product.title %></h2>
+            <p class="text-sm text-gray-500"><%= @product.store.name %></p>
+            <p class="text-lg font-bold text-green-600">$<%= @product.price %></p>
+          </div>
+          <div class="text-right">
+            <div class="flex items-center space-x-1 mb-2">
+              <%= for rating <- 1..5 do %>
+                <svg class={"w-5 h-5 #{if rating <= (@average_rating || 0), do: "text-yellow-400", else: "text-gray-300"}"} fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                </svg>
+              <% end %>
+            </div>
+            <p class="text-2xl font-bold text-gray-900"><%= @average_rating || 0 %></p>
+            <p class="text-sm text-gray-500"><%= @review_count || 0 %> reviews</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rating Distribution -->
+    <%= if @rating_distribution && map_size(@rating_distribution) > 0 do %>
+      <div class="bg-white shadow rounded-lg mb-8">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-medium text-gray-900">Rating Breakdown</h3>
+        </div>
+        <div class="px-6 py-4">
+          <div class="space-y-3">
+            <%= for rating <- 5..1 do %>
+              <div class="flex items-center space-x-3">
+                <span class="text-sm text-gray-600 w-8"><%= rating %> stars</span>
+                <div class="flex-1 bg-gray-200 rounded-full h-2">
+                  <div class="bg-yellow-400 h-2 rounded-full" style={"width: #{if @review_count && @review_count > 0, do: "#{(@rating_distribution[rating] || 0) / @review_count * 100}%", else: "0%"}"}></div>
+                </div>
+                <span class="text-sm text-gray-600 w-12 text-right"><%= @rating_distribution[rating] || 0 %></span>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      </div>
+    <% end %>
+
+    <!-- Reviews List -->
+    <div class="bg-white shadow rounded-lg">
+      <div class="px-6 py-4 border-b border-gray-200">
+        <h3 class="text-lg font-medium text-gray-900">Customer Reviews</h3>
+      </div>
+      
+      <%= if Enum.empty?(@reviews) do %>
+        <div class="px-6 py-12 text-center">
+          <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          </svg>
+          <h3 class="mt-2 text-sm font-medium text-gray-900">No reviews yet</h3>
+          <p class="mt-1 text-sm text-gray-500">Be the first to review this product!</p>
+          <%= if @current_scope && @current_scope.user do %>
+            <%= if Shomp.Orders.user_purchased_product?(@current_scope.user.id, @product.id) do %>
+              <div class="mt-6">
+                <a href={~p"/#{@product.store.slug}/products/#{@product.id}/reviews/new"} class="btn btn-primary">
+                  Write a Review
+                </a>
+              </div>
+            <% end %>
+          <% end %>
+        </div>
+      <% else %>
+        <ul class="divide-y divide-gray-200">
+          <%= for review <- @reviews do %>
+            <li class="px-6 py-6">
+              <div class="flex space-x-3">
+                <div class="flex-shrink-0">
+                  <div class="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
+                    <span class="text-sm font-medium text-gray-700">
+                      <%= String.first(review.user.username || "U") %>
+                    </span>
+                  </div>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center space-x-2 mb-2">
+                    <div class="flex items-center space-x-1">
+                      <%= for rating <- 1..5 do %>
+                        <svg class={"w-4 h-4 #{if rating <= review.rating, do: "text-yellow-400", else: "text-gray-300"}"} fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                        </svg>
+                      <% end %>
+                    </div>
+                    <span class="text-sm text-gray-500">
+                      <%= review.user.username || "User" %>
+                    </span>
+                    <%= if review.verified_purchase do %>
+                      <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                        ✓ Verified Purchase
+                      </span>
+                    <% end %>
+                  </div>
+                  
+                  <p class="text-sm text-gray-900 mb-3"><%= review.review_text %></p>
+                  
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4 text-sm text-gray-500">
+                      <span><%= Calendar.strftime(review.inserted_at, "%B %d, %Y") %></span>
+                      <%= if review.helpful_count > 0 do %>
+                        <span class="flex items-center space-x-1">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
+                          </svg>
+                          <span><%= review.helpful_count %> helpful</span>
+                        </span>
+                      <% end %>
+                    </div>
+                    
+                    <%= if @current_scope && @current_scope.user do %>
+                      <div class="flex items-center space-x-2">
+                        <button 
+                          phx-click="vote_helpful" 
+                          phx-value-review_id={review.id} 
+                          phx-value-helpful="true"
+                          class="text-sm text-gray-500 hover:text-blue-600 transition-colors"
+                        >
+                          Helpful
+                        </button>
+                      </div>
+                    <% end %>
+                  </div>
+                </div>
+              </div>
+            </li>
+          <% end %>
+        </ul>
+      <% end %>
+    </div>
+  </div>
+</div>

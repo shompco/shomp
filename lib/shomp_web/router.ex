@@ -109,6 +109,12 @@ defmodule ShompWeb.Router do
     # Order routes
     get "/orders", OrderController, :index
     get "/orders/:id", OrderController, :show
+    
+    # Review routes
+    get "/reviews", ReviewController, :index
+    get "/reviews/new", ReviewController, :new
+    post "/reviews", ReviewController, :create
+    post "/reviews/:review_id/vote", ReviewController, :vote
   end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
@@ -139,6 +145,11 @@ defmodule ShompWeb.Router do
       on_mount: [{ShompWeb.UserAuth, :mount_current_scope}, {ShompWeb.CartHook, :default}] do
       live "/:slug", StoreLive.Show, :show
       live "/:store_slug/products/:id", ProductLive.Show, :show
+      
+      # Store-specific review routes
+      get "/:store_slug/products/:product_id/reviews", ReviewController, :index
+      get "/:store_slug/products/:product_id/reviews/new", ReviewController, :new
+      post "/:store_slug/products/:product_id/reviews", ReviewController, :create
     end
   end
 
