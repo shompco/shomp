@@ -74,15 +74,24 @@ defmodule ShompWeb.DownloadController do
   def purchases(conn, _params) do
     user_id = conn.assigns.current_scope.user.id
     
-    # Get all user orders with products and stores loaded
+    # Get all user orders with products loaded
     orders = Shomp.Orders.list_user_orders(user_id)
-    |> Shomp.Repo.preload([order_items: [product: :store]])
+    |> Shomp.Repo.preload([order_items: :product])
+
+    # Manually fetch store data for each product
+    orders_with_stores = Enum.map(orders, fn order ->
+      order_items_with_stores = Enum.map(order.order_items, fn order_item ->
+        store = Shomp.Stores.get_store_by_store_id(order_item.product.store_id)
+        %{order_item | product: %{order_item.product | store: store}}
+      end)
+      %{order | order_items: order_items_with_stores}
+    end)
     
     # Get download stats for digital products
     stats = Downloads.get_user_download_stats(user_id)
 
     conn
-    |> assign(:orders, orders)
+    |> assign(:orders, orders_with_stores)
     |> assign(:stats, stats)
     |> assign(:get_download_token, &get_download_token/2)
     |> render(:purchases)

@@ -105,6 +105,10 @@ defmodule ShompWeb.Router do
     get "/downloads/:token", DownloadController, :show
     get "/downloads/:token/download", DownloadController, :download
     get "/purchases", DownloadController, :purchases
+    
+    # Order routes
+    get "/orders", OrderController, :index
+    get "/orders/:id", OrderController, :show
   end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
