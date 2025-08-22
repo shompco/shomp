@@ -4,8 +4,8 @@ defmodule ShompWeb.ProductLive.Show do
   on_mount {ShompWeb.UserAuth, :mount_current_scope}
 
   alias Shomp.Products
-  alias Shomp.Reviews
   alias Shomp.Orders
+  alias Shomp.Reviews
 
   @impl true
   def mount(%{"store_slug" => store_slug, "id" => id}, _session, socket) do
@@ -15,7 +15,6 @@ defmodule ShompWeb.ProductLive.Show do
     if product.store.slug == store_slug do
       # Fetch reviews for this product
       reviews = Shomp.Reviews.get_product_reviews(id)
-      |> Shomp.Repo.preload([:user, :order])
       
       {:ok, assign(socket, product: product, reviews: reviews)}
     else
@@ -363,6 +362,26 @@ defmodule ShompWeb.ProductLive.Show do
                             </svg>
                             <span>Helpful (<%= review.helpful_count %>)</span>
                           </button>
+                          
+                          <%= if @current_scope && @current_scope.user && @current_scope.user.id == review.user_id do %>
+                            <div class="flex items-center space-x-2">
+                              <.link
+                                navigate={~p"/#{@product.store.slug}/products/#{@product.id}/reviews/#{review.id}/edit"}
+                                class="text-sm text-blue-600 hover:text-blue-800 transition-colors"
+                              >
+                                Edit
+                              </.link>
+                              <span class="text-gray-300">|</span>
+                              <button 
+                                phx-click="delete_review" 
+                                phx-value-review_id={review.id}
+                                phx-confirm="Are you sure you want to delete this review?"
+                                class="text-sm text-red-600 hover:text-red-800 transition-colors"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          <% end %>
                         </div>
                       </div>
                     </div>
@@ -463,16 +482,20 @@ defmodule ShompWeb.ProductLive.Show do
     
     case Shomp.Reviews.get_or_create_review_vote(user_id, review_id, helpful == "true") do
       {:ok, _vote} ->
-        # Refresh reviews to get updated helpful count
+        # Update the review's helpful count and refresh reviews
+        review = Shomp.Reviews.get_review!(review_id)
+        Shomp.Reviews.update_review_helpful_count(review)
+        
         reviews = Shomp.Reviews.get_product_reviews(socket.assigns.product.id)
-        |> Shomp.Repo.preload([:user, :order])
         
         {:noreply, assign(socket, reviews: reviews)}
       
       {:ok, :removed} ->
-        # Vote was removed, refresh reviews
+        # Update the review's helpful count and refresh reviews
+        review = Shomp.Reviews.get_review!(review_id)
+        Shomp.Reviews.update_review_helpful_count(review)
+        
         reviews = Shomp.Reviews.get_product_reviews(socket.assigns.product.id)
-        |> Shomp.Repo.preload([:user, :order])
         
         {:noreply, 
          socket
@@ -483,6 +506,34 @@ defmodule ShompWeb.ProductLive.Show do
         {:noreply, 
          socket
          |> put_flash(:error, "Failed to submit vote.")}
+    end
+  end
+
+  def handle_event("delete_review", %{"review_id" => review_id}, socket) do
+    user_id = socket.assigns.current_scope.user.id
+    review = Shomp.Reviews.get_review!(review_id)
+    
+    # Verify the review belongs to the current user
+    if review.user_id != user_id do
+      {:noreply, 
+       socket
+       |> put_flash(:error, "You can only delete your own reviews")}
+    else
+      case Shomp.Reviews.delete_review(review) do
+        {:ok, _review} ->
+          # Refresh reviews after deletion
+          reviews = Shomp.Reviews.get_product_reviews(socket.assigns.product.id)
+          
+          {:noreply, 
+           socket
+           |> assign(reviews: reviews)
+           |> put_flash(:info, "Review deleted successfully!")}
+        
+        {:error, _changeset} ->
+          {:noreply, 
+           socket
+           |> put_flash(:error, "Failed to delete review")}
+      end
     end
   end
 end

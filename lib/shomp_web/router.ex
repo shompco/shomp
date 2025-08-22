@@ -110,11 +110,14 @@ defmodule ShompWeb.Router do
     get "/orders", OrderController, :index
     get "/orders/:id", OrderController, :show
     
-    # Review routes
-    get "/reviews", ReviewController, :index
-    get "/reviews/new", ReviewController, :new
-    post "/reviews", ReviewController, :create
-    post "/reviews/:review_id/vote", ReviewController, :vote
+          # Review routes
+      get "/reviews", ReviewController, :index
+      get "/reviews/new", ReviewController, :new
+      post "/reviews", ReviewController, :create
+      get "/reviews/:id/edit", ReviewController, :edit
+      put "/reviews/:id", ReviewController, :update
+      delete "/reviews/:id", ReviewController, :delete
+      post "/reviews/:review_id/vote", ReviewController, :vote
   end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
@@ -150,6 +153,9 @@ defmodule ShompWeb.Router do
       get "/:store_slug/products/:product_id/reviews", ReviewController, :index
       get "/:store_slug/products/:product_id/reviews/new", ReviewController, :new
       post "/:store_slug/products/:product_id/reviews", ReviewController, :create
+      get "/:store_slug/products/:product_id/reviews/:id/edit", ReviewController, :edit
+      put "/:store_slug/products/:product_id/reviews/:id", ReviewController, :update
+      delete "/:store_slug/products/:product_id/reviews/:id", ReviewController, :delete
     end
   end
 

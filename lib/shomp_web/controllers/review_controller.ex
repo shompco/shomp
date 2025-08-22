@@ -62,12 +62,12 @@ defmodule ShompWeb.ReviewController do
         "user_id" => user_id
       })
       
-              case Reviews.create_review(review_attrs) do
-          {:ok, _review} ->
-            conn
-            |> put_flash(:info, "Review submitted successfully!")
-            |> redirect(to: ~p"/#{review_params["store_slug"]}/products/#{product_id}")
-        
+      case Reviews.create_review(review_attrs) do
+        {:ok, _review} ->
+          conn
+          |> put_flash(:info, "Review submitted successfully!")
+          |> redirect(to: ~p"/#{review_params["store_slug"]}/products/#{product_id}")
+      
         {:error, %Ecto.Changeset{} = changeset} ->
           product = Products.get_product_with_store!(product_id)
           user_orders = Orders.get_user_orders_with_product(user_id, product_id)
@@ -109,6 +109,88 @@ defmodule ShompWeb.ReviewController do
       |> assign(:rating_distribution, rating_distribution)
       |> assign(:page_title, "Reviews for #{product.title}")
       |> render(:index)
+    end
+  end
+
+  def edit(conn, %{"store_slug" => store_slug, "product_id" => product_id, "id" => review_id}) do
+    user_id = conn.assigns.current_scope.user.id
+    review = Reviews.get_review!(String.to_integer(review_id))
+    
+    # Verify the review belongs to the current user
+    if review.user_id != user_id do
+      conn
+      |> put_flash(:error, "You can only edit your own reviews")
+      |> redirect(to: ~p"/#{store_slug}/products/#{product_id}")
+    else
+      # Verify the product belongs to the store with the given slug
+      product = Products.get_product_with_store!(product_id)
+      if product.store.slug != store_slug do
+        conn
+        |> put_flash(:error, "Product not found in this store")
+        |> redirect(to: ~p"/#{store_slug}")
+      else
+        changeset = Reviews.change_review(review)
+        
+        conn
+        |> assign(:review, review)
+        |> assign(:product, product)
+        |> assign(:changeset, changeset)
+        |> assign(:page_title, "Edit Review for #{product.title}")
+        |> render(:edit)
+      end
+    end
+  end
+
+  def update(conn, %{"store_slug" => store_slug, "product_id" => product_id, "id" => review_id, "review" => review_params}) do
+    user_id = conn.assigns.current_scope.user.id
+    review = Reviews.get_review!(String.to_integer(review_id))
+    
+    # Verify the review belongs to the current user
+    if review.user_id != user_id do
+      conn
+      |> put_flash(:error, "You can only edit your own reviews")
+      |> redirect(to: ~p"/#{store_slug}/products/#{product_id}")
+    else
+      case Reviews.update_review(review, review_params) do
+        {:ok, _review} ->
+          conn
+          |> put_flash(:info, "Review updated successfully!")
+          |> redirect(to: ~p"/#{store_slug}/products/#{product_id}")
+        
+        {:error, %Ecto.Changeset{} = changeset} ->
+          product = Products.get_product_with_store!(product_id)
+          
+          conn
+          |> assign(:review, review)
+          |> assign(:product, product)
+          |> assign(:changeset, changeset)
+          |> assign(:page_title, "Edit Review for #{product.title}")
+          |> render(:edit)
+      end
+    end
+  end
+
+  def delete(conn, %{"store_slug" => store_slug, "product_id" => product_id, "id" => review_id}) do
+    user_id = conn.assigns.current_scope.user.id
+    review = Reviews.get_review!(String.to_integer(review_id))
+    
+    # Verify the review belongs to the current user
+    if review.user_id != user_id do
+      conn
+      |> put_flash(:error, "You can only delete your own reviews")
+      |> redirect(to: ~p"/#{store_slug}/products/#{product_id}")
+    else
+      case Reviews.delete_review(review) do
+        {:ok, _review} ->
+          conn
+          |> put_flash(:info, "Review deleted successfully!")
+          |> redirect(to: ~p"/#{store_slug}/products/#{product_id}")
+        
+        {:error, _changeset} ->
+          conn
+          |> put_flash(:error, "Failed to delete review")
+          |> redirect(to: ~p"/#{store_slug}/products/#{product_id}")
+      end
     end
   end
 
