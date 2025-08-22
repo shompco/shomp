@@ -82,6 +82,38 @@ defmodule Shomp.Accounts do
   """
   def get_user!(id), do: Repo.get!(User, id)
 
+  @doc """
+  Gets a user by immutable_id.
+
+  ## Examples
+
+      iex> get_user_by_immutable_id("user_123")
+      %User{}
+
+      iex> get_user_by_immutable_id("unknown")
+      nil
+
+  """
+  def get_user_by_immutable_id(immutable_id) when is_binary(immutable_id) do
+    Repo.get_by(User, id: immutable_id)
+  end
+
+  @doc """
+  Gets a user by username.
+
+  ## Examples
+
+      iex> get_user_by_username("johndoe")
+      %User{}
+
+      iex> get_user_by_username("unknown")
+      nil
+
+  """
+  def get_user_by_username(username) when is_binary(username) do
+    Repo.get_by(User, username: username)
+  end
+
   ## User registration
 
   @doc """
@@ -253,6 +285,26 @@ defmodule Shomp.Accounts do
   def update_user_username(user, attrs) do
     user
     |> User.username_changeset(attrs)
+    |> Repo.update()
+  end
+
+  @doc """
+  Updates the user profile information.
+
+  Returns a tuple with the updated user.
+
+  ## Examples
+
+      iex> update_user(user, %{username: "newusername", bio: "My bio"})
+      {:ok, %User{}}
+
+      iex> update_user(user, %{username: "too"})
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def update_user(user, attrs) do
+    user
+    |> User.profile_changeset(attrs)
     |> Repo.update()
   end
 

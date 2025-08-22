@@ -90,6 +90,7 @@ defmodule ShompWeb.Router do
       live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
       live "/users/tier-upgrade", UserLive.TierUpgrade, :new
       live "/users/tier-selection", UserLive.TierSelection, :new
+      live "/users/profile", ProfileLive.Edit, :edit
       live "/my/stores", StoreLive.MyStores, :index
       live "/dashboard/store", StoreLive.Edit, :edit
       live "/dashboard/store/balance", StoreLive.Balance, :show
@@ -138,6 +139,16 @@ defmodule ShompWeb.Router do
   end
 
 
+
+  # User profile routes - must come before catch-all
+  scope "/users", ShompWeb do
+    pipe_through :browser
+
+    live_session :public_profiles,
+      on_mount: [{ShompWeb.UserAuth, :mount_current_scope}, {ShompWeb.CartHook, :default}] do
+      live "/:username", ProfileLive.Show, :show
+    end
+  end
 
   # CATCH-ALL ROUTES - MUST BE LAST!
   # These routes are very broad and will catch anything that doesn't match above

@@ -6,6 +6,10 @@ defmodule Shomp.Accounts.User do
     field :email, :string
     field :username, :string
     field :name, :string
+    field :bio, :string
+    field :location, :string
+    field :website, :string
+    field :verified, :boolean, default: false
     field :role, :string, default: "user"
     field :password, :string, virtual: true, redact: true
     field :hashed_password, :string, redact: true
@@ -97,6 +101,33 @@ defmodule Shomp.Accounts.User do
     user
     |> cast(attrs, [:username])
     |> validate_username(opts)
+  end
+
+  @doc """
+  A user changeset for updating profile information.
+  """
+  def profile_changeset(user, attrs, opts \\ []) do
+    user
+    |> cast(attrs, [:username, :name, :bio, :location, :website])
+    |> validate_required([:username])
+    |> validate_length(:username, min: 3, max: 30)
+    |> validate_length(:name, min: 2, max: 100)
+    |> validate_length(:bio, max: 500)
+    |> validate_length(:location, max: 100)
+    |> validate_length(:website, max: 200)
+    |> validate_format(:website, ~r/^https?:\/\/.+/, message: "must be a valid URL starting with http:// or https://")
+    |> validate_username(opts)
+    |> maybe_validate_website()
+  end
+
+  defp maybe_validate_website(changeset) do
+    website = get_change(changeset, :website)
+    
+    if website && website != "" do
+      validate_format(changeset, :website, ~r/^https?:\/\/.+/, message: "must be a valid URL starting with http:// or https://")
+    else
+      changeset
+    end
   end
 
   defp validate_email(changeset, opts) do
