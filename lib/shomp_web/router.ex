@@ -140,15 +140,7 @@ defmodule ShompWeb.Router do
 
 
 
-  # User profile routes - must come before catch-all
-  scope "/users", ShompWeb do
-    pipe_through :browser
 
-    live_session :public_profiles,
-      on_mount: [{ShompWeb.UserAuth, :mount_current_scope}, {ShompWeb.CartHook, :default}] do
-      live "/:username", ProfileLive.Show, :show
-    end
-  end
 
   # CATCH-ALL ROUTES - MUST BE LAST!
   # These routes are very broad and will catch anything that doesn't match above
@@ -187,5 +179,15 @@ defmodule ShompWeb.Router do
 
     post "/users/log-in", UserSessionController, :create
     delete "/users/log-out", UserSessionController, :delete
+  end
+
+  # User profile routes - must come AFTER all other specific /users routes
+  scope "/users", ShompWeb do
+    pipe_through :browser
+
+    live_session :public_profiles,
+      on_mount: [{ShompWeb.UserAuth, :mount_current_scope}, {ShompWeb.CartHook, :default}] do
+      live "/:username", ProfileLive.Show, :show
+    end
   end
 end
