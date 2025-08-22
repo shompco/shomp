@@ -7,6 +7,7 @@ defmodule ShompWeb.ReviewController do
 
   def new(conn, %{"store_slug" => store_slug, "product_id" => product_id}) do
     user_id = conn.assigns.current_scope.user.id
+    product_id = String.to_integer(product_id)
     
     # Get the product
     product = Products.get_product_with_store!(product_id)
@@ -39,6 +40,7 @@ defmodule ShompWeb.ReviewController do
           |> assign(:product, product)
           |> assign(:user_orders, user_orders)
           |> assign(:changeset, changeset)
+          |> assign(:store_slug, store_slug)
           |> assign(:page_title, "Review #{product.title}")
           |> render(:new)
         else
@@ -50,23 +52,24 @@ defmodule ShompWeb.ReviewController do
     end
   end
 
-  def create(conn, %{"review" => review_params}) do
+  def create(conn, %{"store_slug" => store_slug, "product_id" => product_id, "review" => review_params}) do
     user_id = conn.assigns.current_scope.user.id
-    product_id = String.to_integer(review_params["product_id"])
+    product_id = String.to_integer(product_id)
     
     # Verify user has purchased the product
     if Orders.user_purchased_product?(user_id, product_id) do
       # Generate immutable ID for the review
       review_attrs = Map.merge(review_params, %{
         "immutable_id" => Ecto.UUID.generate(),
-        "user_id" => user_id
+        "user_id" => user_id,
+        "product_id" => product_id
       })
       
       case Reviews.create_review(review_attrs) do
         {:ok, _review} ->
           conn
           |> put_flash(:info, "Review submitted successfully!")
-          |> redirect(to: ~p"/#{review_params["store_slug"]}/products/#{product_id}")
+          |> redirect(to: ~p"/#{store_slug}/products/#{product_id}")
       
         {:error, %Ecto.Changeset{} = changeset} ->
           product = Products.get_product_with_store!(product_id)
@@ -76,17 +79,19 @@ defmodule ShompWeb.ReviewController do
           |> assign(:product, product)
           |> assign(:user_orders, user_orders)
           |> assign(:changeset, changeset)
+          |> assign(:store_slug, store_slug)
           |> assign(:page_title, "Review #{product.title}")
           |> render(:new)
       end
     else
       conn
       |> put_flash(:error, "You must purchase this product before you can review it")
-      |> redirect(to: ~p"/#{review_params["store_slug"]}/products/#{product_id}")
+      |> redirect(to: ~p"/#{store_slug}/products/#{product_id}")
     end
   end
 
   def index(conn, %{"store_slug" => store_slug, "product_id" => product_id}) do
+    product_id = String.to_integer(product_id)
     product = Products.get_product_with_store!(product_id)
     
     # Verify the product belongs to the store with the given slug
@@ -114,6 +119,7 @@ defmodule ShompWeb.ReviewController do
 
   def edit(conn, %{"store_slug" => store_slug, "product_id" => product_id, "id" => review_id}) do
     user_id = conn.assigns.current_scope.user.id
+    product_id = String.to_integer(product_id)
     review = Reviews.get_review!(String.to_integer(review_id))
     
     # Verify the review belongs to the current user
@@ -143,6 +149,7 @@ defmodule ShompWeb.ReviewController do
 
   def update(conn, %{"store_slug" => store_slug, "product_id" => product_id, "id" => review_id, "review" => review_params}) do
     user_id = conn.assigns.current_scope.user.id
+    product_id = String.to_integer(product_id)
     review = Reviews.get_review!(String.to_integer(review_id))
     
     # Verify the review belongs to the current user
@@ -172,6 +179,7 @@ defmodule ShompWeb.ReviewController do
 
   def delete(conn, %{"store_slug" => store_slug, "product_id" => product_id, "id" => review_id}) do
     user_id = conn.assigns.current_scope.user.id
+    product_id = String.to_integer(product_id)
     review = Reviews.get_review!(String.to_integer(review_id))
     
     # Verify the review belongs to the current user
