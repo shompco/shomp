@@ -30,9 +30,9 @@ defmodule Shomp.Reviews.Review do
   def create_changeset(review, attrs) do
     review
     |> cast(attrs, [:immutable_id, :rating, :review_text, :product_id, :user_id, :order_id])
-    |> validate_required([:immutable_id, :rating, :review_text, :product_id, :user_id, :order_id])
+    |> validate_required([:immutable_id, :rating, :product_id, :user_id, :order_id])
     |> validate_number(:rating, greater_than: 0, less_than_or_equal_to: 5)
-    |> validate_length(:review_text, min: 10, max: 2000)
+    |> validate_length(:review_text, max: 2000)
     |> unique_constraint(:immutable_id)
     |> unique_constraint([:user_id, :product_id], name: :user_can_only_review_once_per_product)
     |> foreign_key_constraint(:product_id)
@@ -48,7 +48,7 @@ defmodule Shomp.Reviews.Review do
     review
     |> cast(attrs, [:rating, :review_text])
     |> validate_number(:rating, greater_than: 0, less_than_or_equal_to: 5)
-    |> validate_length(:review_text, min: 10, max: 2000)
+    |> validate_length(:review_text, max: 2000)
   end
 
   @doc """
