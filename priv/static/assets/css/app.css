@@ -3196,6 +3196,9 @@
   .text-wrap {
     text-wrap: wrap;
   }
+  .break-all {
+    word-break: break-all;
+  }
   .text-accent {
     color: var(--color-accent);
   }

@@ -112,7 +112,7 @@ defmodule ShompWeb.ProfileLive.Edit do
                   Update Profile
                 </button>
                 <.link href={~p"/users/#{@user.username}"} class="btn btn-outline flex-1">
-                  👁️ View Profile
+                  View Profile
                 </.link>
               </div>
             </div>
@@ -165,7 +165,7 @@ defmodule ShompWeb.ProfileLive.Edit do
             <!-- View Profile Button -->
             <div class="mt-4">
               <.link href={~p"/users/#{@user.username}"} class="btn btn-outline btn-sm w-full">
-                👁️ View Public Profile
+                View Public Profile
               </.link>
             </div>
           </div>
