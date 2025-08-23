@@ -166,7 +166,7 @@ defmodule ShompWeb.ProductLive.New do
             auto_upload: true
           )
         
-        {:ok, assign_form(socket, changeset, store_options, stores, physical_categories)}
+        {:ok, assign_form(socket, changeset, store_options, stores, physical_categories) |> assign(:filtered_category_options, physical_categories)}
     end
   end
 
@@ -283,7 +283,8 @@ defmodule ShompWeb.ProductLive.New do
       form: form, 
       store_options: store_options, 
       stores: stores,
-      filtered_category_options: filtered_category_options
+      filtered_category_options: filtered_category_options,
+      uploaded_files: []
     )
   end
 
