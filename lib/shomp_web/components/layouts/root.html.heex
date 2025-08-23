@@ -61,6 +61,9 @@
         <.link href={~p"/"} class="btn btn-ghost btn-sm">Home</.link>
       </li>
       <li>
+        <.link href={~p"/landing"} class="btn btn-ghost btn-sm">About Shomp</.link>
+      </li>
+      <li>
         <.link href={~p"/stores"} class="btn btn-ghost btn-sm">Browse Stores</.link>
       </li>
       <li>
@@ -117,6 +120,19 @@
                 👤 My Profile
               </.link>
             </li>
+            <%= if @current_scope.user.role == "admin" do %>
+              <li class="divider"></li>
+              <li>
+                <.link href={~p"/admin"} class="btn btn-ghost btn-sm justify-start">
+                  🛠️ Admin Dashboard
+                </.link>
+              </li>
+              <li>
+                <.link href={~p"/admin/email-subscriptions"} class="btn btn-ghost btn-sm justify-start">
+                  📧 Email Subscriptions
+                </.link>
+              </li>
+            <% end %>
             <li class="divider"></li>
             <li>
               <.link href={~p"/users/log-out"} method="delete" class="btn btn-ghost btn-sm justify-start text-error">

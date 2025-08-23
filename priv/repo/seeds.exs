@@ -98,5 +98,57 @@ if Repo.aggregate(Shomp.FeatureRequests.Request, :count) == 0 do
 
   IO.puts("Created sample feature requests")
 else
-  IO.puts("Feature requests already exist, skipping creation")
+  IO.puts("Feature requests already exist, skipping...")
+end
+
+# Create admin user if it doesn't exist
+admin_user = case Repo.get_by(User, email: "admin@shomp.co") do
+  nil ->
+    %User{}
+    |> User.registration_changeset(%{
+      email: "admin@shomp.co",
+      password: "admin123456789",
+      password_confirmation: "admin123456789",
+      name: "Shomp Admin",
+      username: "admin"
+    })
+    |> Repo.insert!()
+  
+  user -> user
+end
+
+# Set admin role
+if admin_user.role != "admin" do
+  admin_user
+  |> Ecto.Changeset.change(%{role: "admin"})
+  |> Repo.update!()
+  IO.puts("Updated user to admin role")
+else
+  IO.puts("Admin user already exists with admin role")
+end
+
+# Create additional admin user v1nc3ntpull1ng@gmail.com
+vincent_admin = case Repo.get_by(User, email: "v1nc3ntpull1ng@gmail.com") do
+  nil ->
+    %User{}
+    |> User.registration_changeset(%{
+      email: "v1nc3ntpull1ng@gmail.com",
+      password: "vincent123456789",
+      password_confirmation: "vincent123456789",
+      name: "Vincent",
+      username: "vincent"
+    })
+    |> Repo.insert!()
+  
+  user -> user
+end
+
+# Set admin role for Vincent
+if vincent_admin.role != "admin" do
+  vincent_admin
+  |> Ecto.Changeset.change(%{role: "admin"})
+  |> Repo.update!()
+  IO.puts("Updated Vincent to admin role")
+else
+  IO.puts("Vincent admin user already exists with admin role")
 end

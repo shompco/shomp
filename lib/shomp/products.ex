@@ -224,6 +224,39 @@ defmodule Shomp.Products do
     |> Repo.aggregate(:count, :id)
   end
 
+  @doc """
+  Gets the latest products with store information for the home page.
+  """
+  def get_latest_products(limit \\ 8) do
+    Product
+    |> order_by([p], [desc: p.inserted_at])
+    |> limit(^limit)
+    |> Repo.all()
+    |> Enum.map(fn product ->
+      case Shomp.Stores.get_store_by_store_id(product.store_id) do
+        nil -> product
+        store -> Map.put(product, :store, store)
+      end
+    end)
+  end
+
+  @doc """
+  Gets featured products for the Editor's Picks section.
+  """
+  def get_featured_products(limit \\ 2) do
+    Product
+    |> where([p], p.price > 20)  # Products with higher prices as "featured"
+    |> order_by([p], [desc: p.price])
+    |> limit(^limit)
+    |> Repo.all()
+    |> Enum.map(fn product ->
+      case Shomp.Stores.get_store_by_store_id(product.store_id) do
+        nil -> product
+        store -> Map.put(product, :store, store)
+      end
+    end)
+  end
+
   # Private functions
 
   defp create_stripe_product(product) do

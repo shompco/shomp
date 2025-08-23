@@ -140,6 +140,27 @@ defmodule ShompWeb.StoreLive.Index do
             </.link>
           </div>
         <% end %>
+
+        <!-- Admin Tools Section -->
+        <%= if @current_scope && @current_scope.user && @current_scope.user.role == "admin" do %>
+          <div class="mt-16 p-6 bg-error/10 border-2 border-error/20 rounded-lg">
+            <h3 class="text-xl font-bold text-error text-center mb-4">🛠️ Admin Tools</h3>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+              <.link
+                navigate={~p"/admin"}
+                class="btn btn-error"
+              >
+                🛠️ Admin Dashboard
+              </.link>
+              <.link
+                navigate={~p"/admin/email-subscriptions"}
+                class="btn btn-outline btn-error"
+              >
+                📧 Email Subscriptions
+              </.link>
+            </div>
+          </div>
+        <% end %>
       </div>
     </Layouts.app>
     """

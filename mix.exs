@@ -71,7 +71,8 @@ defmodule Shomp.MixProject do
       {:oban, "~> 2.14"},
       {:waffle_ecto, "~> 0.0.10"},
       {:ex_aws_s3, "~> 2.3"},
-      {:mogrify, "~> 0.9"}
+      {:mogrify, "~> 0.9"},
+      {:csv, "~> 3.0"}
     ]
   end
 

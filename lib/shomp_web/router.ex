@@ -45,6 +45,7 @@ defmodule ShompWeb.Router do
       live "/about", AboutLive.Show, :show
       live "/donations", DonationLive.Show, :show
       live "/donations/thank-you", DonationLive.ThankYou, :show
+      live "/landing", LandingLive.Show, :show
     end
   end
 
@@ -98,6 +99,10 @@ defmodule ShompWeb.Router do
       live "/dashboard/products/:id/edit", ProductLive.Edit, :edit
       live "/cart", CartLive.Show, :show
       live "/checkout/cart/:cart_id", CheckoutLive.Cart, :show
+      
+      # Admin routes
+      live "/admin", AdminLive.Dashboard, :show
+      live "/admin/email-subscriptions", AdminLive.EmailSubscriptions, :show
     end
 
     post "/users/update-password", UserSessionController, :update_password
