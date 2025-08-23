@@ -111,6 +111,93 @@ defmodule ShompWeb.UploadComponents do
     </div>
     """
   end
+
+  @doc """
+  Renders a multiple image upload input with preview and reordering capabilities.
+  """
+  def multiple_image_upload_input(assigns) do
+    ~H"""
+    <div class="space-y-2">
+      <label class="block text-sm font-medium text-gray-700">
+        Upload Multiple Images
+      </label>
+      
+      <div class="flex items-center space-x-4">
+        <.live_file_input 
+          upload={@uploads.product_images}
+          class="flex-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+        />
+        <button
+          type="button"
+          phx-click="upload_images"
+          disabled={@uploads.product_images.entries == []}
+          class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+        >
+          Upload
+        </button>
+      </div>
+      
+      <p class="text-xs text-gray-500">
+        Select multiple image files. You can reorder them after upload. The first image will be the primary product image.
+      </p>
+      
+      <!-- LiveView Upload Display -->
+      <div class="mt-4">
+        <%= for entry <- @uploads.product_images.entries do %>
+          <div class="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg border">
+            <div class="flex-1">
+              <div class="flex items-center space-x-2">
+                <div class="w-4 h-4">
+                  <%= if entry.progress == 100 do %>
+                    <div class="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                      <svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                      </svg>
+                    </div>
+                  <% else %>
+                    <div class="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                  <% end %>
+                </div>
+                <span class="text-sm font-medium text-gray-900"><%= entry.client_name %></span>
+                <span class="text-xs text-gray-500">(<%= entry.client_size %> bytes)</span>
+              </div>
+              
+              <%= if entry.progress < 100 do %>
+                <div class="mt-2">
+                  <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div class="bg-blue-600 h-2 rounded-full" style={"width: #{entry.progress}%"}>
+                    </div>
+                  </div>
+                  <div class="text-xs text-gray-500 mt-1">Uploading... <%= entry.progress %>%</div>
+                </div>
+              <% end %>
+            </div>
+            
+            <button
+              type="button"
+              phx-click={Phoenix.LiveView.JS.push("cancel-upload", value: %{ref: entry.ref})}
+              class="text-red-600 hover:text-red-800 text-sm font-medium"
+            >
+              Remove
+            </button>
+          </div>
+        <% end %>
+      </div>
+      
+      <!-- Error Messages -->
+      <%= for {ref, error} <- @uploads.product_images.errors do %>
+        <div class="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+          <div class="flex items-center space-x-2">
+            <svg class="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+            </svg>
+            <span class="text-sm text-red-700"><%= error %></span>
+          </div>
+        </div>
+      <% end %>
+    </div>
+    """
+  end
   
   @doc """
   Renders a product image with fallback.

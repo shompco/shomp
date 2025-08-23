@@ -99,30 +99,74 @@ defmodule ShompWeb.ProductLive.New do
           <!-- Product Images Upload -->
           <div class="space-y-4">
             <h3 class="text-lg font-medium text-gray-900">Product Images</h3>
-            <.image_upload_input uploads={@uploads} />
+            <p class="text-sm text-gray-600">Upload multiple images to showcase your product. The first image will be the primary image.</p>
             
-            <!-- DEBUG: Upload Status (Remove this after debugging) -->
-            <div class="p-3 bg-blue-100 border border-blue-300 rounded-lg">
-              <h4 class="font-semibold text-blue-800 mb-2">🔍 DEBUG: Upload Status</h4>
-              <div class="text-xs text-blue-700 space-y-1">
-                <div><strong>Form Type:</strong> multipart</div>
-                <div><strong>Image Input:</strong> <code>input[name="product_images[]"]</code></div>
-                <div><strong>File Input:</strong> <code>input[name="product_file"]</code></div>
-                <div><strong>Preview Area:</strong> <code>#image-preview</code></div>
-                <div><strong>Upload Method:</strong> <span class="font-bold text-green-600">IMMEDIATE</span></div>
-                <div><strong>Pre-uploaded Files:</strong> <%= length(@uploaded_files || []) %></div>
-                <%= if @uploaded_files && length(@uploaded_files) > 0 do %>
-                  <div class="mt-2 p-2 bg-green-50 border border-green-200 rounded">
-                    <div class="font-semibold text-green-800">Uploaded Files:</div>
-                    <%= for file <- @uploaded_files do %>
-                      <div class="text-xs text-green-700">
-                        • <%= file["filename"] %> (<%= file["size"] %> bytes, <%= file["type"] %>)
+            <.multiple_image_upload_input uploads={@uploads} />
+            
+            <!-- Image Preview and Reordering -->
+            <%= if @uploaded_images && length(@uploaded_images) > 0 do %>
+              <div class="space-y-3">
+                <h4 class="text-md font-medium text-gray-800">Image Preview & Order</h4>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <%= for {image, index} <- Enum.with_index(@uploaded_images) do %>
+                    <div class="relative group">
+                      <img 
+                        src={image.thumb_url} 
+                        alt="Product image #{index + 1}"
+                        class={"w-full h-24 object-cover rounded-lg border-2 transition-all duration-200 #{if index == 0, do: "border-blue-500", else: "border-gray-200"}"}
+                      />
+                      
+                      <!-- Primary Image Badge -->
+                      <%= if index == 0 do %>
+                        <div class="absolute top-1 left-1 bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
+                          Primary
+                        </div>
+                      <% end %>
+                      
+                      <!-- Reorder Controls -->
+                      <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 rounded-lg flex items-center justify-center">
+                        <div class="opacity-0 group-hover:opacity-100 transition-opacity duration-200 space-x-1">
+                          <%= if index > 0 do %>
+                            <button 
+                              type="button"
+                              phx-click="move_image_up"
+                              phx-value-index={index}
+                              class="bg-white text-gray-800 p-1 rounded-full hover:bg-gray-100"
+                              title="Move up"
+                            >
+                              ↑
+                            </button>
+                          <% end %>
+                          <%= if index < length(@uploaded_images) - 1 do %>
+                            <button 
+                              type="button"
+                              phx-click="move_image_down"
+                              phx-value-index={index}
+                              class="bg-white text-gray-800 p-1 rounded-full hover:bg-gray-100"
+                              title="Move down"
+                            >
+                              ↓
+                            </button>
+                          <% end %>
+                        </div>
                       </div>
-                    <% end %>
-                  </div>
-                <% end %>
+                      
+                      <!-- Remove Button -->
+                      <button 
+                        type="button"
+                        phx-click="remove_image"
+                        phx-value-index={index}
+                        class="absolute top-1 right-1 bg-red-500 text-white text-xs px-2 py-1 rounded-full hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                        title="Remove image"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  <% end %>
+                </div>
+                <p class="text-xs text-gray-500">Drag images or use arrows to reorder. The first image will be displayed as the primary product image.</p>
               </div>
-            </div>
+            <% end %>
           </div>
 
           <%= if @form[:type].value == "digital" do %>
@@ -188,12 +232,14 @@ defmodule ShompWeb.ProductLive.New do
         socket = socket
         |> allow_upload(:product_images, 
             accept: ~w(.jpg .jpeg .png .gif .webp),
-            max_entries: 5,
+            max_entries: 10,
             max_file_size: 10_000_000,
-            auto_upload: true
+            auto_upload: false
           )
         
-        {:ok, assign_form(socket, changeset, store_options, stores, physical_categories, custom_categories) |> assign(:filtered_category_options, physical_categories)}
+        {:ok, assign_form(socket, changeset, store_options, stores, physical_categories, custom_categories) 
+          |> assign(:filtered_category_options, physical_categories)
+          |> assign(:uploaded_images, [])}
     end
   end
 
@@ -233,6 +279,91 @@ defmodule ShompWeb.ProductLive.New do
     {:noreply, cancel_upload(socket, :product_images, ref)}
   end
 
+  def handle_event("upload_images", _params, socket) do
+    # Get all entries from the upload
+    entries = socket.assigns.uploads.product_images.entries
+    
+    IO.puts("Processing #{length(entries)} upload entries")
+    
+    if length(entries) > 0 do
+      # Process all uploaded images and store them in the socket state
+      uploaded_images = consume_uploaded_entries(socket, :product_images, fn meta, entry ->
+        IO.puts("Processing entry: #{entry.client_name}")
+        
+        # Create a temporary upload structure for our existing upload system
+        temp_upload = %{
+          filename: entry.client_name,
+          path: meta.path,
+          content_type: entry.client_type
+        }
+        
+        # Generate a temporary product ID for storage
+        temp_product_id = :crypto.strong_rand_bytes(16) |> Base.encode64()
+        
+        case Shomp.Uploads.store_product_image(temp_upload, temp_product_id) do
+          {:ok, image_paths} ->
+            IO.puts("Successfully processed: #{entry.client_name}")
+            %{
+              original_url: image_paths.original,
+              thumb_url: image_paths.thumb,
+              medium_url: image_paths.medium,
+              large_url: image_paths.large,
+              extra_large_url: image_paths.extra_large,
+              ultra_url: image_paths.ultra,
+              filename: entry.client_name,
+              temp_id: temp_product_id
+            }
+          
+          {:error, reason} ->
+            IO.puts("Failed to process: #{entry.client_name} - #{inspect(reason)}")
+            nil
+        end
+      end)
+      
+      # Filter out any failed uploads and combine with existing images
+      valid_images = Enum.filter(uploaded_images, & &1)
+      current_images = socket.assigns.uploaded_images || []
+      all_images = current_images ++ valid_images
+      
+      IO.puts("Uploaded #{length(valid_images)} new images. Total images: #{length(all_images)}")
+      IO.puts("All images: #{inspect(all_images)}")
+      
+      {:noreply, assign(socket, uploaded_images: all_images)}
+    else
+      IO.puts("No upload entries to process")
+      {:noreply, socket}
+    end
+  end
+
+  def handle_event("move_image_up", %{"index" => index}, socket) do
+    index = String.to_integer(index)
+    if index > 0 do
+      uploaded_images = socket.assigns.uploaded_images
+      new_images = List.insert_at(List.delete_at(uploaded_images, index), index - 1, Enum.at(uploaded_images, index))
+      {:noreply, assign(socket, uploaded_images: new_images)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_event("move_image_down", %{"index" => index}, socket) do
+    index = String.to_integer(index)
+    uploaded_images = socket.assigns.uploaded_images
+    if index < length(uploaded_images) - 1 do
+      new_images = List.insert_at(List.delete_at(uploaded_images, index), index + 1, Enum.at(uploaded_images, index))
+      {:noreply, assign(socket, uploaded_images: new_images)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_event("remove_image", %{"index" => index}, socket) do
+    index = String.to_integer(index)
+    uploaded_images = socket.assigns.uploaded_images
+    new_images = List.delete_at(uploaded_images, index)
+    {:noreply, assign(socket, uploaded_images: new_images)}
+  end
+
   def handle_event("save", %{"product" => product_params} = params, socket) do
     IO.puts("=== SAVE EVENT TRIGGERED ===")
     IO.puts("Product params: #{inspect(product_params)}")
@@ -244,49 +375,48 @@ defmodule ShompWeb.ProductLive.New do
       {:ok, product} ->
         IO.puts("Product created successfully, now processing uploaded files...")
         
-        # Process the uploaded files using consume_uploaded_entries
-        uploaded_image_data = consume_uploaded_entries(socket, :product_images, fn meta, entry ->
-          IO.puts("Processing uploaded file: #{entry.client_name}")
-          IO.puts("Uploaded to: #{meta.path}")
-          
-          # Create a temporary upload structure for our existing upload system
-          temp_upload = %{
-            filename: entry.client_name,
-            path: meta.path,
-            content_type: entry.client_type
+        # Use the pre-uploaded images from socket state
+        uploaded_images = socket.assigns.uploaded_images || []
+        IO.puts("Using pre-uploaded images: #{length(uploaded_images)} images found")
+        IO.puts("Uploaded images details: #{inspect(uploaded_images)}")
+        
+        uploaded_image_data = Enum.map(uploaded_images, fn image ->
+          %{
+            "image_original" => image.original_url,
+            "image_thumb" => image.thumb_url,
+            "image_medium" => image.medium_url,
+            "image_large" => image.large_url,
+            "image_extra_large" => image.extra_large_url,
+            "image_ultra" => image.ultra_url
           }
-          
-          case Shomp.Uploads.store_product_image(temp_upload, product.id) do
-            {:ok, image_paths} ->
-              IO.puts("Image processed successfully: #{inspect(image_paths)}")
-              
-              # Return the image paths to be merged
-              %{
-                "image_original" => image_paths.original,
-                "image_thumb" => image_paths.thumb,
-                "image_medium" => image_paths.medium,
-                "image_large" => image_paths.large,
-                "image_extra_large" => image_paths.extra_large,
-                "image_ultra" => image_paths.ultra
-              }
-            
-            {:error, reason} ->
-              IO.puts("Image processing failed: #{inspect(reason)}")
-              %{}
-          end
         end)
         
         # Update product with image paths if any were processed
         case uploaded_image_data do
           [first_image | _] when is_map(first_image) and map_size(first_image) > 0 ->
-            case Products.update_product(product, first_image) do
-              {:ok, _updated_product} ->
-                IO.puts("Product updated with images successfully!")
+            # First image becomes the primary image
+            primary_image_data = first_image
+            
+            # Additional images go to additional_images array (original URLs from uploaded_images)
+            additional_images = Enum.drop(uploaded_images, 1)
+            |> Enum.map(fn img -> img.original_url end)
+            
+            # Combine primary image with additional images
+            final_image_data = Map.put(primary_image_data, "additional_images", additional_images)
+            final_image_data = Map.put(final_image_data, "primary_image_index", 0)
+            
+            IO.puts("Final image data: #{inspect(final_image_data)}")
+            IO.puts("Additional images: #{inspect(additional_images)}")
+            
+            case Products.update_product(product, final_image_data) do
+              {:ok, updated_product} ->
+                IO.puts("Product updated with multiple images successfully!")
+                IO.puts("Updated product additional_images: #{inspect(updated_product.additional_images)}")
                 store = Enum.find(socket.assigns.stores, fn s -> s.store_id == product.store_id end)
                 
                 {:noreply,
                  socket
-                 |> put_flash(:info, "Product created with images successfully!")
+                 |> put_flash(:info, "Product created with #{length(uploaded_image_data)} images successfully!")
                  |> push_navigate(to: ~p"/#{store.slug}")}
               
               {:error, changeset} ->

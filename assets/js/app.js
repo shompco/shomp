@@ -28,6 +28,9 @@ import topbar from "../vendor/topbar"
 // Import upload preview functionality
 import "./upload_preview.js"
 
+// Import image carousel functionality
+import "./image_carousel.js"
+
 // Custom hooks for real-time features
 const VoteUpdates = {
   mounted() {

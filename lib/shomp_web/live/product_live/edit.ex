@@ -22,13 +22,14 @@ defmodule ShompWeb.ProductLive.Edit do
         []
       end
       
-      # Configure uploads
+      # Configure uploads with auto upload and progress handler
       socket = socket
       |> allow_upload(:product_images, 
           accept: ~w(.jpg .jpeg .png .gif .webp),
-          max_entries: 5,
+          max_entries: 10,
           max_file_size: 10_000_000,
-          auto_upload: true
+          auto_upload: true,
+          progress: &handle_progress/3
         )
       
       {:ok, assign(socket, 
@@ -100,116 +101,149 @@ defmodule ShompWeb.ProductLive.Edit do
             required
           />
 
-          <!-- Current Product Images -->
-          <div class="space-y-4">
-            <h3 class="text-lg font-medium text-gray-900">Current Product Images</h3>
+          <!-- Product Images Management -->
+          <div class="space-y-6">
+            <div class="flex items-center justify-between">
+              <h3 class="text-lg font-medium text-gray-900">Product Images</h3>
+              <span class="text-sm text-gray-500">
+                <%= if @product.image_thumb do %>
+                  <%= 1 + length(@product.additional_images || []) %>
+                <% else %>
+                  <%= length(@product.additional_images || []) %>
+                <% end %> image(s)
+              </span>
+            </div>
             
-            <%= if @product.image_original do %>
-              <!-- Current Image Display -->
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="space-y-2">
-                  <label class="text-sm font-medium text-gray-700">Main Image</label>
-                  <div class="relative">
-                    <img 
-                      src={@product.image_original} 
-                      alt="Current main image"
-                      class="w-full h-32 object-cover rounded-lg border-2 border-gray-200"
-                    />
-                    <button
-                      type="button"
-                      phx-click="remove_image"
-                      phx-value-image_type="original"
-                      phx-confirm="Remove this image? This action cannot be undone."
-                      class="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors"
-                      title="Remove image"
-                    >
-                      ×
-                    </button>
+            <!-- Current Images Gallery -->
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              <!-- Primary Image -->
+              <%= if @product.image_thumb do %>
+                <div class="relative group">
+                  <img 
+                    src={@product.image_thumb} 
+                    alt="Primary image"
+                    class="w-full h-32 object-cover rounded-lg border-2 border-blue-500 transition-all duration-200"
+                  />
+                  <div class="absolute top-2 left-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
+                    Primary
+                  </div>
+                  <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 rounded-lg flex items-center justify-center">
+                    <div class="opacity-0 group-hover:opacity-100 transition-opacity duration-200 space-x-2">
+                      <button 
+                        type="button"
+                        phx-click="remove_image"
+                        phx-value-index="primary"
+                        phx-confirm="Remove this image? This action cannot be undone."
+                        class="bg-red-500 text-white p-2 rounded-full hover:bg-red-600"
+                        title="Remove image"
+                      >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 </div>
-                
-                <%= if @product.image_thumb do %>
-                  <div class="space-y-2">
-                    <label class="text-sm font-medium text-gray-700">Thumbnail</label>
-                    <img 
-                      src={@product.image_thumb} 
-                      alt="Current thumbnail"
-                      class="w-full h-32 object-cover rounded-lg border-2 border-gray-200"
-                    />
+              <% end %>
+              
+              <!-- Additional Images -->
+              <%= for {image_url, index} <- Enum.with_index(@product.additional_images || []) do %>
+                <div class="relative group">
+                  <!-- DEBUG: Show URL -->
+                  <div class="text-xs bg-yellow-200 p-1 mb-1">URL: <%= image_url %></div>
+                  <img 
+                    src={image_url} 
+                    alt="Product image #{index + 2}"
+                    class="w-full h-32 object-cover rounded-lg border-2 border-gray-200 transition-all duration-200"
+                    onerror="this.style.border='3px solid red'; console.log('Failed to load:', this.src);"
+                  />
+                  <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 rounded-lg flex items-center justify-center">
+                    <div class="opacity-0 group-hover:opacity-100 transition-opacity duration-200 space-x-2">
+                      <button 
+                        type="button"
+                        phx-click="make_primary"
+                        phx-value-index={index}
+                        class="bg-blue-500 text-white p-2 rounded-full hover:bg-blue-600"
+                        title="Make primary"
+                      >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                        </svg>
+                      </button>
+                      <button 
+                        type="button"
+                        phx-click="remove_image"
+                        phx-value-index={index}
+                        phx-confirm="Remove this image? This action cannot be undone."
+                        class="bg-red-500 text-white p-2 rounded-full hover:bg-red-600"
+                        title="Remove image"
+                      >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              <% end %>
+              
+              <!-- Add New Image Card -->
+              <%= if (if @product.image_thumb, do: 1, else: 0) + length(@product.additional_images || []) < 10 do %>
+                <label class="relative border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 transition-colors cursor-pointer">
+                  <div class="w-full h-32 flex flex-col items-center justify-center p-4">
+                    <svg class="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    <span class="text-sm text-gray-500 text-center">Click to Add Image</span>
+                  </div>
+                  <.live_file_input upload={@uploads.product_images} class="hidden" />
+                </label>
+              <% end %>
+            </div>
+            
+            <!-- Upload Status -->
+            <%= if @uploads.product_images.entries != [] do %>
+              <div class="bg-blue-50 p-4 rounded-lg">
+                <h4 class="text-sm font-medium text-blue-900 mb-2">Upload Progress</h4>
+                <%= for entry <- @uploads.product_images.entries do %>
+                  <div class="flex items-center justify-between text-sm mb-2">
+                    <span class="text-blue-700"><%= entry.client_name %></span>
+                    <div class="text-blue-600">
+                      <%= cond do %>
+                        <% entry.done? -> %> ✓ Uploaded
+                        <% entry.progress > 0 -> %> <%= entry.progress %>%
+                        <% entry.preflighted? -> %> Starting...
+                        <% true -> %> Validating...
+                      <% end %>
+                    </div>
                   </div>
                 <% end %>
               </div>
-              
-              <!-- Image Size Info -->
-              <div class="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
-                <p class="font-medium mb-1">Available Image Sizes:</p>
-                <div class="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
-                  <%= if @product.image_thumb do %>
-                    <span class="flex items-center">
-                      <span class="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
-                      Thumb (150×150)
-                    </span>
-                  <% end %>
-                  <%= if @product.image_medium do %>
-                    <span class="flex items-center">
-                      <span class="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
-                      Medium (400×400)
-                    </span>
-                  <% end %>
-                  <%= if @product.image_large do %>
-                    <span class="flex items-center">
-                      <span class="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
-                      Large (800×800)
-                    </span>
-                  <% end %>
-                  <%= if @product.image_extra_large do %>
-                    <span class="flex items-center">
-                      <span class="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
-                      Extra Large (1200×1200)
-                    </span>
-                  <% end %>
-                  <%= if @product.image_ultra do %>
-                    <span class="flex items-center">
-                      <span class="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
-                      Ultra (1600×1600)
-                    </span>
-                  <% end %>
+            <% end %>
+            
+            <!-- No Images State -->
+            <%= if !@product.image_thumb and length(@product.additional_images || []) == 0 do %>
+              <div class="text-center py-12 border-2 border-dashed border-gray-300 rounded-lg">
+                <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                  <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <h4 class="text-lg font-medium text-gray-900 mb-2">No images yet</h4>
+                <p class="text-gray-500 mb-4">Upload your first product image to get started</p>
+                <div class="text-sm text-gray-500">
+                  Use the "Click to Add Image" card above to get started
                 </div>
               </div>
-            <% else %>
-              <div class="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <p class="text-gray-500 font-medium">No product images yet</p>
-                <p class="text-sm text-gray-400">Upload images below to get started</p>
-              </div>
             <% end %>
-          </div>
-
-          <!-- Update Product Images -->
-          <div class="space-y-4">
-            <h3 class="text-lg font-medium text-gray-900">Update Product Images</h3>
-            <.image_upload_input uploads={@uploads} />
             
-            <!-- DEBUG: Current Image Paths (Remove this after debugging) -->
-            <div class="p-3 bg-green-100 border border-green-300 rounded-lg">
-              <h4 class="font-semibold text-green-800 mb-2">🔍 DEBUG: Current Image Paths</h4>
-              <div class="text-xs text-green-700 space-y-1">
-                <div><strong>Original:</strong> <%= @product.image_original || "nil" %></div>
-                <div><strong>Thumb:</strong> <%= @product.image_thumb || "nil" %></div>
-                <div><strong>Medium:</strong> <%= @product.image_medium || "nil" %></div>
-                <div><strong>Large:</strong> <%= @product.image_large || "nil" %></div>
-                <div><strong>Extra Large:</strong> <%= @product.image_extra_large || "nil" %></div>
-                <div><strong>Ultra:</strong> <%= @product.image_ultra || "nil" %></div>
-                <div><strong>Additional Images:</strong> <%= inspect(@product.additional_images) %></div>
-                <div><strong>Primary Index:</strong> <%= @product.primary_image_index %></div>
-              </div>
+            <div class="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
+              <p><strong>Tips:</strong></p>
+              <ul class="list-disc list-inside space-y-1 mt-1">
+                <li>Upload up to 10 images per product</li>
+                <li>Click the star to make any image the primary image</li>
+                <li>Images are automatically resized to multiple sizes</li>
+                <li>Supported formats: JPG, PNG, GIF, WebP</li>
+              </ul>
             </div>
-            
-            <p class="text-sm text-gray-600">
-              Upload new images to replace the current ones. All image sizes will be automatically generated.
-            </p>
           </div>
 
           <%= if @form[:type].value == "digital" do %>
@@ -271,6 +305,30 @@ defmodule ShompWeb.ProductLive.Edit do
     {:noreply, assign(socket, form: to_form(changeset))}
   end
 
+  def handle_event("validate", _params, socket) do
+    # Handle other validation events (like file uploads)
+    IO.puts("=== VALIDATE EVENT ===")
+    IO.puts("Upload errors: #{inspect(upload_errors(socket.assigns.uploads.product_images))}")
+    
+    # Check for upload errors
+    errors = upload_errors(socket.assigns.uploads.product_images)
+    
+    if length(errors) > 0 do
+      error_messages = Enum.map(errors, fn
+        :too_large -> "File too large (max 10MB)"
+        :not_accepted -> "File type not supported (use JPG, PNG, GIF, or WebP)"
+        :too_many_files -> "Too many files selected"
+        other -> "Upload error: #{other}"
+      end)
+      
+      {:noreply, 
+       socket
+       |> put_flash(:error, "Upload failed: #{Enum.join(error_messages, ", ")}")}
+    else
+      {:noreply, socket}
+    end
+  end
+
   def handle_event("type_changed", %{"product" => %{"type" => product_type}}, socket) do
     filtered_category_options = if product_type && product_type != "" do
       Categories.get_categories_by_type(product_type)
@@ -286,13 +344,214 @@ defmodule ShompWeb.ProductLive.Edit do
     {:noreply, cancel_upload(socket, :product_images, ref)}
   end
 
+  def handle_event("add_image", _params, socket) do
+    # This will be triggered when a file is selected
+    IO.puts("=== ADD IMAGE EVENT TRIGGERED ===")
+    IO.puts("Current uploads: #{inspect(socket.assigns.uploads)}")
+    {:noreply, socket}
+  end
+
+  def handle_progress(:product_images, entry, socket) do
+    IO.puts("=== UPLOAD PROGRESS ===")
+    IO.puts("Entry: #{entry.client_name}")
+    IO.puts("Progress: #{entry.progress}%")
+    IO.puts("Done: #{entry.done?}")
+    
+    if entry.done? do
+      # Process the completed upload immediately
+      process_completed_entry(entry, socket)
+    else
+      {:noreply, socket}
+    end
+  end
+
+  defp process_completed_entry(entry, socket) do
+    IO.puts("Processing completed entry: #{entry.client_name}")
+    
+    # Use consume_uploaded_entries to get the file path
+    uploaded_files = consume_uploaded_entries(socket, :product_images, fn meta, upload_entry ->
+      if upload_entry.ref == entry.ref do
+        # Create a temporary upload structure
+        temp_upload = %{
+          filename: upload_entry.client_name,
+          path: meta.path,
+          content_type: upload_entry.client_type
+        }
+        
+        case Shomp.Uploads.store_product_image(temp_upload, socket.assigns.product.id) do
+          {:ok, image_paths} ->
+            IO.puts("Image stored successfully: #{inspect(image_paths)}")
+            image_paths.original
+          
+          {:error, reason} ->
+            IO.puts("Failed to store image: #{inspect(reason)}")
+            nil
+        end
+      else
+        nil
+      end
+    end)
+    
+    # Filter out failed uploads
+    valid_image_urls = Enum.filter(uploaded_files, & &1)
+    
+    if length(valid_image_urls) > 0 do
+      image_url = List.first(valid_image_urls)
+      
+      # Update the product with the new image
+      product = socket.assigns.product
+      
+      update_params = if product.image_original == nil do
+        # Make this the primary image
+        %{
+          "image_original" => image_url,
+          "image_thumb" => image_url,
+          "image_medium" => image_url,
+          "image_large" => image_url,
+          "image_extra_large" => image_url,
+          "image_ultra" => image_url
+        }
+      else
+        # Add to additional images
+        current_additional = product.additional_images || []
+        %{
+          "additional_images" => current_additional ++ [image_url]
+        }
+      end
+      
+      case Products.update_product(product, update_params) do
+        {:ok, updated_product} ->
+          {:noreply, 
+           socket
+           |> assign(product: updated_product)
+           |> put_flash(:info, "Image added successfully!")}
+        
+        {:error, _changeset} ->
+          {:noreply, 
+           socket
+           |> put_flash(:error, "Failed to save image")}
+      end
+    else
+      {:noreply, 
+       socket
+       |> put_flash(:error, "Failed to process image")}
+    end
+  end
+
+
+
+
+
+
+
+
+
+  def handle_event("remove_image", %{"index" => "primary"}, socket) do
+    product = socket.assigns.product
+    
+    # Remove primary image by setting all image fields to nil
+    update_params = %{
+      "image_original" => nil,
+      "image_thumb" => nil,
+      "image_medium" => nil,
+      "image_large" => nil,
+      "image_extra_large" => nil,
+      "image_ultra" => nil
+    }
+    
+    case Products.update_product(product, update_params) do
+      {:ok, updated_product} ->
+        {:noreply, 
+         socket
+         |> assign(product: updated_product)
+         |> put_flash(:info, "Primary image removed successfully")}
+      
+      {:error, _changeset} ->
+        {:noreply, 
+         socket
+         |> put_flash(:error, "Failed to remove image")}
+    end
+  end
+
+  def handle_event("remove_image", %{"index" => index}, socket) do
+    product = socket.assigns.product
+    index = String.to_integer(index)
+    
+    # Remove image from additional_images array
+    current_additional = product.additional_images || []
+    updated_additional = List.delete_at(current_additional, index)
+    
+    case Products.update_product(product, %{"additional_images" => updated_additional}) do
+      {:ok, updated_product} ->
+        {:noreply, 
+         socket
+         |> assign(product: updated_product)
+         |> put_flash(:info, "Image removed successfully")}
+      
+      {:error, _changeset} ->
+        {:noreply, 
+         socket
+         |> put_flash(:error, "Failed to remove image")}
+    end
+  end
+
+  def handle_event("make_primary", %{"index" => index}, socket) do
+    product = socket.assigns.product
+    index = String.to_integer(index)
+    
+    additional_images = product.additional_images || []
+    
+    if index < length(additional_images) do
+      # Get the image to make primary
+      new_primary_url = Enum.at(additional_images, index)
+      
+      # Remove from additional images
+      updated_additional = List.delete_at(additional_images, index)
+      
+      # Add current primary to additional images if it exists
+      final_additional = if product.image_original do
+        [product.image_original | updated_additional]
+      else
+        updated_additional
+      end
+      
+      # Update the product - Note: We're using the original URL for all sizes
+      # In a real app, you'd want to regenerate sizes from the original
+      update_params = %{
+        "image_original" => new_primary_url,
+        "image_thumb" => new_primary_url,
+        "image_medium" => new_primary_url,
+        "image_large" => new_primary_url,
+        "image_extra_large" => new_primary_url,
+        "image_ultra" => new_primary_url,
+        "additional_images" => final_additional,
+        "primary_image_index" => 0
+      }
+      
+      case Products.update_product(product, update_params) do
+        {:ok, updated_product} ->
+          {:noreply, 
+           socket
+           |> assign(product: updated_product)
+           |> put_flash(:info, "Primary image updated successfully")}
+        
+        {:error, _changeset} ->
+          {:noreply, 
+           socket
+           |> put_flash(:error, "Failed to update primary image")}
+      end
+    else
+      {:noreply, socket}
+    end
+  end
+
   def handle_event("save", %{"product" => product_params} = params, socket) do
     IO.puts("=== SAVE EVENT TRIGGERED (EDIT) ===")
     IO.puts("Product params: #{inspect(product_params)}")
     IO.puts("Uploads available: #{inspect(socket.assigns[:uploads])}")
     
-    # Process image uploads from LiveView uploads if available
-    processed_params = consume_uploaded_entries(socket, :product_images, fn meta, entry ->
+    # Process any new image uploads automatically
+    new_image_urls = consume_uploaded_entries(socket, :product_images, fn meta, entry ->
       IO.puts("Processing uploaded file: #{entry.client_name}")
       IO.puts("Uploaded to: #{meta.path}")
       
@@ -303,49 +562,70 @@ defmodule ShompWeb.ProductLive.Edit do
         content_type: entry.client_type
       }
       
+      # Store the image using our upload system
       case Shomp.Uploads.store_product_image(temp_upload, socket.assigns.product.id) do
         {:ok, image_paths} ->
-          IO.puts("Image processed successfully: #{inspect(image_paths)}")
-          
-          # Return the image paths to be merged
-          %{
-            "image_original" => image_paths.original,
-            "image_thumb" => image_paths.thumb,
-            "image_medium" => image_paths.medium,
-            "image_large" => image_paths.large,
-            "image_extra_large" => image_paths.extra_large,
-            "image_ultra" => image_paths.ultra
-          }
+          IO.puts("Image stored successfully: #{inspect(image_paths)}")
+          image_paths.original  # Return the original URL
         
         {:error, reason} ->
-          IO.puts("Image processing failed: #{inspect(reason)}")
-          %{}
+          IO.puts("Failed to store image: #{inspect(reason)}")
+          nil
       end
     end)
     
-    # Merge processed image data with product params
-    processed_params = case processed_params do
-      [first_image | _] when is_map(first_image) ->
-        Map.merge(product_params, first_image)
-      _ ->
-        IO.puts("No image uploads to process")
-        product_params
-    end
+    # Filter out failed uploads
+    new_image_urls = Enum.filter(new_image_urls, & &1)
     
-    # Process other file uploads
-    final_params = process_uploads(params, processed_params, socket.assigns.product.id)
+    # Prepare final params
+    final_params = if length(new_image_urls) > 0 do
+      product = socket.assigns.product
+      
+      if product.image_original == nil do
+        # No primary image yet, make the first new image the primary
+        first_image_url = List.first(new_image_urls)
+        remaining_images = Enum.drop(new_image_urls, 1)
+        current_additional = product.additional_images || []
+        
+        Map.merge(product_params, %{
+          "image_original" => first_image_url,
+          "image_thumb" => first_image_url,
+          "image_medium" => first_image_url,
+          "image_large" => first_image_url,
+          "image_extra_large" => first_image_url,
+          "image_ultra" => first_image_url,
+          "additional_images" => current_additional ++ remaining_images
+        })
+      else
+        # Primary image exists, add all new images to additional_images
+        current_additional = product.additional_images || []
+        Map.merge(product_params, %{
+          "additional_images" => current_additional ++ new_image_urls
+        })
+      end
+    else
+      product_params
+    end
     
     case Products.update_product(socket.assigns.product, final_params) do
       {:ok, product} ->
+        flash_message = if length(new_image_urls) > 0 do
+          "Product updated successfully with #{length(new_image_urls)} new image(s)!"
+        else
+          "Product updated successfully!"
+        end
+        
         {:noreply,
          socket
-         |> put_flash(:info, "Product updated successfully!")
-         |> push_navigate(to: ~p"/#{product.store.slug}/products/#{product.id}")}
+         |> assign(product: product)  # Update the product in the socket
+         |> put_flash(:info, flash_message)}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign(socket, form: to_form(changeset))}
     end
   end
+
+
 
   def handle_event("delete_product", _params, socket) do
     case Products.delete_product(socket.assigns.product) do
@@ -362,23 +642,7 @@ defmodule ShompWeb.ProductLive.Edit do
     end
   end
 
-  def handle_event("remove_image", %{"image_type" => image_type}, socket) do
-    # Remove the specified image type
-    case remove_product_image(socket.assigns.product, image_type) do
-      {:ok, updated_product} ->
-        # Update the socket with the updated product
-        socket = assign(socket, product: updated_product)
-        
-        {:noreply,
-         socket
-         |> put_flash(:info, "Image removed successfully!")}
 
-      {:error, reason} ->
-        {:noreply,
-         socket
-         |> put_flash(:error, "Failed to remove image: #{reason}")}
-    end
-  end
 
   # Get uploaded files from the LiveView uploads
   defp get_uploaded_files(socket) do
@@ -477,5 +741,21 @@ defmodule ShompWeb.ProductLive.Edit do
       _ ->
         {:ok, product}
     end
+  end
+
+  # Helper function to get all images for a product
+  defp get_all_images(product) do
+    images = []
+    
+    # Add primary image if it exists (use thumbnail for display)
+    images = if product.image_thumb do
+      [product.image_thumb | images]
+    else
+      images
+    end
+    
+    # Add additional images (these are already thumbnails)
+    additional = product.additional_images || []
+    images ++ additional
   end
 end

@@ -196,8 +196,15 @@ defmodule Shomp.Products do
   Updates a product.
   """
   def update_product(%Product{} = product, attrs) do
-    product
-    |> Product.changeset(attrs)
+    IO.puts("=== UPDATE PRODUCT ===")
+    IO.puts("Product ID: #{product.id}")
+    IO.puts("Update attrs: #{inspect(attrs)}")
+    
+    changeset = product |> Product.changeset(attrs)
+    IO.puts("Changeset changes: #{inspect(changeset.changes)}")
+    IO.puts("Changeset errors: #{inspect(changeset.errors)}")
+    
+    changeset
     |> Repo.update()
     |> case do
       {:ok, updated_product} ->
