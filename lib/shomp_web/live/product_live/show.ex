@@ -6,6 +6,8 @@ defmodule ShompWeb.ProductLive.Show do
   alias Shomp.Products
   alias Shomp.Orders
   alias Shomp.Reviews
+  alias Shomp.Stores
+  alias Shomp.StoreCategories
 
   @impl true
   def mount(%{"store_slug" => store_slug, "id" => id}, _session, socket) do
@@ -25,6 +27,83 @@ defmodule ShompWeb.ProductLive.Show do
     end
   end
 
+  # New mount function for slug-based routing: /:store_slug/:category_slug/:product_slug
+  def mount(%{"store_slug" => store_slug, "category_slug" => category_slug, "product_slug" => product_slug}, _session, socket) do
+    # First, get the store by slug
+    case Stores.get_store_by_slug(store_slug) do
+      nil ->
+        {:ok,
+         socket
+         |> put_flash(:error, "Store not found")
+         |> push_navigate(to: ~p"/")}
+      
+      store ->
+        # Get the custom category by slug within the store
+        case StoreCategories.get_store_category_by_slug(store.store_id, category_slug) do
+          nil ->
+            {:ok,
+             socket
+             |> put_flash(:error, "Category not found")
+             |> push_navigate(to: ~p"/#{store_slug}")}
+          
+          category ->
+            # Get the product by slug within the store and category
+            case Products.get_product_by_store_and_category_slug(store.store_id, category.id, product_slug) do
+              nil ->
+                {:ok,
+                 socket
+                 |> put_flash(:error, "Product not found")
+                 |> push_navigate(to: ~p"/#{store_slug}")}
+              
+              product ->
+                # Fetch reviews for this product
+                reviews = Shomp.Reviews.get_product_reviews(product.id)
+                
+                {:ok, assign(socket, product: product, reviews: reviews)}
+            end
+        end
+    end
+  end
+
+  # New mount function for slug-based routing: /:store_slug/:product_slug
+  # This could be either a product slug OR a category slug, so we need to check both
+  def mount(%{"store_slug" => store_slug, "product_slug" => product_slug}, _session, socket) do
+    # First, get the store by slug
+    case Stores.get_store_by_slug(store_slug) do
+      nil ->
+        {:ok,
+         socket
+         |> put_flash(:error, "Store not found")
+         |> push_navigate(to: ~p"/")}
+      
+      store ->
+        # First check if this is a custom category slug
+        case Shomp.StoreCategories.get_store_category_by_slug(store.store_id, product_slug) do
+          category when not is_nil(category) ->
+            # This is a category, redirect to the category page
+            {:ok,
+             socket
+             |> push_navigate(to: ~p"/#{store_slug}/#{category.slug}")}
+          
+          nil ->
+            # Not a category, try to find a product by this slug
+            case Products.get_product_by_store_slug(store.store_id, product_slug) do
+              nil ->
+                {:ok,
+                 socket
+                 |> put_flash(:error, "Product not found")
+                 |> push_navigate(to: ~p"/#{store_slug}")}
+              
+              product ->
+                # Fetch reviews for this product
+                reviews = Shomp.Reviews.get_product_reviews(product.id)
+                
+                {:ok, assign(socket, product: product, reviews: reviews)}
+            end
+        end
+    end
+  end
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -32,13 +111,36 @@ defmodule ShompWeb.ProductLive.Show do
       <div class="mx-auto max-w-4xl px-4 py-8">
         <div class="bg-white rounded-lg shadow-lg overflow-hidden">
           <div class="p-8">
+            <!-- Breadcrumb Navigation -->
             <div class="mb-6">
-              <.link
-                navigate={~p"/#{@product.store.slug}"}
-                class="text-blue-600 hover:text-blue-800 text-sm"
-              >
-                ← Back to <%= @product.store.name %>
-              </.link>
+              <nav class="flex items-center space-x-2 text-sm text-gray-500">
+                <.link
+                  navigate={~p"/"}
+                  class="hover:text-gray-700"
+                >
+                  Home
+                </.link>
+                <span>/</span>
+                <.link
+                  navigate={~p"/#{@product.store.slug}"}
+                  class="hover:text-gray-700"
+                >
+                  <%= @product.store.name %>
+                </.link>
+                
+                <%= if @product.custom_category do %>
+                  <span>/</span>
+                  <.link
+                    navigate={~p"/#{@product.store.slug}/#{@product.custom_category.slug}"}
+                    class="hover:text-gray-700"
+                  >
+                    <%= @product.custom_category.name %>
+                  </.link>
+                <% end %>
+                
+                <span>/</span>
+                <span class="text-gray-900 font-medium"><%= @product.title %></span>
+              </nav>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -49,6 +151,27 @@ defmodule ShompWeb.ProductLive.Show do
                 
                 <div class="text-2xl font-bold text-green-600 mb-6">
                   $<%= @product.price %>
+                </div>
+
+                <!-- Category Information -->
+                <div class="mb-6 space-y-3">
+                  <%= if @product.category do %>
+                    <div class="flex items-center space-x-2">
+                      <span class="text-sm text-gray-600">Platform Category:</span>
+                      <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        <%= @product.category.name %>
+                      </span>
+                    </div>
+                  <% end %>
+                  
+                  <%= if @product.custom_category do %>
+                    <div class="flex items-center space-x-2">
+                      <span class="text-sm text-gray-600">Store Category:</span>
+                      <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        <%= @product.custom_category.name %>
+                      </span>
+                    </div>
+                  <% end %>
                 </div>
 
                 <%= if @product.description do %>

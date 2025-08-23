@@ -9,10 +9,15 @@ defmodule Shomp.Categories.Category do
     field :position, :integer, default: 0
     field :level, :integer, default: 0
     field :active, :boolean, default: true
+    field :store_id, :string  # For store-specific custom categories
     
     # Hierarchical structure for future extensibility
     belongs_to :parent, __MODULE__
     has_many :children, __MODULE__, foreign_key: :parent_id
+    
+    # Product relationships
+    has_many :products, Shomp.Products.Product, foreign_key: :category_id
+    has_many :custom_products, Shomp.Products.Product, foreign_key: :custom_category_id
 
     timestamps(type: :utc_datetime)
   end
@@ -22,7 +27,7 @@ defmodule Shomp.Categories.Category do
   """
   def changeset(category, attrs) do
     category
-    |> cast(attrs, [:name, :slug, :description, :position, :level, :active, :parent_id])
+    |> cast(attrs, [:name, :slug, :description, :position, :level, :active, :parent_id, :store_id])
     |> validate_required([:name, :slug])
     |> validate_length(:name, min: 2, max: 100)
     |> validate_length(:slug, min: 2, max: 100)
@@ -30,6 +35,7 @@ defmodule Shomp.Categories.Category do
     |> validate_number(:position, greater_than_or_equal_to: 0)
     |> validate_level_constraints()
     |> validate_slug_format()
+    |> validate_store_slug_uniqueness()
     |> unique_constraint(:slug)
     |> validate_parent_exists()
     |> calculate_level()
@@ -42,6 +48,23 @@ defmodule Shomp.Categories.Category do
   def create_changeset(category, attrs) do
     category
     |> changeset(attrs)
+  end
+
+  @doc """
+  A store-specific category changeset for creation and updates.
+  """
+  def store_changeset(category, attrs) do
+    category
+    |> cast(attrs, [:name, :slug, :description, :position, :store_id])
+    |> validate_required([:name, :store_id])
+    |> validate_length(:name, min: 2, max: 100)
+    |> validate_length(:slug, min: 2, max: 100)
+    |> validate_length(:description, max: 500)
+    |> validate_number(:position, greater_than_or_equal_to: 0)
+    |> validate_slug_format()
+    |> validate_store_slug_uniqueness()
+    |> unique_constraint([:store_id, :slug])
+    |> maybe_generate_slug()
   end
 
   # Validations
@@ -60,6 +83,27 @@ defmodule Shomp.Categories.Category do
     
     if slug && not Regex.match?(~r/^[a-z0-9-]+$/, slug) do
       add_error(changeset, :slug, "must contain only lowercase letters, numbers, and hyphens")
+    else
+      changeset
+    end
+  end
+
+  defp validate_store_slug_uniqueness(changeset) do
+    store_id = get_change(changeset, :store_id) || get_field(changeset, :store_id)
+    slug = get_change(changeset, :slug) || get_field(changeset, :slug)
+    
+    if store_id && slug do
+      # For store-specific categories, ensure slug is unique within the store
+      case Shomp.Repo.get_by(__MODULE__, store_id: store_id, slug: slug) do
+        nil -> changeset
+        existing -> 
+          current_id = get_field(changeset, :id)
+          if existing.id == current_id do
+            changeset
+          else
+            add_error(changeset, :slug, "already exists in this store")
+          end
+      end
     else
       changeset
     end
@@ -140,6 +184,18 @@ defmodule Shomp.Categories.Category do
   """
   def sub_sub_category?(%__MODULE__{level: 2}), do: true
   def sub_sub_category?(_), do: false
+
+  @doc """
+  Returns true if this is a store-specific custom category.
+  """
+  def custom_category?(%__MODULE__{store_id: store_id}) when not is_nil(store_id), do: true
+  def custom_category?(_), do: false
+
+  @doc """
+  Returns true if this is a global platform category.
+  """
+  def global_category?(%__MODULE__{store_id: nil}), do: true
+  def global_category?(_), do: false
 
   @doc """
   Returns the display name with appropriate indentation.
