@@ -157,11 +157,6 @@ defmodule ShompWeb.Router do
       live "/:slug", StoreLive.Show, :show
       live "/:store_slug/products/:id", ProductLive.Show, :show
       
-      # New slug-based routes for custom categories
-      live "/:store_slug/:category_slug/:product_slug", ProductLive.Show, :show_by_slug
-      live "/:store_slug/:category_slug", StoreLive.Show, :show_category
-      live "/:store_slug/:product_slug", ProductLive.Show, :show_by_store_product_slug
-      
       # Store-specific review routes
       get "/:store_slug/products/:product_id/reviews", ReviewController, :index
       get "/:store_slug/products/:product_id/reviews/new", ReviewController, :new

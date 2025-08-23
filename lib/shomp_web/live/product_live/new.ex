@@ -6,7 +6,6 @@ defmodule ShompWeb.ProductLive.New do
   alias Shomp.Products
   alias Shomp.Stores
   alias Shomp.Categories
-  alias Shomp.StoreCategories
 
   @impl true
   def render(assigns) do
@@ -27,7 +26,6 @@ defmodule ShompWeb.ProductLive.New do
             label="Select Store"
             options={@store_options}
             required
-            phx-change="store_changed"
           />
 
           <.input
@@ -69,32 +67,14 @@ defmodule ShompWeb.ProductLive.New do
             phx-change="type_changed"
           />
 
-          <!-- Category Selection Section -->
-          <div class="space-y-4">
-            <h3 class="text-lg font-medium text-gray-900">Product Categories</h3>
-            
-            <.input
-              field={@form[:category_id]}
-              type="select"
-              label="Platform Category"
-              options={@filtered_category_options}
-              prompt="Select a platform category"
-              required
-            />
-
-            <.input
-              field={@form[:custom_category_id]}
-              type="select"
-              label="Store Category (Optional)"
-              options={@custom_category_options}
-              prompt="Select a store category to organize your products"
-            />
-            
-            <div class="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
-              <p><strong>Platform Category:</strong> Required. This helps customers discover your product across the platform.</p>
-              <p><strong>Store Category:</strong> Optional. Create custom categories in your store settings to organize products your way.</p>
-            </div>
-          </div>
+          <.input
+            field={@form[:category_id]}
+            type="select"
+            label="Main Category"
+            options={@filtered_category_options}
+            prompt="Select a main category"
+            required
+          />
 
           <!-- Product Images Upload -->
           <div class="space-y-4">
@@ -177,13 +157,6 @@ defmodule ShompWeb.ProductLive.New do
         # Load physical categories by default
         physical_categories = Categories.get_categories_by_type("physical")
         
-        # Load custom categories for selected store
-        custom_categories = if selected_store_id do
-          StoreCategories.get_store_category_options_with_default(selected_store_id)
-        else
-          [{"Select Store First", nil}]
-        end
-        
         # Configure uploads
         socket = socket
         |> allow_upload(:product_images, 
@@ -193,7 +166,7 @@ defmodule ShompWeb.ProductLive.New do
             auto_upload: true
           )
         
-        {:ok, assign_form(socket, changeset, store_options, stores, physical_categories, custom_categories) |> assign(:filtered_category_options, physical_categories)}
+        {:ok, assign_form(socket, changeset, store_options, stores, physical_categories) |> assign(:filtered_category_options, physical_categories)}
     end
   end
 
@@ -204,18 +177,7 @@ defmodule ShompWeb.ProductLive.New do
       |> Products.change_product_creation(product_params)
       |> Map.put(:action, :validate)
 
-    {:noreply, assign_form(socket, changeset, socket.assigns.store_options, socket.assigns.stores, socket.assigns.filtered_category_options, socket.assigns.custom_category_options)}
-  end
-
-  def handle_event("store_changed", %{"product" => %{"store_id" => store_id}}, socket) do
-    # Update custom categories when store changes
-    custom_categories = if store_id && store_id != "" do
-      StoreCategories.get_store_category_options_with_default(store_id)
-    else
-      [{"Select Store First", nil}]
-    end
-    
-    {:noreply, assign(socket, custom_category_options: custom_categories)}
+    {:noreply, assign_form(socket, changeset, socket.assigns.store_options, socket.assigns.stores, socket.assigns.filtered_category_options)}
   end
 
   def handle_event("type_changed", %{"product" => %{"type" => product_type}}, socket) do
@@ -311,18 +273,17 @@ defmodule ShompWeb.ProductLive.New do
 
       {:error, %Ecto.Changeset{} = changeset} ->
         IO.puts("Product creation failed: #{inspect(changeset.errors)}")
-        {:noreply, assign_form(socket, changeset, socket.assigns.store_options, socket.assigns.stores, socket.assigns.filtered_category_options, socket.assigns.custom_category_options)}
+        {:noreply, assign_form(socket, changeset, socket.assigns.store_options, socket.assigns.stores, socket.assigns.filtered_category_options)}
     end
   end
 
-  defp assign_form(socket, %Ecto.Changeset{} = changeset, store_options, stores, filtered_category_options, custom_category_options) do
+  defp assign_form(socket, %Ecto.Changeset{} = changeset, store_options, stores, filtered_category_options) do
     form = to_form(changeset, as: "product")
     assign(socket, 
       form: form, 
       store_options: store_options, 
       stores: stores,
       filtered_category_options: filtered_category_options,
-      custom_category_options: custom_category_options,
       uploaded_files: []
     )
   end
