@@ -78,11 +78,33 @@ defmodule ShompWeb.DownloadController do
     orders = Shomp.Orders.list_user_orders(user_id)
     |> Shomp.Repo.preload([order_items: :product])
 
-    # Manually fetch store data for each product
+    # Manually fetch store data and categories for each product
     orders_with_stores = Enum.map(orders, fn order ->
       order_items_with_stores = Enum.map(order.order_items, fn order_item ->
         store = Shomp.Stores.get_store_by_store_id(order_item.product.store_id)
-        %{order_item | product: %{order_item.product | store: store}}
+        
+        # Load platform category if it exists
+        product_with_store = %{order_item.product | store: store}
+        product_with_categories = if product_with_store.category_id do
+          case Shomp.Repo.get(Shomp.Categories.Category, product_with_store.category_id) do
+            nil -> product_with_store
+            category -> %{product_with_store | category: category}
+          end
+        else
+          product_with_store
+        end
+        
+        # Load custom category if it exists
+        product_with_all = if product_with_categories.custom_category_id do
+          case Shomp.Repo.get(Shomp.Categories.Category, product_with_categories.custom_category_id) do
+            nil -> product_with_categories
+            custom_category -> %{product_with_categories | custom_category: custom_category}
+          end
+        else
+          product_with_categories
+        end
+        
+        %{order_item | product: product_with_all}
       end)
       %{order | order_items: order_items_with_stores}
     end)

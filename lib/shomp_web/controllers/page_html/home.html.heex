@@ -69,7 +69,21 @@
             <% end %>
             <div class="flex justify-between items-center mt-4">
               <span class="text-2xl font-bold text-primary">$<%= product.price %></span>
-              <a href={if product.store, do: "/#{product.store.slug}/products/#{product.id}", else: "#"} class="btn btn-primary btn-sm">View Details</a>
+              <a href={
+                if product.store do
+                  if product.slug do
+                    if product.custom_category do
+                      "/#{product.store.slug}/#{product.custom_category.slug}/#{product.slug}"
+                    else
+                      "/#{product.store.slug}/#{product.slug}"
+                    end
+                  else
+                    "/#{product.store.slug}/products/#{product.id}"
+                  end
+                else
+                  "#"
+                end
+              } class="btn btn-primary btn-sm">View Details</a>
             </div>
           </div>
         </div>
@@ -137,7 +151,21 @@
             </p>
             <div class="flex justify-between items-center">
               <span class="text-3xl font-bold text-primary">$<%= product.price %></span>
-              <a href={if product.store, do: "/#{product.store.slug}/products/#{product.id}", else: "#"} class="btn btn-primary">View Details</a>
+              <a href={
+                if product.store do
+                  if product.slug do
+                    if product.custom_category do
+                      "/#{product.store.slug}/#{product.custom_category.slug}/#{product.slug}"
+                    else
+                      "/#{product.store.slug}/#{product.slug}"
+                    end
+                  else
+                    "/#{product.store.slug}/products/#{product.id}"
+                  end
+                else
+                  "#"
+                end
+              } class="btn btn-primary">View Details</a>
             </div>
           </div>
         </div>

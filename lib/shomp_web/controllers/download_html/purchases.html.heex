@@ -115,7 +115,17 @@
                       </div>
                     </div>
                     <div class="flex items-center space-x-2">
-                      <a href={~p"/#{order_item.product.store.slug}/products/#{order_item.product_id}"} class="btn btn-xs btn-outline">
+                      <a href={
+                        if order_item.product.slug do
+                          if order_item.product.custom_category do
+                            ~p"/#{order_item.product.store.slug}/#{order_item.product.custom_category.slug}/#{order_item.product.slug}"
+                          else
+                            ~p"/#{order_item.product.store.slug}/#{order_item.product.slug}"
+                          end
+                        else
+                          ~p"/#{order_item.product.store.slug}/products/#{order_item.product_id}"
+                        end
+                      } class="btn btn-xs btn-outline">
                         View Product
                       </a>
                       <%= if order_item.product.type == "digital" do %>
