@@ -132,19 +132,18 @@ DATABASE_URL=postgresql://username:password@localhost/shomp_dev
 ### Currently Available (MVP)
 - ✅ User authentication and registration
 - ✅ Store creation and management
-- ✅ Product listings (digital, physical, services)
+- ✅ Product listings (digital, physical)
 - ✅ Stripe payment integration
-- ✅ Secure download system for digital products
 - ✅ Donation system for platform support
+- ✅ Feature request system with community voting
 
 ### Coming Soon
 - 📧 Address management for physical products
+- 🎯 Secure download system for digital products
 - 🎨 Enhanced store customization
 - 📊 Analytics and reporting
 - 🔗 Webhook integrations
-- 📱 Mobile app
-- 🌍 International payment support
-- 🎯 Feature request system with community voting
+
 
 ## 🤝 Contributing
 
