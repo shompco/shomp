@@ -35,9 +35,11 @@ defmodule ShompWeb.Router do
     end
   end
 
+  # Root and public routes
   scope "/", ShompWeb do
     pipe_through :browser
 
+    # Root route - must be first to avoid catch-all interception
     get "/", PageController, :home
     
     live_session :public_with_cart,
@@ -49,6 +51,7 @@ defmodule ShompWeb.Router do
     end
   end
 
+  # Store routes
   scope "/stores", ShompWeb do
     pipe_through :browser
 
@@ -59,6 +62,7 @@ defmodule ShompWeb.Router do
     end
   end
 
+  # Payment routes
   scope "/payments", ShompWeb do
     pipe_through :browser
 
@@ -74,13 +78,39 @@ defmodule ShompWeb.Router do
     post "/webhook", PaymentController, :webhook
   end
 
+  # Checkout routes
   scope "/checkout", ShompWeb do
     pipe_through [:browser, :require_authenticated_user]
 
     live "/:product_id", CheckoutLive.Show, :show
   end
 
-  ## Authentication routes
+  # User authentication routes (public)
+  scope "/", ShompWeb do
+    pipe_through :browser
+
+    live_session :current_user,
+      on_mount: [{ShompWeb.UserAuth, :mount_current_scope}, {ShompWeb.CartHook, :default}] do
+      live "/users/register", UserLive.Registration, :new
+      live "/users/log-in", UserLive.Login, :new
+      live "/users/log-in/:token", UserLive.Confirmation, :new
+    end
+
+    post "/users/log-in", UserSessionController, :create
+    delete "/users/log-out", UserSessionController, :delete
+  end
+
+  # User profile routes
+  scope "/users", ShompWeb do
+    pipe_through :browser
+
+    live_session :public_profiles,
+      on_mount: [{ShompWeb.UserAuth, :mount_current_scope}, {ShompWeb.CartHook, :default}] do
+      live "/:username", ProfileLive.Show, :show
+    end
+  end
+
+  ## Authenticated routes
 
   scope "/", ShompWeb do
     pipe_through [:browser, :require_authenticated_user]
@@ -103,6 +133,9 @@ defmodule ShompWeb.Router do
       # Admin routes
       live "/admin", AdminLive.Dashboard, :show
       live "/admin/email-subscriptions", AdminLive.EmailSubscriptions, :show
+      live "/admin/users", AdminLive.Users, :show
+      live "/admin/stores", AdminLive.Stores, :show
+      live "/admin/products", AdminLive.Products, :show
     end
 
     post "/users/update-password", UserSessionController, :update_password
@@ -116,14 +149,14 @@ defmodule ShompWeb.Router do
     get "/orders", OrderController, :index
     get "/orders/:id", OrderController, :show
     
-          # Review routes
-      get "/reviews", ReviewController, :index
-      get "/reviews/new", ReviewController, :new
-      post "/reviews", ReviewController, :create
-      get "/reviews/:id/edit", ReviewController, :edit
-      put "/reviews/:id", ReviewController, :update
-      delete "/reviews/:id", ReviewController, :delete
-      post "/reviews/:review_id/vote", ReviewController, :vote
+    # Review routes
+    get "/reviews", ReviewController, :index
+    get "/reviews/new", ReviewController, :new
+    post "/reviews", ReviewController, :create
+    get "/reviews/:id/edit", ReviewController, :edit
+    put "/reviews/:id", ReviewController, :update
+    delete "/reviews/:id", ReviewController, :delete
+    post "/reviews/:review_id/vote", ReviewController, :vote
   end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
@@ -143,10 +176,6 @@ defmodule ShompWeb.Router do
     end
   end
 
-
-
-
-
   # CATCH-ALL ROUTES - MUST BE LAST!
   # These routes are very broad and will catch anything that doesn't match above
   scope "/", ShompWeb do
@@ -154,13 +183,18 @@ defmodule ShompWeb.Router do
 
     live_session :public_stores_with_cart,
       on_mount: [{ShompWeb.UserAuth, :mount_current_scope}, {ShompWeb.CartHook, :default}] do
+      # Store routes - only match non-empty slugs (exclude root path)
       live "/:slug", StoreLive.Show, :show
       live "/:store_slug/products/:id", ProductLive.Show, :show
       
-      # New slug-based routes for custom categories
+      # New slug-based routes for custom categories - MORE SPECIFIC FIRST
       live "/:store_slug/:category_slug/:product_slug", ProductLive.Show, :show_by_slug
-      live "/:store_slug/:category_slug", StoreLive.Show, :show_category
+      
+      # Store + Product route - MUST COME BEFORE category route to avoid conflicts
       live "/:store_slug/:product_slug", ProductLive.Show, :show_by_store_product_slug
+      
+      # Store category route - LESS SPECIFIC LAST
+      live "/:store_slug/:category_slug", StoreLive.Show, :show_category
       
       # Store-specific review routes
       get "/:store_slug/products/:product_id/reviews", ReviewController, :index
@@ -169,35 +203,6 @@ defmodule ShompWeb.Router do
       get "/:store_slug/products/:product_id/reviews/:id/edit", ReviewController, :edit
       put "/:store_slug/products/:product_id/reviews/:id", ReviewController, :update
       delete "/:store_slug/products/:product_id/reviews/:id", ReviewController, :delete
-    end
-  end
-
-  # Other scopes may use custom stacks.
-  # scope "/api", ShompWeb do
-  #   pipe_through :api
-  # end
-
-  scope "/", ShompWeb do
-    pipe_through [:browser]
-
-    live_session :current_user,
-      on_mount: [{ShompWeb.UserAuth, :mount_current_scope}, {ShompWeb.CartHook, :default}] do
-      live "/users/register", UserLive.Registration, :new
-      live "/users/log-in", UserLive.Login, :new
-      live "/users/log-in/:token", UserLive.Confirmation, :new
-    end
-
-    post "/users/log-in", UserSessionController, :create
-    delete "/users/log-out", UserSessionController, :delete
-  end
-
-  # User profile routes - must come AFTER all other specific /users routes
-  scope "/users", ShompWeb do
-    pipe_through :browser
-
-    live_session :public_profiles,
-      on_mount: [{ShompWeb.UserAuth, :mount_current_scope}, {ShompWeb.CartHook, :default}] do
-      live "/:username", ProfileLive.Show, :show
     end
   end
 end

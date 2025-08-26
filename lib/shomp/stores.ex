@@ -159,9 +159,18 @@ defmodule Shomp.Stores do
 
   """
   def create_store(attrs \\ %{}) do
-    %Store{}
-    |> Store.create_changeset(attrs)
-    |> Repo.insert()
+    case %Store{}
+         |> Store.create_changeset(attrs)
+         |> Repo.insert() do
+      {:ok, store} = result ->
+        # Broadcast to admin dashboard
+        Phoenix.PubSub.broadcast(Shomp.PubSub, "admin:stores", %{
+          event: "store_created",
+          payload: store
+        })
+        result
+      error -> error
+    end
   end
 
   @doc """

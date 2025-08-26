@@ -134,7 +134,7 @@ defmodule ShompWeb.ProductLive.Show do
                   <%= @product.store.name %>
                 </.link>
                 
-                <%= if @product.custom_category do %>
+                <%= if @product.custom_category && Map.has_key?(@product.custom_category, :slug) && @product.custom_category.slug do %>
                   <span>/</span>
                   <.link
                     navigate={~p"/#{@product.store.slug}/#{@product.custom_category.slug}"}
@@ -170,7 +170,7 @@ defmodule ShompWeb.ProductLive.Show do
                     </div>
                   <% end %>
                   
-                  <%= if @product.custom_category do %>
+                  <%= if @product.custom_category && Map.has_key?(@product.custom_category, :name) do %>
                     <div class="flex items-center space-x-2">
                       <span class="text-sm text-gray-600">Store Category:</span>
                       <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -274,7 +274,13 @@ defmodule ShompWeb.ProductLive.Show do
                       <!-- Image Counter -->
                       <%= if @product.additional_images && length(@product.additional_images) > 0 do %>
                         <div class="absolute top-4 right-4 bg-black bg-opacity-50 text-white px-3 py-1 rounded-full text-sm">
-                          <%= (@current_image_index || 0) + 1 %> / <%= length(@product.additional_images) + 1 %>
+                          <%= if @current_image_index == nil do %>
+                            <!-- Primary image -->
+                            1 of <%= length(@product.additional_images) + 1 %>
+                          <% else %>
+                            <!-- Additional image -->
+                            <%= @current_image_index + 2 %> of <%= length(@product.additional_images) + 1 %>
+                          <% end %>
                         </div>
                       <% end %>
                     </div>

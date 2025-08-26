@@ -5,6 +5,7 @@ defmodule ShompWeb.ProductLive.Edit do
 
   alias Shomp.Products
   alias Shomp.Categories
+  alias Shomp.StoreCategories
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
@@ -22,6 +23,9 @@ defmodule ShompWeb.ProductLive.Edit do
         []
       end
       
+      # Load custom categories for the store
+      custom_category_options = StoreCategories.get_store_category_options_with_default(product.store_id)
+      
       # Configure uploads with auto upload and progress handler
       socket = socket
       |> allow_upload(:product_images, 
@@ -35,7 +39,8 @@ defmodule ShompWeb.ProductLive.Edit do
       {:ok, assign(socket, 
         product: product, 
         form: to_form(changeset),
-        filtered_category_options: filtered_category_options
+        filtered_category_options: filtered_category_options,
+        custom_category_options: custom_category_options
       )}
     else
       {:ok,
@@ -99,6 +104,15 @@ defmodule ShompWeb.ProductLive.Edit do
             options={@filtered_category_options}
             prompt="Select a main category"
             required
+            phx-change="type_changed"
+          />
+
+          <.input
+            field={@form[:custom_category_id]}
+            type="select"
+            label="Store Category (Optional)"
+            options={@custom_category_options}
+            prompt="Select a store category to organize your products"
           />
 
           <!-- Product Images Management -->
@@ -379,9 +393,9 @@ defmodule ShompWeb.ProductLive.Edit do
         }
         
         case Shomp.Uploads.store_product_image(temp_upload, socket.assigns.product.id) do
-          {:ok, image_paths} ->
-            IO.puts("Image stored successfully: #{inspect(image_paths)}")
-            image_paths.original
+          {:ok, image_url} ->
+            IO.puts("Image stored successfully: #{image_url}")
+            image_url
           
           {:error, reason} ->
             IO.puts("Failed to store image: #{inspect(reason)}")
@@ -401,23 +415,18 @@ defmodule ShompWeb.ProductLive.Edit do
       # Update the product with the new image
       product = socket.assigns.product
       
-      update_params = if product.image_original == nil do
-        # Make this the primary image
-        %{
-          "image_original" => image_url,
-          "image_thumb" => image_url,
-          "image_medium" => image_url,
-          "image_large" => image_url,
-          "image_extra_large" => image_url,
-          "image_ultra" => image_url
-        }
-      else
-        # Add to additional images
-        current_additional = product.additional_images || []
-        %{
-          "additional_images" => current_additional ++ [image_url]
-        }
-      end
+              update_params = if product.image_original == nil do
+          # Make this the primary image
+          %{
+            "image_original" => image_url
+          }
+        else
+          # Add to additional images
+          current_additional = product.additional_images || []
+          %{
+            "additional_images" => current_additional ++ [image_url]
+          }
+        end
       
       case Products.update_product(product, update_params) do
         {:ok, updated_product} ->
@@ -449,14 +458,9 @@ defmodule ShompWeb.ProductLive.Edit do
   def handle_event("remove_image", %{"index" => "primary"}, socket) do
     product = socket.assigns.product
     
-    # Remove primary image by setting all image fields to nil
+    # Remove primary image by setting image field to nil
     update_params = %{
-      "image_original" => nil,
-      "image_thumb" => nil,
-      "image_medium" => nil,
-      "image_large" => nil,
-      "image_extra_large" => nil,
-      "image_ultra" => nil
+      "image_original" => nil
     }
     
     case Products.update_product(product, update_params) do
@@ -564,9 +568,9 @@ defmodule ShompWeb.ProductLive.Edit do
       
       # Store the image using our upload system
       case Shomp.Uploads.store_product_image(temp_upload, socket.assigns.product.id) do
-        {:ok, image_paths} ->
-          IO.puts("Image stored successfully: #{inspect(image_paths)}")
-          image_paths.original  # Return the original URL
+        {:ok, image_url} ->
+          IO.puts("Image stored successfully: #{image_url}")
+          image_url  # Return the image URL
         
         {:error, reason} ->
           IO.puts("Failed to store image: #{inspect(reason)}")
@@ -589,11 +593,6 @@ defmodule ShompWeb.ProductLive.Edit do
         
         Map.merge(product_params, %{
           "image_original" => first_image_url,
-          "image_thumb" => first_image_url,
-          "image_medium" => first_image_url,
-          "image_large" => first_image_url,
-          "image_extra_large" => first_image_url,
-          "image_ultra" => first_image_url,
           "additional_images" => current_additional ++ remaining_images
         })
       else

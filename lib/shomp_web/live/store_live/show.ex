@@ -42,14 +42,18 @@ defmodule ShompWeb.StoreLive.Show do
 
   @impl true
   def mount(%{"slug" => slug}, _session, socket) do
-    case Stores.get_store_by_slug_with_user(slug) do
-      nil ->
-        {:ok,
-         socket
-         |> put_flash(:error, "Store not found")
-         |> push_navigate(to: ~p"/")}
+    # Redirect to home if slug is empty
+    if slug == "" or slug == nil do
+      {:ok, socket |> push_navigate(to: ~p"/")}
+    else
+      case Stores.get_store_by_slug_with_user(slug) do
+        nil ->
+          {:ok,
+           socket
+           |> put_flash(:error, "Store not found")
+           |> push_navigate(to: ~p"/")}
 
-      store ->
+        store ->
         # Load products for this store using the immutable store_id
         products = Shomp.Products.list_products_by_store(store.store_id)
         
@@ -71,6 +75,7 @@ defmodule ShompWeb.StoreLive.Show do
           custom_categories: custom_categories,
           products_by_category: products_by_category
         )}
+      end
     end
   end
 
@@ -269,9 +274,15 @@ defmodule ShompWeb.StoreLive.Show do
           <.link
             navigate={
               if @product.slug do
-                if @product.custom_category do
+                # Only use category route if product actually has a custom category with a slug
+                if Map.has_key?(@product, :custom_category) && 
+                   @product.custom_category && 
+                   Map.has_key?(@product.custom_category, :slug) && 
+                   @product.custom_category.slug && 
+                   @product.custom_category.slug != "" do
                   ~p"/#{@store.slug}/#{@product.custom_category.slug}/#{@product.slug}"
                 else
+                  # Use simple store + product route when no category
                   ~p"/#{@store.slug}/#{@product.slug}"
                 end
               else
@@ -292,7 +303,7 @@ defmodule ShompWeb.StoreLive.Show do
         
         <!-- Category Tags -->
         <div class="mb-4 space-y-2">
-          <%= if @product.category do %>
+          <%= if Map.has_key?(@product, :category) && @product.category && Map.has_key?(@product.category, :name) do %>
             <div class="flex items-center space-x-2">
               <span class="text-xs text-gray-500">Platform:</span>
               <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
@@ -301,7 +312,7 @@ defmodule ShompWeb.StoreLive.Show do
             </div>
           <% end %>
           
-          <%= if @product.custom_category do %>
+          <%= if Map.has_key?(@product, :custom_category) && @product.custom_category && Map.has_key?(@product.custom_category, :name) do %>
             <div class="flex items-center space-x-2">
               <span class="text-xs text-gray-500">Store:</span>
               <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">

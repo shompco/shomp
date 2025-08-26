@@ -134,10 +134,19 @@ defmodule Shomp.Accounts do
   def register_user(attrs) do
     default_tier = get_default_tier()
     
-    %User{}
-    |> User.registration_changeset(attrs)
-    |> Ecto.Changeset.put_change(:tier_id, default_tier.id)
-    |> Repo.insert()
+    case %User{}
+         |> User.registration_changeset(attrs)
+         |> Ecto.Changeset.put_change(:tier_id, default_tier.id)
+         |> Repo.insert() do
+      {:ok, user} = result ->
+        # Broadcast to admin dashboard
+        Phoenix.PubSub.broadcast(Shomp.PubSub, "admin:users", %{
+          event: "user_registered",
+          payload: user
+        })
+        result
+      error -> error
+    end
   end
 
   @doc """

@@ -4,6 +4,8 @@ defmodule Shomp.Uploads do
   Currently supports local volume storage with placeholders for S3 and R2.
   """
   
+  alias Phoenix.PubSub
+  
   @storage_backend Application.compile_env(:shomp, :storage_backend, :local)
   
   @doc """
@@ -66,20 +68,18 @@ defmodule Shomp.Uploads do
       original_path = Path.join(base_dir, filename)
       File.cp!(upload.path, original_path)
       
-      # Process image to create variants
-      variants = Shomp.ImageProcessor.process_product_image(original_path)
+      # Broadcast to admin dashboard
+      Phoenix.PubSub.broadcast(Shomp.PubSub, "admin:images", %{
+        event: "image_uploaded",
+        payload: %{
+          product_id: product_id,
+          filename: filename,
+          path: "/uploads/products/#{product_id}/#{filename}"
+        }
+      })
       
-      # Return paths for all variants
-      image_paths = %{
-        original: "/uploads/products/#{product_id}/#{filename}",
-        thumb: "/uploads/products/#{product_id}/#{filename |> String.replace(".", "_thumb.")}",
-        medium: "/uploads/products/#{product_id}/#{filename |> String.replace(".", "_medium.")}",
-        large: "/uploads/products/#{product_id}/#{filename |> String.replace(".", "_large.")}",
-        extra_large: "/uploads/products/#{product_id}/#{filename |> String.replace(".", "_extra_large.")}",
-        ultra: "/uploads/products/#{product_id}/#{filename |> String.replace(".", "_ultra.")}"
-      }
-      
-      {:ok, image_paths}
+      # Just return the single image path
+      {:ok, "/uploads/products/#{product_id}/#{filename}"}
     rescue
       error -> {:error, "Failed to store image: #{inspect(error)}"}
     end
@@ -110,22 +110,8 @@ defmodule Shomp.Uploads do
       upload_dir = Application.get_env(:shomp, :upload)[:local][:upload_dir]
       base_path = Path.join(upload_dir, relative_path)
       
-      # Delete all variants
-      base_name = Path.basename(base_path, Path.extname(base_path))
-      ext = Path.extname(base_path)
-      dir = Path.dirname(base_path)
-      
-      # Delete original and all variants
-      variants = [
-        base_path,
-        Path.join(dir, "#{base_name}_thumb#{ext}"),
-        Path.join(dir, "#{base_name}_medium#{ext}"),
-        Path.join(dir, "#{base_name}_large#{ext}"),
-        Path.join(dir, "#{base_name}_extra_large#{ext}"),
-        Path.join(dir, "#{base_name}_ultra#{ext}")
-      ]
-      
-      Enum.each(variants, &File.rm/1)
+      # Just delete the single image file
+      File.rm!(base_path)
       {:ok, :deleted}
     rescue
       error -> {:error, "Failed to delete image: #{inspect(error)}"}

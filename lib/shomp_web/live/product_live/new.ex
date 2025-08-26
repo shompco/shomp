@@ -111,7 +111,7 @@ defmodule ShompWeb.ProductLive.New do
                   <%= for {image, index} <- Enum.with_index(@uploaded_images) do %>
                     <div class="relative group">
                       <img 
-                        src={image.thumb_url} 
+                        src={image.image_url} 
                         alt="Product image #{index + 1}"
                         class={"w-full h-24 object-cover rounded-lg border-2 transition-all duration-200 #{if index == 0, do: "border-blue-500", else: "border-gray-200"}"}
                       />
@@ -301,15 +301,10 @@ defmodule ShompWeb.ProductLive.New do
         temp_product_id = :crypto.strong_rand_bytes(16) |> Base.encode64()
         
         case Shomp.Uploads.store_product_image(temp_upload, temp_product_id) do
-          {:ok, image_paths} ->
+          {:ok, image_url} ->
             IO.puts("Successfully processed: #{entry.client_name}")
             %{
-              original_url: image_paths.original,
-              thumb_url: image_paths.thumb,
-              medium_url: image_paths.medium,
-              large_url: image_paths.large,
-              extra_large_url: image_paths.extra_large,
-              ultra_url: image_paths.ultra,
+              image_url: image_url,
               filename: entry.client_name,
               temp_id: temp_product_id
             }
@@ -382,12 +377,7 @@ defmodule ShompWeb.ProductLive.New do
         
         uploaded_image_data = Enum.map(uploaded_images, fn image ->
           %{
-            "image_original" => image.original_url,
-            "image_thumb" => image.thumb_url,
-            "image_medium" => image.medium_url,
-            "image_large" => image.large_url,
-            "image_extra_large" => image.extra_large_url,
-            "image_ultra" => image.ultra_url
+            "image_original" => image.image_url
           }
         end)
         
@@ -397,9 +387,9 @@ defmodule ShompWeb.ProductLive.New do
             # First image becomes the primary image
             primary_image_data = first_image
             
-            # Additional images go to additional_images array (original URLs from uploaded_images)
+            # Additional images go to additional_images array (image URLs from uploaded_images)
             additional_images = Enum.drop(uploaded_images, 1)
-            |> Enum.map(fn img -> img.original_url end)
+            |> Enum.map(fn img -> img.image_url end)
             
             # Combine primary image with additional images
             final_image_data = Map.put(primary_image_data, "additional_images", additional_images)
@@ -459,155 +449,4 @@ defmodule ShompWeb.ProductLive.New do
 
 
 
-  # Process uploads after product creation
-  defp process_uploads_after_creation(params, product) do
-    # Process image uploads
-    image_params = process_image_uploads_after_creation(params, product.id)
-    
-    # Process file uploads for digital products
-    file_params = if product.type == "digital" do
-      process_file_uploads_after_creation(params, product.id)
-    else
-      %{}
-    end
-    
-    # If we have uploads, update the product
-    if map_size(image_params) > 0 or map_size(file_params) > 0 do
-      update_params = Map.merge(image_params, file_params)
-      case Products.update_product(product, update_params) do
-        {:ok, updated_product} -> {:ok, updated_product}
-        {:error, changeset} -> {:error, "Failed to update product with uploads: #{inspect(changeset.errors)}"}
-      end
-    else
-      # No uploads to process
-      {:ok, product}
-    end
-  end
-
-  # Get uploaded files from the LiveView uploads
-  defp get_uploaded_files(socket) do
-    case socket.assigns[:uploads] do
-      %{product_images: product_images} ->
-        uploaded_files = for entry <- product_images.entries do
-          %{
-            "filename" => entry.client_name,
-            "size" => entry.client_size,
-            "type" => entry.client_type,
-            "temp_path" => entry.path,
-            "uploaded_at" => DateTime.utc_now()
-          }
-        end
-        {:ok, uploaded_files}
-      
-      _ ->
-        # No uploads configured, try to get from form data
-        {:ok, []}
-    end
-  rescue
-    _ ->
-      {:error, "Failed to get uploaded files"}
-  end
-
-  # Process pre-uploaded files when creating the product
-  defp process_pre_uploaded_files(uploaded_files, product) do
-    IO.puts("Processing #{length(uploaded_files)} pre-uploaded files for product #{product.id}")
-    
-    if length(uploaded_files) > 0 do
-      # Process the first image file
-                      case List.first(uploaded_files) do
-          %{"type" => type} = file ->
-            if String.contains?(type, "image") do
-              IO.puts("Processing image file: #{file["filename"]}")
-              
-              # Create a mock upload struct for the existing upload system
-              mock_upload = %{
-                filename: file["filename"],
-                path: file["temp_path"],
-                content_type: file["type"]
-              }
-              
-              # Use the existing upload system to process the image
-              case Shomp.Uploads.store_product_image(mock_upload, product.id) do
-                {:ok, image_paths} ->
-                  IO.puts("Image processed successfully: #{inspect(image_paths)}")
-                  
-                  # Update the product with the image paths
-                  update_params = %{
-                    "image_original" => image_paths.original,
-                    "image_thumb" => image_paths.thumb,
-                    "image_medium" => image_paths.medium,
-                    "image_large" => image_paths.large,
-                    "image_extra_large" => image_paths.extra_large,
-                    "image_ultra" => image_paths.ultra
-                  }
-                  
-                  case Products.update_product(product, update_params) do
-                    {:ok, updated_product} -> {:ok, updated_product}
-                    {:error, changeset} -> {:error, "Failed to update product with image paths: #{inspect(changeset.errors)}"}
-                  end
-                
-                {:error, reason} ->
-                  {:error, "Failed to process image: #{reason}"}
-              end
-            else
-              {:ok, product} # Not an image file
-            end
-          
-          _ ->
-            {:ok, product} # No files to process
-        end
-    else
-      {:ok, product} # No files to process
-    end
-  end
-  
-  defp process_image_uploads_after_creation(params, product_id) do
-    case params do
-      %{"product_images" => images} when is_list(images) and length(images) > 0 ->
-        # Process the first image
-        case process_single_image_after_creation(List.first(images), product_id) do
-          {:ok, image_paths} ->
-            %{
-              "image_original" => image_paths.original,
-              "image_thumb" => image_paths.thumb,
-              "image_medium" => image_paths.medium,
-              "image_large" => image_paths.large,
-              "image_extra_large" => image_paths.extra_large,
-              "image_ultra" => image_paths.ultra
-            }
-          {:error, _reason} ->
-            %{}
-        end
-      _ ->
-        %{}
-    end
-  end
-  
-  defp process_file_uploads_after_creation(params, product_id) do
-    case params do
-      %{"product_file" => file} when is_map(file) ->
-        case process_digital_file_after_creation(file, product_id) do
-          {:ok, file_path} ->
-            %{"file_path" => file_path}
-          {:error, _reason} ->
-            %{}
-        end
-      _ ->
-        %{}
-    end
-  end
-  
-  defp process_single_image_after_creation(upload, product_id) do
-    case Shomp.Uploads.store_product_image(upload, product_id) do
-      {:ok, image_paths} -> {:ok, image_paths}
-      {:error, reason} -> {:error, reason}
-    end
-  end
-  
-  defp process_digital_file_after_creation(upload, product_id) do
-    case Shomp.Uploads.store_product_file(upload, product_id) do
-      {:ok, file_path} -> {:ok, file_path}
-      {:error, reason} -> {:error, reason}
-    end
-  end
 end

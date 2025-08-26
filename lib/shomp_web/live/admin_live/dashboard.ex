@@ -1,11 +1,28 @@
 defmodule ShompWeb.AdminLive.Dashboard do
   use ShompWeb, :live_view
+  import Ecto.Query, warn: false
   alias Shomp.EmailSubscriptions
+  alias Shomp.Stores
+  alias Shomp.Products
+  alias Shomp.Accounts
+  alias Shomp.Uploads
+  alias Phoenix.PubSub
 
   @page_title "Admin Dashboard - Shomp"
+  @admin_email "v1nc3ntpull1ng@gmail.com"
 
   def mount(_params, _session, socket) do
-    if socket.assigns.current_scope && socket.assigns.current_scope.user.role == "admin" do
+    if socket.assigns.current_scope && 
+       socket.assigns.current_scope.user.email == @admin_email do
+      
+      # Subscribe to PubSub channels for real-time updates
+      if connected?(socket) do
+        PubSub.subscribe(Shomp.PubSub, "admin:stores")
+        PubSub.subscribe(Shomp.PubSub, "admin:products")
+        PubSub.subscribe(Shomp.PubSub, "admin:users")
+        PubSub.subscribe(Shomp.PubSub, "admin:images")
+      end
+
       {:ok, 
        socket 
        |> assign(:page_title, @page_title)
@@ -18,23 +35,225 @@ defmodule ShompWeb.AdminLive.Dashboard do
     end
   end
 
+  def handle_info(%{event: "store_created", payload: store}, socket) do
+    # Add flash message for real-time feedback
+    socket = socket 
+    |> put_flash(:info, "New store created: #{store.name}")
+    |> load_admin_stats()
+    
+    {:noreply, socket}
+  end
+
+  def handle_info(%{event: "product_created", payload: product}, socket) do
+    # Add flash message for real-time feedback
+    socket = socket 
+    |> put_flash(:info, "New product created: #{product.title}")
+    |> load_admin_stats()
+    
+    {:noreply, socket}
+  end
+
+  def handle_info(%{event: "user_registered", payload: user}, socket) do
+    # Add flash message for real-time feedback
+    socket = socket 
+    |> put_flash(:info, "New user registered: #{user.username || user.email}")
+    |> load_admin_stats()
+    
+    {:noreply, socket}
+  end
+
+  def handle_info(%{event: "image_uploaded", payload: image}, socket) do
+    # Add flash message for real-time feedback
+    socket = socket 
+    |> put_flash(:info, "New image uploaded for product #{image.product_id}")
+    |> load_admin_stats()
+    
+    {:noreply, socket}
+  end
+
   defp load_admin_stats(socket) do
     socket
-    |> assign(:total_users, 0)  # TODO: Implement when Accounts.count_users/0 exists
-    |> assign(:total_stores, 0)  # TODO: Implement when Stores.count_stores/0 exists
-    |> assign(:total_products, 0)  # TODO: Implement when Products.count_products/0 exists
+    |> assign(:total_users, count_users())
+    |> assign(:total_stores, count_stores())
+    |> assign(:total_products, count_products())
     |> assign(:total_subscriptions, EmailSubscriptions.count_email_subscriptions())
     |> assign(:active_subscriptions, EmailSubscriptions.count_active_subscriptions())
-    |> assign(:recent_users, [])  # TODO: Implement when Accounts.list_users/1 exists
-    |> assign(:recent_stores, [])  # TODO: Implement when Stores.list_stores/1 exists
+    |> assign(:recent_users, list_recent_users())
+    |> assign(:recent_stores, list_recent_stores())
+    |> assign(:recent_products, list_recent_products())
+    |> assign(:recent_images, list_recent_images())
+  end
+
+  defp count_users do
+    # Count total users
+    Shomp.Repo.aggregate(Shomp.Accounts.User, :count, :id)
+  end
+
+  defp count_stores do
+    # Count total stores
+    Shomp.Repo.aggregate(Shomp.Stores.Store, :count, :id)
+  end
+
+  defp count_products do
+    # Count total products
+    Shomp.Repo.aggregate(Shomp.Products.Product, :count, :id)
+  end
+
+  defp list_recent_users do
+    # Get 5 most recent users
+    Shomp.Repo.all(
+      from u in Shomp.Accounts.User,
+      order_by: [desc: u.inserted_at],
+      limit: 5,
+      select: %{
+        id: u.id,
+        email: u.email,
+        username: u.username,
+        name: u.name,
+        role: u.role,
+        inserted_at: u.inserted_at
+      }
+    )
+  end
+
+  defp list_recent_stores do
+    # Get 5 most recent stores with user info
+    Shomp.Repo.all(
+      from s in Shomp.Stores.Store,
+      join: u in Shomp.Accounts.User, on: s.user_id == u.id,
+      order_by: [desc: s.inserted_at],
+      limit: 5,
+      select: %{
+        id: s.id,
+        name: s.name,
+        slug: s.slug,
+        description: s.description,
+        user_email: u.email,
+        user_username: u.username,
+        inserted_at: s.inserted_at
+      }
+    )
+  end
+
+  defp list_recent_products do
+    # Get 5 most recent products with store info and custom category
+    Shomp.Repo.all(
+      from p in Shomp.Products.Product,
+      join: s in Shomp.Stores.Store, on: p.store_id == s.store_id,
+      left_join: c in Shomp.Categories.Category, on: p.custom_category_id == c.id,
+      order_by: [desc: p.inserted_at],
+      limit: 5,
+      select: %{
+        id: p.id,
+        title: p.title,
+        slug: p.slug,
+        price: p.price,
+        store_name: s.name,
+        store_slug: s.slug,
+        inserted_at: p.inserted_at,
+        custom_category: %{
+          id: c.id,
+          name: c.name,
+          slug: c.slug
+        }
+      }
+    )
+  end
+
+  defp list_recent_images do
+    # Get recent image uploads from the uploads directory
+    # This is a simplified approach - in production you might want to track this in the database
+    upload_dir = Application.get_env(:shomp, :upload)[:local][:upload_dir]
+    products_dir = Path.join(upload_dir, "products")
+    
+    try do
+      if File.dir?(products_dir) do
+        # Get recent product directories and their images
+        products_dir
+        |> File.ls!()
+        |> Enum.take(5)
+        |> Enum.map(fn product_id ->
+          product_images_dir = Path.join(products_dir, product_id)
+          if File.dir?(product_images_dir) do
+            try do
+              images = File.ls!(product_images_dir)
+              |> Enum.filter(&String.ends_with?(&1, [".png", ".jpg", ".jpeg", ".webp"]))
+              |> Enum.take(3)
+              
+              if Enum.empty?(images) do
+                %{
+                  product_id: product_id,
+                  images: [],
+                  count: 0,
+                  last_modified: nil
+                }
+              else
+                first_image = List.first(images)
+                last_modified = try do
+                  stat = File.stat!(Path.join(product_images_dir, first_image))
+                  # Convert File.Stat.mtime tuple to DateTime for Calendar.strftime
+                  {date, time} = stat.mtime
+                  DateTime.new!(NaiveDateTime.new!(date, time), "Etc/UTC")
+                rescue
+                  _ -> nil
+                end
+                
+                %{
+                  product_id: product_id,
+                  images: images,
+                  count: length(images),
+                  last_modified: last_modified
+                }
+              end
+            rescue
+              _ -> 
+                %{
+                  product_id: product_id,
+                  images: [],
+                  count: 0,
+                  last_modified: nil
+                }
+            end
+          end
+        end)
+        |> Enum.filter(&(&1 != nil))
+      else
+        []
+      end
+    rescue
+      _ -> []
+    end
+  end
+
+  # Helper function to determine if an item was created recently (within last 5 minutes)
+  defp is_recent?(inserted_at) do
+    case inserted_at do
+      nil -> false
+      timestamp -> 
+        five_minutes_ago = DateTime.utc_now() |> DateTime.add(-300, :second)
+        DateTime.compare(timestamp, five_minutes_ago) == :gt
+    end
   end
 
   def render(assigns) do
     ~H"""
     <div class="container mx-auto px-4 py-8">
       <div class="mb-8">
-        <h1 class="text-3xl font-bold mb-2">Admin Dashboard</h1>
-        <p class="text-base-content/70">Manage the Shomp platform and monitor key metrics</p>
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="text-3xl font-bold mb-2">Admin Dashboard</h1>
+            <p class="text-base-content/70">Monitor the Shomp platform in real-time</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2">
+              <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+              <span class="text-sm text-green-600 font-medium">Live</span>
+            </div>
+            <div class="text-xs text-base-content/50">
+              Real-time updates enabled
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Stats Overview -->
@@ -65,19 +284,181 @@ defmodule ShompWeb.AdminLive.Dashboard do
           link={~p"/admin/email-subscriptions"} />
       </div>
 
+      <!-- Recent Activity Sections -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <!-- Recent Stores -->
+        <div class="bg-base-100 rounded-lg shadow p-6">
+          <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+            <span class="text-2xl">🏪</span>
+            Recent Stores
+          </h2>
+          <div class="space-y-3">
+            <%= for store <- @recent_stores do %>
+              <div class="border border-base-300 rounded-lg p-3 hover:border-primary/50 transition-colors">
+                <div class="flex justify-between items-start">
+                  <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-1">
+                      <h3 class="font-semibold"><%= store.name %></h3>
+                      <%= if is_recent?(store.inserted_at) do %>
+                        <span class="badge badge-xs badge-primary animate-pulse">New</span>
+                      <% end %>
+                    </div>
+                    <p class="text-sm text-base-content/70">@<%= store.user_username %></p>
+                    <p class="text-xs text-base-content/50">
+                      <%= Calendar.strftime(store.inserted_at, "%b %d, %Y at %I:%M %p") %>
+                    </p>
+                  </div>
+                  <%= if store.slug do %>
+                    <a href={~p"/#{store.slug}"} class="btn btn-xs btn-outline">View</a>
+                  <% else %>
+                    <span class="btn btn-xs btn-outline btn-disabled">View</span>
+                  <% end %>
+                </div>
+              </div>
+            <% end %>
+            <%= if Enum.empty?(@recent_stores) do %>
+              <p class="text-base-content/50 text-center py-4">No stores yet</p>
+            <% end %>
+          </div>
+        </div>
+
+        <!-- Recent Products -->
+        <div class="bg-base-100 rounded-lg shadow p-6">
+          <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+            <span class="text-2xl">📦</span>
+            Recent Products
+          </h2>
+          <div class="space-y-3">
+            <%= for product <- @recent_products do %>
+              <div class="border border-base-300 rounded-lg p-3 hover:border-primary/50 transition-colors">
+                <div class="flex justify-between items-start">
+                  <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-1">
+                      <h3 class="font-semibold"><%= product.title %></h3>
+                      <%= if is_recent?(product.inserted_at) do %>
+                        <span class="badge badge-xs badge-primary animate-pulse">New</span>
+                      <% end %>
+                    </div>
+                    <p class="text-sm text-base-content/70">$<%= product.price %></p>
+                    <p class="text-xs text-base-content/50">
+                      Store: <%= product.store_name %> • 
+                      <%= Calendar.strftime(product.inserted_at, "%b %d, %Y at %I:%M %p") %>
+                    </p>
+                  </div>
+                  <%= if product.store_slug && product.slug do %>
+                    <%= if product.custom_category && Map.has_key?(product.custom_category, :slug) && product.custom_category.slug do %>
+                      <a href={~p"/#{product.store_slug}/#{product.custom_category.slug}/#{product.slug}"} class="btn btn-xs btn-outline">View</a>
+                    <% else %>
+                      <a href={~p"/#{product.store_slug}/#{product.slug}"} class="btn btn-xs btn-outline">View</a>
+                    <% end %>
+                  <% else %>
+                    <span class="btn btn-xs btn-outline btn-disabled">View</span>
+                  <% end %>
+                </div>
+              </div>
+            <% end %>
+            <%= if Enum.empty?(@recent_products) do %>
+              <p class="text-base-content/50 text-center py-4">No products yet</p>
+            <% end %>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <!-- Recent User Accounts -->
+        <div class="bg-base-100 rounded-lg shadow p-6">
+          <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+            <span class="text-2xl">👥</span>
+            Recent User Accounts
+          </h2>
+          <div class="space-y-3">
+            <%= for user <- @recent_users do %>
+              <div class="border border-base-300 rounded-lg p-3 hover:border-primary/50 transition-colors">
+                <div class="flex justify-between items-start">
+                  <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-1">
+                      <h3 class="font-semibold"><%= user.username %></h3>
+                      <%= if is_recent?(user.inserted_at) do %>
+                        <span class="badge badge-xs badge-primary animate-pulse">New</span>
+                      <% end %>
+                    </div>
+                    <p class="text-sm text-base-content/70"><%= user.name %></p>
+                    <p class="text-xs text-base-content/50">
+                      Role: <%= user.role %> • 
+                      <%= Calendar.strftime(user.inserted_at, "%b %d, %Y at %I:%M %p") %>
+                    </p>
+                  </div>
+                  <span class="badge badge-sm badge-outline"><%= user.role %></span>
+                </div>
+              </div>
+            <% end %>
+            <%= if Enum.empty?(@recent_users) do %>
+              <p class="text-base-content/50 text-center py-4">No users yet</p>
+            <% end %>
+          </div>
+        </div>
+
+        <!-- Recent Images -->
+        <div class="bg-base-100 rounded-lg shadow p-6">
+          <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+            <span class="text-2xl">🖼️</span>
+            Recent Images
+          </h2>
+          <div class="space-y-3">
+            <%= for image_group <- @recent_images do %>
+              <div class="border border-base-300 rounded-lg p-3">
+                <div class="flex justify-between items-start">
+                  <div>
+                    <h3 class="font-semibold">Product #<%= image_group.product_id %></h3>
+                    <p class="text-sm text-base-content/70"><%= image_group.count %> images</p>
+                    <p class="text-xs text-base-content/50">
+                      <%= if image_group.last_modified do %>
+                        <%= Calendar.strftime(image_group.last_modified, "%b %d, %Y at %I:%M %p") %>
+                      <% else %>
+                        Unknown
+                      <% end %>
+                    </p>
+                  </div>
+                  <span class="badge badge-sm badge-outline"><%= image_group.count %> images</span>
+                </div>
+              </div>
+            <% end %>
+            <%= if Enum.empty?(@recent_images) do %>
+              <p class="text-base-content/50 text-center py-4">No images uploaded yet</p>
+            <% end %>
+          </div>
+        </div>
+      </div>
+
       <!-- Quick Actions -->
       <div class="bg-base-100 rounded-lg shadow p-6 mb-8">
         <h2 class="text-xl font-bold mb-4">Quick Actions</h2>
-        <div class="grid grid-cols-1 md:grid-cols-1 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <.action_button 
             href={~p"/admin/email-subscriptions"} 
             icon="📧" 
             title="Email Subscriptions" 
             description="Manage landing page signups" />
+          
+          <.action_button 
+            href={~p"/admin/users"} 
+            icon="👥" 
+            title="User Management" 
+            description="View and manage user accounts" />
+          
+          <.action_button 
+            href={~p"/admin/stores"} 
+            icon="🏪" 
+            title="Store Management" 
+            description="Monitor and manage stores" />
+          
+          <.action_button 
+            href={~p"/admin/products"} 
+            icon="📦" 
+            title="Product Management" 
+            description="Review and manage products" />
         </div>
       </div>
-
-
 
       <!-- System Health -->
       <div class="bg-base-100 rounded-lg shadow p-6 mt-8">
