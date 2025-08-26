@@ -357,7 +357,7 @@ defmodule ShompWeb.AdminLive.Dashboard do
                       <%= if product.custom_category && Map.has_key?(product.custom_category, :slug) && product.custom_category.slug do %>
                         <a href={~p"/#{product.store_slug}/#{product.custom_category.slug}/#{product.slug}"} class="btn btn-xs btn-outline">View</a>
                       <% else %>
-                        <a href={~p"/#{product.store_slug}/#{product.slug}"} class="btn btn-xs btn-outline">View</a>
+                        <a href={~p"/#{product.store_slug}/products/#{product.slug}"} class="btn btn-xs btn-outline">View</a>
                       <% end %>
                     <% else %>
                       <span class="btn btn-xs btn-outline btn-disabled">View</span>

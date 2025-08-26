@@ -61,6 +61,7 @@ defmodule Shomp.Categories.Category do
     |> validate_length(:slug, min: 2, max: 100)
     |> validate_length(:description, max: 500)
     |> validate_number(:position, greater_than_or_equal_to: 0)
+    |> validate_reserved_keywords()
     |> validate_slug_format()
     |> validate_store_slug_uniqueness()
     |> unique_constraint([:store_id, :slug])
@@ -68,6 +69,22 @@ defmodule Shomp.Categories.Category do
   end
 
   # Validations
+  defp validate_reserved_keywords(changeset) do
+    name = get_change(changeset, :name) || get_field(changeset, :name)
+    slug = get_change(changeset, :slug) || get_field(changeset, :slug)
+    
+    cond do
+      name && String.downcase(name) == "products" ->
+        add_error(changeset, :name, "products is already a default category for all your items and is a reserved keyword in shomp")
+      
+      slug && String.downcase(slug) == "products" ->
+        add_error(changeset, :slug, "products is already a default category for all your items and is a reserved keyword in shomp")
+      
+      true ->
+        changeset
+    end
+  end
+
   defp validate_level_constraints(changeset) do
     level = get_change(changeset, :level) || get_field(changeset, :level)
     

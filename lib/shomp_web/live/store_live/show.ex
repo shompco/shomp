@@ -254,9 +254,9 @@ defmodule ShompWeb.StoreLive.Show do
     <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
       <!-- Product Image -->
       <div class="h-48 bg-gray-200 overflow-hidden">
-        <%= if @product.image_thumb do %>
+        <%= if get_product_image(@product) do %>
           <img 
-            src={@product.image_thumb} 
+            src={get_product_image(@product)} 
             alt={@product.title}
             class="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
           />
@@ -282,8 +282,8 @@ defmodule ShompWeb.StoreLive.Show do
                    @product.custom_category.slug != "" do
                   ~p"/#{@store.slug}/#{@product.custom_category.slug}/#{@product.slug}"
                 else
-                  # Use simple store + product route when no category
-                  ~p"/#{@store.slug}/#{@product.slug}"
+                  # Use new products route when no category
+                  ~p"/#{@store.slug}/products/#{@product.slug}"
                 end
               else
                 ~p"/#{@store.slug}/products/#{@product.id}"
@@ -333,5 +333,24 @@ defmodule ShompWeb.StoreLive.Show do
       </div>
     </div>
     """
+  end
+
+  # Helper function to get the best available image for a product
+  defp get_product_image(product) do
+    cond do
+      # Try thumbnail first
+      product.image_thumb && product.image_thumb != "" -> product.image_thumb
+      # Fall back to original image
+      product.image_original && product.image_original != "" -> product.image_original
+      # Try medium image
+      product.image_medium && product.image_medium != "" -> product.image_medium
+      # Try large image
+      product.image_large && product.image_large != "" -> product.image_large
+      # Try additional images if available
+      product.additional_images && length(product.additional_images) > 0 -> 
+        List.first(product.additional_images)
+      # No image available
+      true -> nil
+    end
   end
 end

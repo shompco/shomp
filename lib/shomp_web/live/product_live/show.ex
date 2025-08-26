@@ -65,8 +65,8 @@ defmodule ShompWeb.ProductLive.Show do
     end
   end
 
-  # New mount function for slug-based routing: /:store_slug/:product_slug
-  # This could be either a product slug OR a category slug, so we need to check both
+  # New mount function for slug-based routing: /:store_slug/products/:product_slug
+  # This handles products in the default "products" category
   def mount(%{"store_slug" => store_slug, "product_slug" => product_slug}, _session, socket) do
     # First, get the store by slug
     case Stores.get_store_by_slug(store_slug) do
@@ -77,35 +77,25 @@ defmodule ShompWeb.ProductLive.Show do
          |> push_navigate(to: ~p"/")}
       
       store ->
-        # First check if this is a custom category slug
-        case Shomp.StoreCategories.get_store_category_by_slug(store.store_id, product_slug) do
-          category when not is_nil(category) ->
-            # This is a category, redirect to the category page
+        # Find product by slug in this store
+        case Products.get_product_by_store_slug(store.store_id, product_slug) do
+          nil ->
             {:ok,
              socket
-             |> push_navigate(to: ~p"/#{store_slug}/#{category.slug}")}
+             |> put_flash(:error, "Product not found")
+             |> push_navigate(to: ~p"/#{store_slug}")}
           
-          nil ->
-            # Not a category, try to find a product by this slug
-            case Products.get_product_by_store_slug(store.store_id, product_slug) do
-              nil ->
-                {:ok,
-                 socket
-                 |> put_flash(:error, "Product not found")
-                 |> push_navigate(to: ~p"/#{store_slug}")}
-              
-              product ->
-                # Fetch reviews for this product
-                reviews = Shomp.Reviews.get_product_reviews(product.id)
-                
-                IO.puts("=== PRODUCT DEBUG ===")
-                IO.puts("Product ID: #{product.id}")
-                IO.puts("Product additional_images: #{inspect(product.additional_images)}")
-                IO.puts("Product image_original: #{inspect(product.image_original)}")
-                IO.puts("=====================")
-                
-                {:ok, assign(socket, product: product, reviews: reviews, current_image: product.image_original, current_image_index: nil)}
-            end
+          product ->
+            # Fetch reviews for this product
+            reviews = Shomp.Reviews.get_product_reviews(product.id)
+            
+            IO.puts("=== PRODUCT DEBUG ===")
+            IO.puts("Product ID: #{product.id}")
+            IO.puts("Product additional_images: #{inspect(product.additional_images)}")
+            IO.puts("Product image_original: #{inspect(product.image_original)}")
+            IO.puts("=====================")
+            
+            {:ok, assign(socket, product: product, reviews: reviews, current_image: product.image_original, current_image_index: nil)}
         end
     end
   end

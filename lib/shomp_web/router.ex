@@ -186,13 +186,12 @@ defmodule ShompWeb.Router do
       on_mount: [{ShompWeb.UserAuth, :mount_current_scope}, {ShompWeb.CartHook, :default}] do
       # Store routes - only match non-empty slugs (exclude root path)
       live "/:slug", StoreLive.Show, :show
-      live "/:store_slug/products/:id", ProductLive.Show, :show
       
-      # New slug-based routes for custom categories - MORE SPECIFIC FIRST
+      # Product routes - new structure with /products/ prefix
+      live "/:store_slug/products/:product_slug", ProductLive.Show, :show_by_store_product_slug
+      
+      # Custom category product routes - MORE SPECIFIC FIRST
       live "/:store_slug/:category_slug/:product_slug", ProductLive.Show, :show_by_slug
-      
-      # Store + Product route - MUST COME BEFORE category route to avoid conflicts
-      live "/:store_slug/:product_slug", ProductLive.Show, :show_by_store_product_slug
       
       # Store category route - LESS SPECIFIC LAST
       live "/:store_slug/:category_slug", StoreLive.Show, :show_category
