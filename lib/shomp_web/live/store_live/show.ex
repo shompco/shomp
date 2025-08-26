@@ -137,35 +137,30 @@ defmodule ShompWeb.StoreLive.Show do
     <% else %>
       <!-- Store Home Page - FULL VIEWPORT -->
       <div class="w-screen min-h-screen">
-        <!-- Hero Section - INFO BAR (not full fold) -->
-        <div class="relative w-screen bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-700 overflow-hidden">
-          <!-- Background Elements -->
-          <div class="absolute inset-0 bg-black/20"></div>
-          <div class="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_30%_20%,rgba(120,119,198,0.3),transparent_50%)]"></div>
-          <div class="absolute top-0 right-0 w-full h-full bg-[radial-gradient(circle_at_70%_80%,rgba(120,119,198,0.3),transparent_50%)]"></div>
-          
-          <!-- Hero Content - Compact Info Bar -->
-          <div class="relative w-full py-12 px-4">
-            <div class="text-center text-white max-w-6xl mx-auto">
-              <h1 class="text-4xl md:text-5xl lg:text-6xl font-black mb-4 leading-none tracking-tight">
+        <!-- Hero Section - THIN INFO BAR -->
+        <div class="relative w-screen bg-white border-b border-gray-200">
+          <!-- Hero Content - Ultra Compact Info Bar -->
+          <div class="relative w-full py-4 px-4">
+            <div class="text-left text-gray-900 max-w-6xl mx-auto">
+              <h1 class="text-2xl md:text-3xl font-bold mb-2 leading-none tracking-tight">
                 <%= @store.name %>
               </h1>
               
               <%= if @store.description do %>
-                <p class="text-lg md:text-xl text-blue-100 max-w-3xl mx-auto leading-relaxed font-light mb-6">
+                <p class="text-sm md:text-base text-gray-600 max-w-3xl leading-relaxed font-light mb-3">
                   <%= @store.description %>
                 </p>
               <% end %>
               
-              <!-- Store Stats - Compact -->
-              <div class="flex flex-col sm:flex-row justify-center items-center space-y-3 sm:space-y-0 sm:space-x-8">
-                <div class="bg-white/20 backdrop-blur-md rounded-2xl px-6 py-3 border border-white/30">
-                  <div class="text-2xl font-bold text-white"><%= length(@products) %></div>
-                  <div class="text-sm text-blue-100 font-medium">Products</div>
+              <!-- Store Stats - Ultra Compact -->
+              <div class="flex items-center space-x-6">
+                <div class="bg-gray-100 rounded-lg px-3 py-1 border border-gray-200">
+                  <span class="text-sm font-bold text-gray-900"><%= length(@products) %></span>
+                  <span class="text-xs text-gray-600 font-medium ml-1">Products</span>
                 </div>
-                <div class="bg-white/20 backdrop-blur-md rounded-2xl px-6 py-3 border border-white/30">
-                  <div class="text-2xl font-bold text-white"><%= length(@custom_categories) %></div>
-                  <div class="text-sm text-blue-100 font-medium">Categories</div>
+                <div class="bg-gray-100 rounded-lg px-3 py-1 border border-gray-200">
+                  <span class="text-sm font-bold text-gray-900"><%= length(@custom_categories) %></span>
+                  <span class="text-xs text-gray-600 font-medium ml-1">Categories</span>
                 </div>
               </div>
             </div>
@@ -211,13 +206,13 @@ defmodule ShompWeb.StoreLive.Show do
             </div>
           <% else %>
             <!-- Products by Category - FULL WIDTH -->
-            <div class="w-screen space-y-24 py-24">
+            <div class="w-screen space-y-8 py-8">
               <!-- Uncategorized Products -->
               <%= if Map.has_key?(@products_by_category, nil) and length(Map.get(@products_by_category, nil)) > 0 do %>
                 <div class="w-screen px-4">
-                  <div class="text-center mb-16">
-                    <h2 class="text-5xl md:text-6xl font-bold text-gray-900 mb-6">All Products</h2>
-                    <p class="text-2xl text-gray-600">Discover our complete collection</p>
+                  <div class="text-left mb-8">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-900 mb-2">All Products</h2>
+                    <p class="text-base text-gray-600">Discover our complete collection</p>
                   </div>
                   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-8">
                     <%= for product <- Map.get(@products_by_category, nil) do %>
@@ -231,28 +226,27 @@ defmodule ShompWeb.StoreLive.Show do
               <%= for category <- @custom_categories do %>
                 <%= if Map.has_key?(@products_by_category, category) and length(Map.get(@products_by_category, category)) > 0 do %>
                   <div class="w-screen px-4">
-                    <div class="text-center mb-16">
-                      <h2 class="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
+                    <div class="text-left mb-6">
+                      <h2 class="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
                         <%= category.name %>
                       </h2>
                       <%= if category.description do %>
-                        <p class="text-2xl text-gray-600 mb-8 max-w-4xl mx-auto"><%= category.description %></p>
+                        <p class="text-base text-gray-600 mb-3 max-w-4xl"><%= category.description %></p>
                       <% end %>
-                      <div class="flex items-center justify-center space-x-6">
-                        <span class="text-xl text-gray-500">
+                      <div class="flex items-center space-x-4">
+                        <span class="text-sm text-gray-500">
                           <%= length(Map.get(@products_by_category, category)) %> product<%= if length(Map.get(@products_by_category, category)) != 1, do: "s" %>
                         </span>
                         <.link
                           navigate={~p"/#{@store.slug}/#{category.slug}"}
-                          class="text-blue-600 hover:text-blue-800 font-semibold text-xl hover:underline transition-colors"
+                          class="text-blue-600 hover:text-blue-800 font-semibold text-sm hover:underline transition-colors"
                         >
                           View All →
                         </.link>
                       </div>
                     </div>
-                    
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-8">
-                      <%= for product <- Map.get(@products_by_category, category) do %>
+                      <%= for product <- Enum.take(Map.get(@products_by_category, category), 5) do %>
                         <%= render_product_card(assigns, product) %>
                       <% end %>
                     </div>
