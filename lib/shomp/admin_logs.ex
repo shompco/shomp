@@ -27,6 +27,33 @@ defmodule Shomp.AdminLogs do
   end
 
   @doc """
+  Gets admin logs with user information, ordered by most recent first.
+  """
+  def list_admin_logs_with_users(limit \\ 50) do
+    AdminLog
+    |> join(:left, [l], u in Shomp.Accounts.User, on: l.admin_user_id == u.id)
+    |> order_by([l], desc: l.inserted_at)
+    |> limit(^limit)
+    |> select([l, u], %{
+      id: l.id,
+      admin_user_id: l.admin_user_id,
+      entity_type: l.entity_type,
+      entity_id: l.entity_id,
+      action: l.action,
+      details: l.details,
+      metadata: l.metadata,
+      inserted_at: l.inserted_at,
+      admin_user: %{
+        id: u.id,
+        username: u.username,
+        email: u.email,
+        name: u.name
+      }
+    })
+    |> Repo.all()
+  end
+
+  @doc """
   Gets admin logs for a specific entity (product, store, user, etc.).
   """
   def get_admin_logs_for_entity(entity_type, entity_id, limit \\ 20) do
@@ -142,9 +169,34 @@ defmodule Shomp.AdminLogs do
     changed_fields = Map.keys(changes)
     
     case changed_fields do
-      [] -> "No changes detected"
-      [single_field] -> "Updated #{single_field}: #{format_field_change(single_field, before, after_state)}"
-      _ -> "Updated #{Enum.join(changed_fields, ", ")}"
+      [] -> 
+        "No changes detected"
+      
+      [single_field] -> 
+        "Updated #{format_field_name(single_field)}: #{format_field_change(single_field, before, after_state)}"
+      
+      _ -> 
+        field_names = Enum.map(changed_fields, &format_field_name/1)
+        "Updated #{Enum.join(field_names, ", ")}"
+    end
+  end
+
+  defp format_field_name(field) do
+    case field do
+      "title" -> "Product Title"
+      "description" -> "Description"
+      "price" -> "Price"
+      "type" -> "Product Type"
+      "category_id" -> "Platform Category"
+      "custom_category_id" -> "Store Category"
+      "slug" -> "Product Slug"
+      "file_path" -> "Digital File Path"
+      "name" -> "Name"
+      "email" -> "Email"
+      "username" -> "Username"
+      "role" -> "Role"
+      "status" -> "Status"
+      _ -> String.replace(field, "_", " ") |> String.capitalize()
     end
   end
 
@@ -153,9 +205,23 @@ defmodule Shomp.AdminLogs do
     after_value = Map.get(after_state, String.to_atom(field))
     
     case {before_value, after_value} do
-      {nil, value} -> "set to #{inspect(value)}"
-      {value, nil} -> "removed (was #{inspect(value)})"
-      {old, new} -> "changed from #{inspect(old)} to #{inspect(new)}"
+      {nil, value} -> 
+        if is_binary(value) && value != "", do: "set to \"#{value}\"", else: "set to #{inspect(value)}"
+      
+      {value, nil} -> 
+        if is_binary(value) && value != "", do: "removed (was \"#{value}\")", else: "removed (was #{inspect(value)})"
+      
+      {old, new} -> 
+        cond do
+          is_binary(old) && is_binary(new) && old != "" && new != "" ->
+            "changed from \"#{old}\" to \"#{new}\""
+          is_binary(old) && old != "" ->
+            "changed from \"#{old}\" to #{inspect(new)}"
+          is_binary(new) && new != "" ->
+            "changed from #{inspect(old)} to \"#{new}\""
+          true ->
+            "changed from #{inspect(old)} to #{inspect(new)}"
+        end
     end
   end
 end

@@ -6,6 +6,7 @@ defmodule ShompWeb.AdminLive.Dashboard do
   alias Shomp.Products
   alias Shomp.Accounts
   alias Shomp.Uploads
+  alias Shomp.AdminLogs
   alias Phoenix.PubSub
 
   @page_title "Admin Dashboard - Shomp"
@@ -82,6 +83,7 @@ defmodule ShompWeb.AdminLive.Dashboard do
     |> assign(:recent_stores, list_recent_stores())
     |> assign(:recent_products, list_recent_products())
     |> assign(:recent_images, list_recent_images())
+    |> assign(:recent_admin_logs, list_recent_admin_logs())
   end
 
   defp count_users do
@@ -158,6 +160,11 @@ defmodule ShompWeb.AdminLive.Dashboard do
         }
       }
     )
+  end
+
+  defp list_recent_admin_logs do
+    # Get 10 most recent admin actions with user information
+    AdminLogs.list_admin_logs_with_users(10)
   end
 
   defp list_recent_images do
@@ -345,15 +352,19 @@ defmodule ShompWeb.AdminLive.Dashboard do
                       <%= Calendar.strftime(product.inserted_at, "%b %d, %Y at %I:%M %p") %>
                     </p>
                   </div>
-                  <%= if product.store_slug && product.slug do %>
-                    <%= if product.custom_category && Map.has_key?(product.custom_category, :slug) && product.custom_category.slug do %>
-                      <a href={~p"/#{product.store_slug}/#{product.custom_category.slug}/#{product.slug}"} class="btn btn-xs btn-outline">View</a>
+                  <div class="flex gap-2">
+                    <%= if product.store_slug && product.slug do %>
+                      <%= if product.custom_category && Map.has_key?(product.custom_category, :slug) && product.custom_category.slug do %>
+                        <a href={~p"/#{product.store_slug}/#{product.custom_category.slug}/#{product.slug}"} class="btn btn-xs btn-outline">View</a>
+                      <% else %>
+                        <a href={~p"/#{product.store_slug}/#{product.slug}"} class="btn btn-xs btn-outline">View</a>
+                      <% end %>
                     <% else %>
-                      <a href={~p"/#{product.store_slug}/#{product.slug}"} class="btn btn-xs btn-outline">View</a>
+                      <span class="btn btn-xs btn-outline btn-disabled">View</span>
                     <% end %>
-                  <% else %>
-                    <span class="btn btn-xs btn-outline btn-disabled">View</span>
-                  <% end %>
+                    
+                    <a href={~p"/admin/products/#{product.id}/edit"} class="btn btn-xs btn-primary">Edit</a>
+                  </div>
                 </div>
               </div>
             <% end %>
@@ -427,6 +438,75 @@ defmodule ShompWeb.AdminLive.Dashboard do
               <p class="text-base-content/50 text-center py-4">No images uploaded yet</p>
             <% end %>
           </div>
+        </div>
+      </div>
+
+      <!-- Recent Admin Actions -->
+      <div class="bg-base-100 rounded-lg shadow p-6 mb-8">
+        <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+          <span class="text-2xl">📝</span>
+          Recent Admin Actions
+        </h2>
+        <div class="space-y-3">
+          <%= for log <- @recent_admin_logs do %>
+            <div class="border border-base-300 rounded-lg p-3">
+              <div class="flex justify-between items-start">
+                <div class="flex-1">
+                  <div class="flex items-center gap-2 mb-2">
+                    <span class="badge badge-xs badge-outline"><%= log.action %></span>
+                    <span class="text-sm font-medium"><%= log.entity_type %></span>
+                    <span class="text-xs text-base-content/50">#<%= log.entity_id %></span>
+                  </div>
+                  
+                  <p class="text-sm text-base-content/70 mb-2"><%= log.details %></p>
+                  
+                  <%= if log.metadata && log.metadata["changes"] do %>
+                    <div class="text-xs text-base-content/60 bg-base-200 p-2 rounded mt-2">
+                      <div class="font-medium mb-1">Changes:</div>
+                      <%= for {field, new_value} <- log.metadata["changes"] do %>
+                        <div class="flex items-start gap-2">
+                          <span class="font-medium min-w-0 flex-shrink-0"><%= format_field_name(field) %>:</span>
+                          <span class="break-all">
+                            <%= if log.metadata["before"] && log.metadata["before"][field] do %>
+                              <span class="text-red-600 line-through">
+                                <%= format_field_value(log.metadata["before"][field]) %>
+                              </span>
+                              <span class="mx-1">→</span>
+                            <% end %>
+                            <span class="text-green-600 font-medium">
+                              <%= format_field_value(new_value) %>
+                            </span>
+                          </span>
+                        </div>
+                      <% end %>
+                    </div>
+                  <% end %>
+                  
+                  <div class="flex items-center gap-4 text-xs text-base-content/50">
+                    <span>
+                      <%= Calendar.strftime(log.inserted_at, "%b %d, %Y at %I:%M %p") %>
+                    </span>
+                    <span class="flex items-center gap-1">
+                      <span class="text-base-content/60">by</span>
+                      <span class="font-medium text-base-content/80">
+                        <%= log.admin_user.username || log.admin_user.email %>
+                      </span>
+                      <span class="text-base-content/50">(<%= log.admin_user.email %>)</span>
+                    </span>
+                  </div>
+                </div>
+                
+                <div class="text-right">
+                  <span class="badge badge-sm badge-outline">
+                    <%= String.capitalize(log.action) %>
+                  </span>
+                </div>
+              </div>
+            </div>
+          <% end %>
+          <%= if Enum.empty?(@recent_admin_logs) do %>
+            <p class="text-base-content/50 text-center py-4">No admin actions logged yet</p>
+          <% end %>
         </div>
       </div>
 
@@ -528,5 +608,35 @@ defmodule ShompWeb.AdminLive.Dashboard do
       <p class="text-sm text-base-content/70"><%= @description %></p>
     </div>
     """
+  end
+
+  # Helper function to format field names for display
+  defp format_field_name(field) do
+    case field do
+      "title" -> "Product Title"
+      "description" -> "Description"
+      "price" -> "Price"
+      "type" -> "Product Type"
+      "category_id" -> "Platform Category"
+      "custom_category_id" -> "Store Category"
+      "slug" -> "Product Slug"
+      "file_path" -> "Digital File Path"
+      "name" -> "Name"
+      "email" -> "Email"
+      "username" -> "Username"
+      "role" -> "Role"
+      "status" -> "Status"
+      _ -> String.replace(field, "_", " ") |> String.capitalize()
+    end
+  end
+
+  # Helper function to format field values for display
+  defp format_field_value(value) do
+    cond do
+      is_nil(value) -> "nil"
+      value == "" -> "(empty)"
+      is_binary(value) -> value
+      true -> inspect(value)
+    end
   end
 end

@@ -1808,6 +1808,9 @@
       }
     }
   }
+  .mx-1 {
+    margin-inline: calc(var(--spacing) * 1);
+  }
   .mx-2 {
     margin-inline: calc(var(--spacing) * 2);
   }
@@ -2698,6 +2701,9 @@
   }
   .justify-start {
     justify-content: flex-start;
+  }
+  .gap-1 {
+    gap: calc(var(--spacing) * 1);
   }
   .gap-2 {
     gap: calc(var(--spacing) * 2);
@@ -3617,6 +3623,9 @@
   }
   .text-yellow-800 {
     color: var(--color-yellow-800);
+  }
+  .line-through {
+    text-decoration-line: line-through;
   }
   .underline {
     text-decoration-line: underline;
