@@ -136,50 +136,60 @@ defmodule ShompWeb.StoreLive.Show do
       </div>
     <% else %>
       <!-- Store Home Page - FULL VIEWPORT -->
-      <div class="w-screen min-h-screen">
+      <div class="w-screen min-h-screen bg-base-100">
         <!-- Hero Section - THIN INFO BAR -->
-        <div class="relative w-screen bg-white border-b border-gray-200">
+        <div class="relative w-screen bg-base-200 border-b border-base-300">
           <!-- Hero Content - Ultra Compact Info Bar -->
           <div class="relative w-full py-4 px-4">
-            <div class="text-left text-gray-900 max-w-6xl mx-auto">
+            <div class="text-left text-base-content max-w-6xl mx-auto">
               <h1 class="text-2xl md:text-3xl font-bold mb-2 leading-none tracking-tight">
                 <%= @store.name %>
               </h1>
               
               <%= if @store.description do %>
-                <p class="text-sm md:text-base text-gray-600 max-w-3xl leading-relaxed font-light mb-3">
+                <p class="text-sm md:text-base text-base-content/70 max-w-3xl leading-relaxed font-light mb-3">
                   <%= @store.description %>
                 </p>
               <% end %>
               
               <!-- Store Stats - Ultra Compact -->
               <div class="flex items-center space-x-6">
-                <div class="bg-gray-100 rounded-lg px-3 py-1 border border-gray-200">
-                  <span class="text-sm font-bold text-gray-900"><%= length(@products) %></span>
-                  <span class="text-xs text-gray-600 font-medium ml-1">Products</span>
+                <div class="bg-base-300 rounded-lg px-3 py-1 border border-base-300">
+                  <span class="text-sm font-bold text-base-content"><%= length(@products) %></span>
+                  <span class="text-xs text-base-content/70 font-medium ml-1">Products</span>
                 </div>
-                <div class="bg-gray-100 rounded-lg px-3 py-1 border border-gray-200">
-                  <span class="text-sm font-bold text-gray-900"><%= length(@custom_categories) %></span>
-                  <span class="text-xs text-gray-600 font-medium ml-1">Categories</span>
+                <div class="bg-base-300 rounded-lg px-3 py-1 border border-base-300">
+                  <span class="text-sm font-bold text-base-content"><%= length(@custom_categories) %></span>
+                  <span class="text-xs text-base-content/70 font-medium ml-1">Categories</span>
                 </div>
+                
+                <!-- Add Product Button for Store Owner -->
+                <%= if @current_scope && @current_scope.user && @current_scope.user.id == @store.user_id do %>
+                  <.link
+                    navigate={~p"/dashboard/products/new"}
+                    class="bg-primary hover:bg-primary-focus text-primary-content text-xs font-semibold px-3 py-1 rounded-lg transition-all duration-200"
+                  >
+                    + Add Product
+                  </.link>
+                <% end %>
               </div>
             </div>
           </div>
         </div>
 
         <!-- Main Content - FULL WIDTH Products -->
-        <div class="w-screen bg-gray-50">
+        <div class="w-screen bg-base-100">
           <%= if Enum.empty?(@products) do %>
             <!-- Empty State -->
             <div class="w-screen text-center py-32">
               <div class="max-w-2xl mx-auto">
-                <div class="w-32 h-32 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-8">
-                  <svg class="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="w-32 h-32 bg-base-300 rounded-full flex items-center justify-center mx-auto mb-8">
+                  <svg class="w-16 h-16 text-base-content/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                   </svg>
                 </div>
-                <h3 class="text-4xl font-bold text-gray-900 mb-4">Store Coming Soon</h3>
-                <p class="text-xl text-gray-600 mb-12">This store is currently being set up. Products will be available soon!</p>
+                <h3 class="text-4xl font-bold text-base-content mb-4">Store Coming Soon</h3>
+                <p class="text-xl text-base-content/70 mb-12">This store is currently being set up. Products will be available soon!</p>
                 
                 <%= if @current_scope && @current_scope.user && @current_scope.user.id == @store.user_id do %>
                   <div class="space-y-6">
@@ -198,7 +208,7 @@ defmodule ShompWeb.StoreLive.Show do
                     </.link>
                   </div>
                 <% else %>
-                  <div class="text-gray-500 text-lg">
+                  <div class="text-base-content/70 text-lg">
                     <p>Store owner: <%= @store.user.username || "Creator" %></p>
                   </div>
                 <% end %>
@@ -211,8 +221,8 @@ defmodule ShompWeb.StoreLive.Show do
               <%= if Map.has_key?(@products_by_category, nil) and length(Map.get(@products_by_category, nil)) > 0 do %>
                 <div class="w-screen px-4">
                   <div class="text-left mb-8">
-                    <h2 class="text-2xl md:text-3xl font-bold text-gray-900 mb-2">All Products</h2>
-                    <p class="text-base text-gray-600">Discover our complete collection</p>
+                    <h2 class="text-2xl md:text-3xl font-bold text-base-content mb-2">All Products</h2>
+                    <p class="text-base text-base-content/70">Discover our complete collection</p>
                   </div>
                   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-8">
                     <%= for product <- Map.get(@products_by_category, nil) do %>
@@ -227,19 +237,19 @@ defmodule ShompWeb.StoreLive.Show do
                 <%= if Map.has_key?(@products_by_category, category) and length(Map.get(@products_by_category, category)) > 0 do %>
                   <div class="w-screen px-4">
                     <div class="text-left mb-6">
-                      <h2 class="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
+                      <h2 class="text-2xl md:text-3xl font-bold text-base-content mb-2">
                         <%= category.name %>
                       </h2>
                       <%= if category.description do %>
-                        <p class="text-base text-gray-600 mb-3 max-w-4xl"><%= category.description %></p>
+                        <p class="text-base text-base-content/70 mb-3 max-w-4xl"><%= category.description %></p>
                       <% end %>
                       <div class="flex items-center space-x-4">
-                        <span class="text-sm text-gray-500">
+                        <span class="text-sm text-base-content/60">
                           <%= length(Map.get(@products_by_category, category)) %> product<%= if length(Map.get(@products_by_category, category)) != 1, do: "s" %>
                         </span>
                         <.link
                           navigate={~p"/#{@store.slug}/#{category.slug}"}
-                          class="text-blue-600 hover:text-blue-800 font-semibold text-sm hover:underline transition-colors"
+                          class="text-primary hover:text-primary-focus font-semibold text-sm hover:underline transition-colors"
                         >
                           View All →
                         </.link>

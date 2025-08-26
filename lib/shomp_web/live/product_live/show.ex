@@ -101,22 +101,23 @@ defmodule ShompWeb.ProductLive.Show do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="w-full min-h-screen bg-gray-50">
+    <!-- Full Width Product Page -->
+    <div class="w-full min-h-screen bg-base-100">
       <!-- Main Product Content -->
       <div class="w-full px-4 sm:px-6 lg:px-8 py-6">
         <!-- Breadcrumb Navigation -->
         <div class="mb-6">
-          <nav class="flex items-center space-x-2 text-sm text-gray-500">
+          <nav class="flex items-center space-x-2 text-sm text-base-content/70">
             <.link
               navigate={~p"/"}
-              class="hover:text-gray-700 transition-colors"
+              class="hover:text-base-content transition-colors"
             >
               Home
             </.link>
             <span>/</span>
             <.link
               navigate={~p"/#{@product.store.slug}"}
-              class="hover:text-gray-700 transition-colors"
+              class="hover:text-base-content transition-colors"
             >
               <%= @product.store.name %>
             </.link>
@@ -125,14 +126,14 @@ defmodule ShompWeb.ProductLive.Show do
               <span>/</span>
               <.link
                 navigate={~p"/#{@product.store.slug}/#{@product.custom_category.slug}"}
-                class="hover:text-gray-700 transition-colors"
+                class="hover:text-base-content transition-colors"
               >
                 <%= @product.custom_category.name %>
               </.link>
             <% end %>
             
             <span>/</span>
-            <span class="text-gray-900 font-medium"><%= @product.title %></span>
+            <span class="text-base-content font-medium"><%= @product.title %></span>
           </nav>
         </div>
         
@@ -142,7 +143,7 @@ defmodule ShompWeb.ProductLive.Show do
             <!-- Main Product Image -->
             <%= if has_valid_image(@current_image) || has_valid_image(@product.image_original) do %>
               <div class="relative">
-                <div class="relative aspect-square overflow-hidden rounded-2xl shadow-2xl bg-white">
+                <div class="relative aspect-square overflow-hidden rounded-2xl shadow-2xl bg-base-200">
                   <img 
                     src={@current_image || @product.image_original} 
                     alt={@product.title}
@@ -156,7 +157,7 @@ defmodule ShompWeb.ProductLive.Show do
                   <div class="flex justify-center space-x-4 mt-6">
                     <button 
                       phx-click="previous_image"
-                      class="bg-gray-800 hover:bg-gray-700 text-white p-3 rounded-full shadow-lg transition-all duration-200"
+                      class="bg-base-300 hover:bg-base-300/80 text-base-content p-3 rounded-full shadow-lg transition-all duration-200"
                       title="Previous image"
                     >
                       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -166,7 +167,7 @@ defmodule ShompWeb.ProductLive.Show do
                     
                     <button 
                       phx-click="next_image"
-                      class="bg-gray-800 hover:bg-gray-700 text-white p-3 rounded-full shadow-lg transition-all duration-200"
+                      class="bg-base-300 hover:bg-base-300/80 text-base-content p-3 rounded-full shadow-lg transition-all duration-200"
                       title="Next image"
                     >
                       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -180,14 +181,14 @@ defmodule ShompWeb.ProductLive.Show do
               <!-- Thumbnail Gallery -->
               <%= if @product.additional_images && length(@product.additional_images) > 0 do %>
                 <div class="space-y-4">
-                  <h3 class="text-lg font-semibold text-gray-900">Product Images</h3>
+                  <h3 class="text-lg font-semibold text-base-content">Product Images</h3>
                   <div class="flex space-x-3 overflow-x-auto pb-2">
                     <!-- Primary Image Thumbnail -->
                     <%= if has_valid_image(@product.image_thumb) || has_valid_image(@product.image_original) do %>
                       <button 
                         phx-click="show_image"
                         phx-value-index="primary"
-                        class={"flex-shrink-0 w-24 h-24 rounded-xl overflow-hidden border-2 transition-all duration-200 #{if @current_image_index == nil, do: "border-blue-500 ring-2 ring-blue-200", else: "border-gray-300 hover:border-gray-400"}"}
+                        class={"flex-shrink-0 w-24 h-24 rounded-xl overflow-hidden border-2 transition-all duration-200 #{if @current_image_index == nil, do: "border-primary ring-2 ring-primary/20", else: "border-base-300 hover:border-base-400"}"}
                       >
                         <img 
                           src={@product.image_thumb || @product.image_original} 
@@ -202,7 +203,7 @@ defmodule ShompWeb.ProductLive.Show do
                       <button 
                         phx-click="show_image"
                         phx-value-index={index}
-                        class={"flex-shrink-0 w-24 h-24 rounded-xl overflow-hidden border-2 transition-all duration-200 #{if @current_image_index == index, do: "border-blue-500 ring-2 ring-blue-200", else: "border-gray-300 hover:border-gray-400"}"}
+                        class={"flex-shrink-0 w-24 h-24 rounded-xl overflow-hidden border-2 transition-all duration-200 #{if @current_image_index == index, do: "border-primary ring-2 ring-primary/20", else: "border-base-300 hover:border-base-400"}"}
                       >
                         <img 
                           src={image} 
@@ -216,12 +217,12 @@ defmodule ShompWeb.ProductLive.Show do
               <% end %>
             <% else %>
               <!-- No Image Placeholder -->
-              <div class="aspect-square bg-gray-200 rounded-2xl flex items-center justify-center">
+              <div class="aspect-square bg-base-300 rounded-2xl flex items-center justify-center">
                 <div class="text-center">
-                  <svg class="w-24 h-24 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg class="w-24 h-24 text-base-content/50 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
-                  <p class="text-gray-500 text-lg">No image available</p>
+                  <p class="text-base-content/70 text-lg">No image available</p>
                 </div>
               </div>
             <% end %>
@@ -231,11 +232,11 @@ defmodule ShompWeb.ProductLive.Show do
           <div class="space-y-8">
             <!-- Product Header -->
             <div class="space-y-4">
-              <h1 class="text-4xl lg:text-5xl font-bold text-gray-900 leading-tight">
+              <h1 class="text-4xl lg:text-5xl font-bold text-base-content leading-tight">
                 <%= @product.title %>
               </h1>
               
-              <div class="text-3xl lg:text-4xl font-bold text-green-600">
+              <div class="text-3xl lg:text-4xl font-bold text-primary">
                 $<%= @product.price %>
               </div>
             </div>
@@ -244,8 +245,8 @@ defmodule ShompWeb.ProductLive.Show do
             <div class="space-y-4">
               <%= if @product.category do %>
                 <div class="flex items-center space-x-3">
-                  <span class="text-sm font-medium text-gray-600">Platform:</span>
-                  <span class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-blue-100 text-blue-800 border border-blue-200">
+                  <span class="text-sm font-medium text-base-content/70">Platform:</span>
+                  <span class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-primary/10 text-primary border border-primary/20">
                     <%= @product.category.name %>
                   </span>
                 </div>
@@ -253,16 +254,16 @@ defmodule ShompWeb.ProductLive.Show do
               
               <%= if @product.custom_category && Map.has_key?(@product.custom_category, :name) do %>
                 <div class="flex items-center space-x-3">
-                  <span class="text-sm font-medium text-gray-600">Category:</span>
-                  <span class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-green-100 text-green-800 border border-green-200">
+                  <span class="text-sm font-medium text-base-content/70">Category:</span>
+                  <span class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-secondary/10 text-secondary border border-secondary/20">
                     <%= @product.custom_category.name %>
                   </span>
                 </div>
               <% end %>
               
               <div class="flex items-center space-x-3">
-                <span class="text-sm font-medium text-gray-600">Type:</span>
-                <span class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-purple-100 text-purple-800 border border-purple-200">
+                <span class="text-sm font-medium text-base-content/70">Type:</span>
+                <span class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-accent/10 text-accent border border-accent/20">
                   <%= String.capitalize(@product.type) %> Product
                 </span>
               </div>
@@ -271,23 +272,23 @@ defmodule ShompWeb.ProductLive.Show do
             <!-- Description -->
             <%= if @product.description do %>
               <div class="space-y-3">
-                <h3 class="text-xl font-semibold text-gray-900">Description</h3>
-                <div class="prose prose-gray max-w-none">
-                  <p class="text-gray-700 leading-relaxed text-lg"><%= @product.description %></p>
+                <h3 class="text-xl font-semibold text-base-content">Description</h3>
+                <div class="prose prose-base-content max-w-none">
+                  <p class="text-base-content/80 leading-relaxed text-lg"><%= @product.description %></p>
                 </div>
               </div>
             <% end %>
 
             <!-- Digital Product Info -->
             <%= if @product.type == "digital" and @product.file_path do %>
-              <div class="p-6 bg-blue-50 rounded-2xl border border-blue-200">
+              <div class="p-6 bg-primary/5 rounded-2xl border border-primary/20">
                 <div class="flex items-center space-x-3">
-                  <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
-                  <h4 class="font-semibold text-blue-900">Digital Product</h4>
+                  <h4 class="font-semibold text-primary">Digital Product</h4>
                 </div>
-                <p class="text-blue-700 mt-2">File: <%= @product.file_path %></p>
+                <p class="text-primary/80 mt-2">File: <%= @product.file_path %></p>
               </div>
             <% end %>
 
@@ -307,17 +308,17 @@ defmodule ShompWeb.ProductLive.Show do
                   phx-value-product_id={@product.id}
                   phx-value-store_id={@product.store_id}
                   phx-disable-with="Adding to cart..."
-                  class="w-full bg-gray-800 hover:bg-gray-900 text-white font-semibold py-3 px-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-200"
+                  class="w-full bg-base-300 hover:bg-base-400 text-base-content font-semibold py-3 px-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-200"
                 >
                   🛒 Add to Cart
                 </button>
               <% end %>
               
               <%= if @current_scope && @current_scope.user && @current_scope.user.id == @product.store.user_id do %>
-                <div class="pt-4 border-t border-gray-200">
+                <div class="pt-4 border-t border-base-300">
                   <.link
                     navigate={~p"/dashboard/products/#{@product.id}/edit"}
-                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-200 text-center block"
+                    class="w-full bg-secondary hover:bg-secondary-focus text-secondary-content font-semibold py-3 px-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-200 text-center block"
                   >
                     Edit Product
                   </.link>
