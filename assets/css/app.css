@@ -103,3 +103,73 @@
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
 /* This file is for your main application CSS */
+
+/* Product Image Rotator */
+.product-image-rotator {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.product-image-rotator img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 0.5s ease-in-out;
+}
+
+.product-image-rotator img[data-image-index="0"] {
+  opacity: 1;
+}
+
+/* Line Clamp Utilities */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Product Image Zoom Functionality */
+.product-zoom-container {
+  position: relative;
+}
+
+.product-zoom-container:hover .zoom-preview {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.zoom-preview {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 300px; /* Smaller size */
+  height: 300px; /* Smaller size */
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: hidden;
+  z-index: 50;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease-in-out;
+}
+
+.zoom-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform-origin: 0 0;
+}

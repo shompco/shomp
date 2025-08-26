@@ -153,3 +153,62 @@ if (process.env.NODE_ENV === "development") {
   })
 }
 
+// Product Image Rotation on Hover
+document.addEventListener('DOMContentLoaded', function() {
+  initializeProductImageRotators();
+  
+  // Re-initialize after LiveView updates
+  document.addEventListener('phx:update', function() {
+    initializeProductImageRotators();
+  });
+});
+
+function initializeProductImageRotators() {
+  const rotators = document.querySelectorAll('.product-image-rotator');
+  
+  rotators.forEach(rotator => {
+    const images = JSON.parse(rotator.dataset.images || '[]');
+    if (images.length <= 1) return; // No rotation needed
+    
+    let currentIndex = 0;
+    let rotationInterval;
+    let isHovering = false;
+    
+    // Get all images in this rotator
+    const imageElements = rotator.querySelectorAll('img');
+    
+    // Function to show image at specific index
+    function showImage(index) {
+      imageElements.forEach((img, i) => {
+        img.style.opacity = i === index ? '1' : '0';
+        img.setAttribute('data-image-index', i === index ? '0' : '1');
+      });
+    }
+    
+    // Function to rotate to next image
+    function rotateToNext() {
+      if (!isHovering) return;
+      currentIndex = (currentIndex + 1) % images.length;
+      showImage(currentIndex);
+    }
+    
+    // Start rotation on hover
+    rotator.addEventListener('mouseenter', function() {
+      isHovering = true;
+      rotationInterval = setInterval(rotateToNext, 1500); // 1.5 seconds
+    });
+    
+    // Stop rotation and reset on mouse leave
+    rotator.addEventListener('mouseleave', function() {
+      isHovering = false;
+      if (rotationInterval) {
+        clearInterval(rotationInterval);
+        rotationInterval = null;
+      }
+      // Reset to first image
+      currentIndex = 0;
+      showImage(0);
+    });
+  });
+}
+

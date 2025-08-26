@@ -84,166 +84,186 @@ defmodule ShompWeb.StoreLive.Show do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope}>
-      <div class="mx-auto max-w-6xl px-4 py-8">
-        <%= if assigns[:show_category_page] do %>
-          <!-- Category Listing Page -->
-          <div class="mb-8">
-            <nav class="flex items-center space-x-2 text-sm text-gray-500 mb-6">
-              <.link navigate={~p"/"} class="hover:text-gray-700">Home</.link>
-              <span>/</span>
-              <.link navigate={~p"/#{@store.slug}"} class="hover:text-gray-700"><%= @store.name %></.link>
-              <span>/</span>
-              <span class="text-gray-900 font-medium"><%= @category.name %></span>
-            </nav>
-            
-            <h1 class="text-4xl font-bold text-gray-900 mb-4">
-              <%= @category.name %>
-            </h1>
-            
-            <%= if @category.description do %>
-              <p class="text-xl text-gray-600 mb-8">
-                <%= @category.description %>
-              </p>
-            <% end %>
-            
-            <div class="text-sm text-gray-500 mb-8">
-              <%= length(@products) %> product<%= if length(@products) != 1, do: "s" %> in this category
-            </div>
-          </div>
-
-          <!-- Products Grid -->
-          <%= if Enum.empty?(@products) do %>
-            <div class="text-center py-12">
-              <div class="text-gray-500 text-lg mb-4">
-                No products in this category yet.
-              </div>
-              <%= if @current_scope && @current_scope.user && @current_scope.user.id == @store.user_id do %>
-                <.link
-                  navigate={~p"/dashboard/products/new"}
-                  class="btn btn-primary"
-                >
-                  Add Products to This Category
-                </.link>
-              <% end %>
-            </div>
-          <% else %>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <%= for product <- @products do %>
-                <%= render_product_card(assigns, product) %>
-              <% end %>
-            </div>
-          <% end %>
-        <% else %>
-          <!-- Store Home Page -->
-          <div class="text-center mb-12">
-            <h1 class="text-4xl font-bold text-gray-900 mb-4">
-              <%= @store.name %>
-            </h1>
-            
-            <%= if @store.description do %>
-              <p class="text-xl text-gray-600 max-w-2xl mx-auto">
-                <%= @store.description %>
-              </p>
-            <% end %>
-          </div>
-
-        <div class="bg-white rounded-lg shadow-lg p-8">
-          <div class="text-center">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">
-              Welcome to <%= @store.name %>
-            </h2>
-            
-            <p class="text-gray-600 mb-8">
-              This store is currently being set up. Products will be available soon!
+    <%= if assigns[:show_category_page] do %>
+      <!-- Category Listing Page -->
+      <div class="w-full px-4 py-8">
+        <div class="mb-8">
+          <nav class="flex items-center space-x-2 text-sm text-gray-500 mb-6">
+            <.link navigate={~p"/"} class="hover:text-gray-700">Home</.link>
+            <span>/</span>
+            <.link navigate={~p"/#{@store.slug}"} class="hover:text-gray-700"><%= @store.name %></.link>
+            <span>/</span>
+            <span class="text-gray-900 font-medium"><%= @category.name %></span>
+          </nav>
+          
+          <h1 class="text-4xl font-bold text-gray-900 mb-4">
+            <%= @category.name %>
+          </h1>
+          
+          <%= if @category.description do %>
+            <p class="text-xl text-gray-600 mb-8">
+              <%= @category.description %>
             </p>
-
-            <%= if @current_scope && @current_scope.user && @current_scope.user.id == @store.user_id do %>
-              <div class="space-y-4">
-                <.link
-                  navigate={~p"/dashboard/store"}
-                  class="btn btn-primary"
-                >
-                  Manage Store
-                </.link>
-                
-                <.link
-                  navigate={~p"/dashboard/products/new"}
-                  class="btn btn-secondary"
-                >
-                  Add Product
-                </.link>
-              </div>
-            <% else %>
-              <div class="text-gray-500">
-                <p>Store owner: <%= @store.user.username || "Creator" %></p>
-              </div>
-            <% end %>
+          <% end %>
+          
+          <div class="text-sm text-gray-500 mb-8">
+            <%= length(@products) %> product<%= if length(@products) != 1, do: "s" %> in this category
           </div>
         </div>
 
+        <!-- Products Grid -->
         <%= if Enum.empty?(@products) do %>
           <div class="text-center py-12">
             <div class="text-gray-500 text-lg mb-4">
-              No products available yet.
+              No products in this category yet.
             </div>
             <%= if @current_scope && @current_scope.user && @current_scope.user.id == @store.user_id do %>
               <.link
                 navigate={~p"/dashboard/products/new"}
                 class="btn btn-primary"
               >
-                Add Your First Product
+                Add Products to This Category
               </.link>
             <% end %>
           </div>
         <% else %>
-          <!-- Products by Category -->
-          <div class="mt-12 space-y-12">
-            <!-- Uncategorized Products -->
-            <%= if Map.has_key?(@products_by_category, nil) and length(Map.get(@products_by_category, nil)) > 0 do %>
-              <div>
-                <h2 class="text-2xl font-semibold text-gray-800 mb-6">All Products</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <%= for product <- Map.get(@products_by_category, nil) do %>
-                    <%= render_product_card(assigns, product) %>
-                  <% end %>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+            <%= for product <- @products do %>
+              <%= render_product_card(assigns, product) %>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+    <% else %>
+      <!-- Store Home Page - FULL VIEWPORT -->
+      <div class="w-screen min-h-screen">
+        <!-- Hero Section - INFO BAR (not full fold) -->
+        <div class="relative w-screen bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-700 overflow-hidden">
+          <!-- Background Elements -->
+          <div class="absolute inset-0 bg-black/20"></div>
+          <div class="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_30%_20%,rgba(120,119,198,0.3),transparent_50%)]"></div>
+          <div class="absolute top-0 right-0 w-full h-full bg-[radial-gradient(circle_at_70%_80%,rgba(120,119,198,0.3),transparent_50%)]"></div>
+          
+          <!-- Hero Content - Compact Info Bar -->
+          <div class="relative w-full py-12 px-4">
+            <div class="text-center text-white max-w-6xl mx-auto">
+              <h1 class="text-4xl md:text-5xl lg:text-6xl font-black mb-4 leading-none tracking-tight">
+                <%= @store.name %>
+              </h1>
+              
+              <%= if @store.description do %>
+                <p class="text-lg md:text-xl text-blue-100 max-w-3xl mx-auto leading-relaxed font-light mb-6">
+                  <%= @store.description %>
+                </p>
+              <% end %>
+              
+              <!-- Store Stats - Compact -->
+              <div class="flex flex-col sm:flex-row justify-center items-center space-y-3 sm:space-y-0 sm:space-x-8">
+                <div class="bg-white/20 backdrop-blur-md rounded-2xl px-6 py-3 border border-white/30">
+                  <div class="text-2xl font-bold text-white"><%= length(@products) %></div>
+                  <div class="text-sm text-blue-100 font-medium">Products</div>
+                </div>
+                <div class="bg-white/20 backdrop-blur-md rounded-2xl px-6 py-3 border border-white/30">
+                  <div class="text-2xl font-bold text-white"><%= length(@custom_categories) %></div>
+                  <div class="text-sm text-blue-100 font-medium">Categories</div>
                 </div>
               </div>
-            <% end %>
-            
-            <!-- Products by Custom Category -->
-            <%= for category <- @custom_categories do %>
-              <%= if Map.has_key?(@products_by_category, category) and length(Map.get(@products_by_category, category)) > 0 do %>
-                <div>
-                  <div class="flex items-center justify-between mb-6">
-                    <h2 class="text-2xl font-semibold text-gray-800">
-                      <%= category.name %>
-                    </h2>
+            </div>
+          </div>
+        </div>
+
+        <!-- Main Content - FULL WIDTH Products -->
+        <div class="w-screen bg-gray-50">
+          <%= if Enum.empty?(@products) do %>
+            <!-- Empty State -->
+            <div class="w-screen text-center py-32">
+              <div class="max-w-2xl mx-auto">
+                <div class="w-32 h-32 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-8">
+                  <svg class="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                  </svg>
+                </div>
+                <h3 class="text-4xl font-bold text-gray-900 mb-4">Store Coming Soon</h3>
+                <p class="text-xl text-gray-600 mb-12">This store is currently being set up. Products will be available soon!</p>
+                
+                <%= if @current_scope && @current_scope.user && @current_scope.user.id == @store.user_id do %>
+                  <div class="space-y-6">
                     <.link
-                      navigate={~p"/#{@store.slug}/#{category.slug}"}
-                      class="text-blue-600 hover:text-blue-800 text-sm"
+                      navigate={~p"/dashboard/store"}
+                      class="btn btn-primary btn-lg text-lg px-8 py-4"
                     >
-                      View All (<%= length(Map.get(@products_by_category, category)) %>)
+                      Manage Store
+                    </.link>
+                    
+                    <.link
+                      navigate={~p"/dashboard/products/new"}
+                      class="btn btn-secondary btn-lg text-lg px-8 py-4 ml-4"
+                    >
+                      Add Product
                     </.link>
                   </div>
-                  
-                  <%= if category.description do %>
-                    <p class="text-gray-600 mb-4"><%= category.description %></p>
-                  <% end %>
-                  
-                  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <%= for product <- Map.get(@products_by_category, category) do %>
+                <% else %>
+                  <div class="text-gray-500 text-lg">
+                    <p>Store owner: <%= @store.user.username || "Creator" %></p>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+          <% else %>
+            <!-- Products by Category - FULL WIDTH -->
+            <div class="w-screen space-y-24 py-24">
+              <!-- Uncategorized Products -->
+              <%= if Map.has_key?(@products_by_category, nil) and length(Map.get(@products_by_category, nil)) > 0 do %>
+                <div class="w-screen px-4">
+                  <div class="text-center mb-16">
+                    <h2 class="text-5xl md:text-6xl font-bold text-gray-900 mb-6">All Products</h2>
+                    <p class="text-2xl text-gray-600">Discover our complete collection</p>
+                  </div>
+                  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-8">
+                    <%= for product <- Map.get(@products_by_category, nil) do %>
                       <%= render_product_card(assigns, product) %>
                     <% end %>
                   </div>
                 </div>
               <% end %>
-            <% end %>
-          </div>
-        <% end %>
-        <% end %>
+              
+              <!-- Products by Custom Category -->
+              <%= for category <- @custom_categories do %>
+                <%= if Map.has_key?(@products_by_category, category) and length(Map.get(@products_by_category, category)) > 0 do %>
+                  <div class="w-screen px-4">
+                    <div class="text-center mb-16">
+                      <h2 class="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
+                        <%= category.name %>
+                      </h2>
+                      <%= if category.description do %>
+                        <p class="text-2xl text-gray-600 mb-8 max-w-4xl mx-auto"><%= category.description %></p>
+                      <% end %>
+                      <div class="flex items-center justify-center space-x-6">
+                        <span class="text-xl text-gray-500">
+                          <%= length(Map.get(@products_by_category, category)) %> product<%= if length(Map.get(@products_by_category, category)) != 1, do: "s" %>
+                        </span>
+                        <.link
+                          navigate={~p"/#{@store.slug}/#{category.slug}"}
+                          class="text-blue-600 hover:text-blue-800 font-semibold text-xl hover:underline transition-colors"
+                        >
+                          View All →
+                        </.link>
+                      </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-8">
+                      <%= for product <- Map.get(@products_by_category, category) do %>
+                        <%= render_product_card(assigns, product) %>
+                      <% end %>
+                    </div>
+                  </div>
+                <% end %>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
       </div>
-    </Layouts.app>
+    <% end %>
     """
   end
 
@@ -251,87 +271,69 @@ defmodule ShompWeb.StoreLive.Show do
     assigns = assign(assigns, :product, product)
     
     ~H"""
-    <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
-      <!-- Product Image -->
-      <div class="h-48 bg-gray-200 overflow-hidden">
+    <.link
+      navigate={
+        if @product.slug do
+          if Map.has_key?(@product, :custom_category) && 
+             @product.custom_category && 
+             Map.has_key?(@product.custom_category, :slug) && 
+             @product.custom_category.slug && 
+             @product.custom_category.slug != "" do
+            ~p"/#{@store.slug}/#{@product.custom_category.slug}/#{@product.slug}"
+          else
+            ~p"/#{@store.slug}/products/#{@product.slug}"
+          end
+        else
+          ~p"/#{@store.slug}/products/#{@product.id}"
+        end
+      }
+      class="group block bg-white rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden"
+    >
+      <!-- Product Image Container - FULL TILE -->
+      <div class="relative aspect-square overflow-hidden bg-gray-100">
         <%= if get_product_image(@product) do %>
           <img 
             src={get_product_image(@product)} 
             alt={@product.title}
-            class="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+            class="w-full h-full object-cover"
           />
         <% else %>
-          <div class="w-full h-full flex items-center justify-center text-gray-400">
-            <svg class="h-12 w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          <div class="w-full h-full flex items-center justify-center text-gray-400 bg-gray-50">
+            <svg class="h-20 w-20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </div>
         <% end %>
-      </div>
-      
-      <div class="p-6">
-        <h3 class="text-lg font-semibold text-gray-900 mb-2">
-          <.link
-            navigate={
-              if @product.slug do
-                # Only use category route if product actually has a custom category with a slug
-                if Map.has_key?(@product, :custom_category) && 
-                   @product.custom_category && 
-                   Map.has_key?(@product.custom_category, :slug) && 
-                   @product.custom_category.slug && 
-                   @product.custom_category.slug != "" do
-                  ~p"/#{@store.slug}/#{@product.custom_category.slug}/#{@product.slug}"
-                else
-                  # Use new products route when no category
-                  ~p"/#{@store.slug}/products/#{@product.slug}"
-                end
-              else
-                ~p"/#{@store.slug}/products/#{@product.id}"
-              end
-            }
-            class="hover:text-blue-600 transition-colors duration-200"
-          >
-            <%= @product.title %>
-          </.link>
-        </h3>
         
-        <%= if @product.description do %>
-          <p class="text-gray-600 mb-4 line-clamp-2">
-            <%= @product.description %>
-          </p>
-        <% end %>
-        
-        <!-- Category Tags -->
-        <div class="mb-4 space-y-2">
-          <%= if Map.has_key?(@product, :category) && @product.category && Map.has_key?(@product.category, :name) do %>
-            <div class="flex items-center space-x-2">
-              <span class="text-xs text-gray-500">Platform:</span>
-              <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                <%= @product.category.name %>
-              </span>
-            </div>
-          <% end %>
-          
-          <%= if Map.has_key?(@product, :custom_category) && @product.custom_category && Map.has_key?(@product.custom_category, :name) do %>
-            <div class="flex items-center space-x-2">
-              <span class="text-xs text-gray-500">Store:</span>
-              <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                <%= @product.custom_category.name %>
-              </span>
-            </div>
-          <% end %>
-        </div>
-        
-        <div class="flex items-center justify-between">
-          <div class="text-lg font-bold text-green-600">
+        <!-- Price Badge -->
+        <div class="absolute top-4 right-4">
+          <span class="inline-flex items-center px-4 py-3 rounded-full text-lg font-bold bg-white/95 backdrop-blur-sm text-green-600 shadow-xl border border-green-100">
             $<%= @product.price %>
-          </div>
-          <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-            <%= String.capitalize(@product.type) %>
           </span>
         </div>
+        
+        <!-- Category Badge -->
+        <div class="absolute top-4 left-4">
+          <%= if Map.has_key?(@product, :custom_category) && @product.custom_category && Map.has_key?(@product.custom_category, :name) do %>
+            <span class="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-blue-500/95 backdrop-blur-sm text-white shadow-xl border border-blue-400">
+              <%= @product.custom_category.name %>
+            </span>
+          <% end %>
+        </div>
+        
+        <!-- Simple Hover Overlay -->
+        <div class="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-300 flex items-end justify-center">
+          <div class="opacity-0 group-hover:opacity-100 transition-all duration-300 pb-6 text-center">
+            <h3 class="text-xl font-bold text-white mb-2">
+              <%= @product.title %>
+            </h3>
+            <p class="text-white/90 text-sm">
+              Click to view details
+            </p>
+          </div>
+        </div>
       </div>
-    </div>
+    </.link>
     """
   end
 
@@ -352,5 +354,34 @@ defmodule ShompWeb.StoreLive.Show do
       # No image available
       true -> nil
     end
+  end
+
+  # Helper function to get all available images for a product
+  defp get_all_product_images(product) do
+    images = []
+    
+    # Add images in order of preference
+    if product.image_thumb && product.image_thumb != "" do
+      images = images ++ [product.image_thumb]
+    end
+    
+    if product.image_original && product.image_original != "" do
+      images = images ++ [product.image_original]
+    end
+    
+    if product.image_medium && product.image_medium != "" do
+      images = images ++ [product.image_medium]
+    end
+    
+    if product.image_large && product.image_large != "" do
+      images = images ++ [product.image_large]
+    end
+    
+    if product.additional_images && length(product.additional_images) > 0 do
+      images = images ++ product.additional_images
+    end
+    
+    # Remove duplicates and return
+    Enum.uniq(images)
   end
 end

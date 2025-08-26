@@ -4,8 +4,6 @@ defmodule ShompWeb.ProductLive.Show do
   on_mount {ShompWeb.UserAuth, :mount_current_scope}
 
   alias Shomp.Products
-  alias Shomp.Orders
-  alias Shomp.Reviews
   alias Shomp.Stores
   alias Shomp.StoreCategories
 
@@ -103,393 +101,233 @@ defmodule ShompWeb.ProductLive.Show do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope}>
-      <div class="mx-auto max-w-4xl px-4 py-8">
-        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
-          <div class="p-8">
-            <!-- Breadcrumb Navigation -->
-            <div class="mb-6">
-              <nav class="flex items-center space-x-2 text-sm text-gray-500">
-                <.link
-                  navigate={~p"/"}
-                  class="hover:text-gray-700"
-                >
-                  Home
-                </.link>
-                <span>/</span>
-                <.link
-                  navigate={~p"/#{@product.store.slug}"}
-                  class="hover:text-gray-700"
-                >
-                  <%= @product.store.name %>
-                </.link>
-                
-                <%= if @product.custom_category && Map.has_key?(@product.custom_category, :slug) && @product.custom_category.slug do %>
-                  <span>/</span>
-                  <.link
-                    navigate={~p"/#{@product.store.slug}/#{@product.custom_category.slug}"}
-                    class="hover:text-gray-700"
-                  >
-                    <%= @product.custom_category.name %>
-                  </.link>
-                <% end %>
-                
-                <span>/</span>
-                <span class="text-gray-900 font-medium"><%= @product.title %></span>
-              </nav>
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <div>
-                <h1 class="text-3xl font-bold text-gray-900 mb-4">
-                  <%= @product.title %>
-                </h1>
-                
-                <div class="text-2xl font-bold text-green-600 mb-6">
-                  $<%= @product.price %>
+    <div class="w-full min-h-screen bg-gray-50">
+      <!-- Main Product Content -->
+      <div class="w-full px-4 sm:px-6 lg:px-8 py-6">
+        <!-- Breadcrumb Navigation -->
+        <div class="mb-6">
+          <nav class="flex items-center space-x-2 text-sm text-gray-500">
+            <.link
+              navigate={~p"/"}
+              class="hover:text-gray-700 transition-colors"
+            >
+              Home
+            </.link>
+            <span>/</span>
+            <.link
+              navigate={~p"/#{@product.store.slug}"}
+              class="hover:text-gray-700 transition-colors"
+            >
+              <%= @product.store.name %>
+            </.link>
+            
+            <%= if @product.custom_category && Map.has_key?(@product.custom_category, :slug) && @product.custom_category.slug do %>
+              <span>/</span>
+              <.link
+                navigate={~p"/#{@product.store.slug}/#{@product.custom_category.slug}"}
+                class="hover:text-gray-700 transition-colors"
+              >
+                <%= @product.custom_category.name %>
+              </.link>
+            <% end %>
+            
+            <span>/</span>
+            <span class="text-gray-900 font-medium"><%= @product.title %></span>
+          </nav>
+        </div>
+        
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-8 xl:gap-16">
+          <!-- Left Column: Large Image Gallery -->
+          <div class="space-y-8">
+            <!-- Main Product Image -->
+            <%= if has_valid_image(@current_image) || has_valid_image(@product.image_original) do %>
+              <div class="relative">
+                <div class="relative aspect-square overflow-hidden rounded-2xl shadow-2xl bg-white">
+                  <img 
+                    src={@current_image || @product.image_original} 
+                    alt={@product.title}
+                    class="w-full h-full object-cover transition-opacity duration-500"
+                    id="main-product-image"
+                  />
                 </div>
-
-                <!-- Category Information -->
-                <div class="mb-6 space-y-3">
-                  <%= if @product.category do %>
-                    <div class="flex items-center space-x-2">
-                      <span class="text-sm text-gray-600">Platform Category:</span>
-                      <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        <%= @product.category.name %>
-                      </span>
-                    </div>
-                  <% end %>
-                  
-                  <%= if @product.custom_category && Map.has_key?(@product.custom_category, :name) do %>
-                    <div class="flex items-center space-x-2">
-                      <span class="text-sm text-gray-600">Store Category:</span>
-                      <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        <%= @product.custom_category.name %>
-                      </span>
-                    </div>
-                  <% end %>
-                </div>
-
-                <%= if @product.description do %>
-                  <div class="text-gray-700 mb-6">
-                    <h3 class="font-semibold mb-2">Description</h3>
-                    <p class="leading-relaxed"><%= @product.description %></p>
-                  </div>
-                <% end %>
-
-                <div class="mb-6">
-                  <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                    <%= String.capitalize(@product.type) %> Product
-                  </span>
-                </div>
-
-                <%= if @product.type == "digital" and @product.file_path do %>
-                  <div class="mb-6 p-4 bg-gray-50 rounded-lg">
-                    <h4 class="font-semibold text-gray-700 mb-2">Digital Product</h4>
-                    <p class="text-sm text-gray-600">File: <%= @product.file_path %></p>
-                  </div>
-                <% end %>
-
-                <div class="space-y-4">
-                  <button 
-                    phx-click="buy_now"
-                    phx-disable-with="Creating checkout..."
-                    class="btn btn-primary w-full"
-                  >
-                    Buy Now - $<%= @product.price %>
-                  </button>
-                  
-                  <%= if @current_scope && @current_scope.user do %>
+                
+                <!-- Navigation Buttons - Below Image -->
+                <%= if @product.additional_images && length(@product.additional_images) > 0 do %>
+                  <div class="flex justify-center space-x-4 mt-6">
                     <button 
-                      phx-click="add_to_cart"
-                      phx-value-product_id={@product.id}
-                      phx-value-store_id={@product.store_id}
-                      phx-disable-with="Adding to cart..."
-                      class="btn btn-outline w-full"
+                      phx-click="previous_image"
+                      class="bg-gray-800 hover:bg-gray-700 text-white p-3 rounded-full shadow-lg transition-all duration-200"
+                      title="Previous image"
                     >
-                      🛒 Add to Cart
-                    </button>
-                  <% end %>
-                  
-                  <%= if @current_scope && @current_scope.user && @current_scope.user.id == @product.store.user_id do %>
-                    <div class="flex gap-2">
-                      <.link
-                        navigate={~p"/dashboard/products/#{@product.id}/edit"}
-                        class="btn btn-secondary flex-1"
-                      >
-                        Edit Product
-                      </.link>
-                    </div>
-                  <% end %>
-                </div>
-              </div>
-
-              <!-- Product Images Section -->
-              <div class="space-y-4">
-                <%= if has_valid_image(@product.image_original) || (@product.additional_images && length(@product.additional_images) > 0) do %>
-                  <!-- Main Product Image Carousel -->
-                  <div class="relative">
-                    <div class="relative h-80 overflow-hidden rounded-lg shadow-lg">
-                      <!-- Main Image Display -->
-                      <%= if has_valid_image(@current_image) || has_valid_image(@product.image_original) do %>
-                        <img 
-                          src={@current_image || @product.image_original} 
-                          alt={@product.title}
-                          class="w-full h-full object-cover transition-opacity duration-500"
-                          id="main-product-image"
-                        />
-                      <% else %>
-                        <!-- No Image Placeholder -->
-                        <div class="w-full h-full flex items-center justify-center bg-gray-200">
-                          <div class="text-center">
-                            <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                            <p class="text-gray-500">No image available</p>
-                          </div>
-                        </div>
-                      <% end %>
-                      
-                      <!-- Previous/Next Navigation -->
-                      <%= if @product.additional_images && length(@product.additional_images) > 0 do %>
-                        <button 
-                          phx-click="previous_image"
-                          class="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-80 hover:bg-opacity-100 text-gray-800 p-2 rounded-full shadow-lg transition-all duration-200"
-                          title="Previous image"
-                        >
-                          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                          </svg>
-                        </button>
-                        
-                        <button 
-                          phx-click="next_image"
-                          class="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-80 hover:bg-opacity-100 text-gray-800 p-2 rounded-full shadow-lg transition-all duration-200"
-                          title="Next image"
-                        >
-                          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                          </svg>
-                        </button>
-                      <% end %>
-                      
-                      <!-- Image Counter -->
-                      <%= if @product.additional_images && length(@product.additional_images) > 0 do %>
-                        <div class="absolute top-4 right-4 bg-black bg-opacity-50 text-white px-3 py-1 rounded-full text-sm">
-                          <%= if @current_image_index == nil do %>
-                            <!-- Primary image -->
-                            1 of <%= length(@product.additional_images) + 1 %>
-                          <% else %>
-                            <!-- Additional image -->
-                            <%= @current_image_index + 2 %> of <%= length(@product.additional_images) + 1 %>
-                          <% end %>
-                        </div>
-                      <% end %>
-                    </div>
-                    
-                    <!-- Thumbnail Gallery -->
-                    <div class="mt-4">
-                      <div class="flex space-x-2 overflow-x-auto pb-2">
-                        <!-- Primary Image Thumbnail -->
-                        <%= if has_valid_image(@product.image_thumb) || has_valid_image(@product.image_original) do %>
-                          <button 
-                            phx-click="show_image"
-                            phx-value-index="primary"
-                            class={"flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all duration-200 #{if @current_image_index == nil, do: "border-blue-500", else: "border-gray-300 hover:border-gray-400"}"}
-                          >
-                            <img 
-                              src={@product.image_thumb || @product.image_original} 
-                              alt="Primary image"
-                              class="w-full h-full object-cover"
-                            />
-                          </button>
-                        <% end %>
-                        
-                        <!-- Additional Images Thumbnails -->
-                        <%= for {image, index} <- Enum.with_index(@product.additional_images || []) do %>
-                          <button 
-                            phx-click="show_image"
-                            phx-value-index={index}
-                            class={"flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all duration-200 #{if @current_image_index == index, do: "border-blue-500", else: "border-gray-300 hover:border-gray-400"}"}
-                          >
-                            <img 
-                              src={image} 
-                              alt="Product image #{index + 2}"
-                              class="w-full h-full object-cover"
-                            />
-                          </button>
-                        <% end %>
-                      </div>
-                    </div>
-                  </div>
-                <% else %>
-                  <!-- No Images Placeholder -->
-                  <div class="w-full h-80 bg-gray-200 rounded-lg flex items-center justify-center">
-                    <div class="text-center">
-                      <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                       </svg>
-                      <p class="text-gray-500">No images available</p>
-                    </div>
-                  </div>
-                <% end %>
-              </div>
-            </div>
-          </div>
-          
-          <!-- Reviews Section -->
-          <div class="border-t border-gray-200 pt-8">
-            <div class="px-8">
-              <div class="flex items-center justify-between mb-6">
-                <div class="flex items-center space-x-4">
-                  <h2 class="text-2xl font-bold text-gray-900">Customer Reviews</h2>
-                  <%= if @reviews && length(@reviews) > 0 do %>
-                    <.link
-                      navigate={~p"/#{@product.store.slug}/products/#{@product.id}/reviews"}
-                      class="text-blue-600 hover:text-blue-800 text-sm"
+                    </button>
+                    
+                    <button 
+                      phx-click="next_image"
+                      class="bg-gray-800 hover:bg-gray-700 text-white p-3 rounded-full shadow-lg transition-all duration-200"
+                      title="Next image"
                     >
-                      View All (<%= length(@reviews) %>)
-                    </.link>
-                  <% end %>
-                </div>
-                <%= if @current_scope && @current_scope.user && Shomp.Orders.user_purchased_product?(@current_scope.user.id, @product.id) do %>
-                  <.link
-                    navigate={~p"/#{@product.store.slug}/products/#{@product.id}/reviews/new"}
-                    class="btn btn-primary"
-                  >
-                    Write a Review
-                  </.link>
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </div>
                 <% end %>
               </div>
               
-              <!-- Reviews Summary -->
-              <%= if @reviews && length(@reviews) > 0 do %>
-                <div class="bg-gray-50 rounded-lg p-6 mb-6">
-                  <div class="flex items-center space-x-8">
-                    <div class="text-center">
-                      <div class="text-3xl font-bold text-gray-900">
-                        <%= Float.round(Enum.reduce(@reviews, 0, fn review, acc -> acc + review.rating end) / length(@reviews), 1) %>
-                      </div>
-                      <div class="flex items-center justify-center space-x-1 mb-2">
-                        <%= for rating <- 1..5 do %>
-                          <svg class={"w-5 h-5 #{if rating <= Float.round(Enum.reduce(@reviews, 0, fn review, acc -> acc + review.rating end) / length(@reviews), 1), do: "text-yellow-400", else: "text-gray-300"}"} fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                          </svg>
-                        <% end %>
-                      </div>
-                      <div class="text-sm text-gray-600">out of 5</div>
-                    </div>
-                    <div class="flex-1">
-                      <div class="text-lg font-medium text-gray-900 mb-2">
-                        Based on <%= length(@reviews) %> review<%= if length(@reviews) != 1, do: "s" %>
-                      </div>
-                      <div class="space-y-2">
-                        <%= for rating <- 5..1 do %>
-                          <div class="flex items-center space-x-3">
-                            <span class="text-sm text-gray-600 w-8"><%= rating %> stars</span>
-                            <div class="flex-1 bg-gray-200 rounded-full h-2">
-                              <div class="bg-yellow-400 h-2 rounded-full" style={"width: #{if length(@reviews) > 0, do: "#{Enum.count(Enum.filter(@reviews, fn review -> review.rating == rating end)) / length(@reviews) * 100}%", else: "0%"}"}></div>
-                            </div>
-                            <span class="text-sm text-gray-600 w-12 text-right"><%= Enum.count(Enum.filter(@reviews, fn review -> review.rating == rating end)) %></span>
-                          </div>
-                        <% end %>
-                      </div>
-                    </div>
+              <!-- Thumbnail Gallery -->
+              <%= if @product.additional_images && length(@product.additional_images) > 0 do %>
+                <div class="space-y-4">
+                  <h3 class="text-lg font-semibold text-gray-900">Product Images</h3>
+                  <div class="flex space-x-3 overflow-x-auto pb-2">
+                    <!-- Primary Image Thumbnail -->
+                    <%= if has_valid_image(@product.image_thumb) || has_valid_image(@product.image_original) do %>
+                      <button 
+                        phx-click="show_image"
+                        phx-value-index="primary"
+                        class={"flex-shrink-0 w-24 h-24 rounded-xl overflow-hidden border-2 transition-all duration-200 #{if @current_image_index == nil, do: "border-blue-500 ring-2 ring-blue-200", else: "border-gray-300 hover:border-gray-400"}"}
+                      >
+                        <img 
+                          src={@product.image_thumb || @product.image_original} 
+                          alt="Primary image"
+                          class="w-full h-full object-cover"
+                        />
+                      </button>
+                    <% end %>
+                    
+                    <!-- Additional Images Thumbnails -->
+                    <%= for {image, index} <- Enum.with_index(@product.additional_images || []) do %>
+                      <button 
+                        phx-click="show_image"
+                        phx-value-index={index}
+                        class={"flex-shrink-0 w-24 h-24 rounded-xl overflow-hidden border-2 transition-all duration-200 #{if @current_image_index == index, do: "border-blue-500 ring-2 ring-blue-200", else: "border-gray-300 hover:border-gray-400"}"}
+                      >
+                        <img 
+                          src={image} 
+                          alt="Product image #{index + 2}"
+                          class="w-full h-full object-cover"
+                        />
+                      </button>
+                    <% end %>
                   </div>
                 </div>
               <% end %>
-              
-              <%= if @reviews && length(@reviews) > 0 do %>
-                <div class="space-y-6">
-                  <%= for review <- @reviews do %>
-                    <div class="border border-gray-200 rounded-lg p-6">
-                      <div class="flex items-start justify-between mb-4">
-                        <div class="flex items-center space-x-3">
-                          <div class="flex items-center space-x-1">
-                            <%= for rating <- 1..5 do %>
-                              <svg class={"w-5 h-5 #{if rating <= review.rating, do: "text-yellow-400", else: "text-gray-300"}"} fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                              </svg>
-                            <% end %>
-                          </div>
-                          <span class="text-sm text-gray-600">
-                            by <%= review.user.username %>
-                          </span>
-                          <%= if review.verified_purchase do %>
-                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              ✓ Verified Purchase
-                            </span>
-                          <% end %>
-                        </div>
-                        <span class="text-sm text-gray-500">
-                          <%= Calendar.strftime(review.inserted_at, "%B %d, %Y") %>
-                        </span>
-                      </div>
-                      
-                      <div class="text-gray-700 mb-4">
-                        <p class="leading-relaxed"><%= review.review_text %></p>
-                      </div>
-                      
-                      <div class="flex items-center justify-between">
-                        <div class="flex items-center space-x-4">
-                          <button 
-                            phx-click="vote_helpful" 
-                            phx-value-review_id={review.id}
-                            phx-value-helpful={true}
-                            class="flex items-center space-x-2 text-sm text-gray-600 hover:text-blue-600 transition-colors"
-                          >
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5m-6-3a2 2 0 01-2-2V9a2 2 0 012-2h2" />
-                            </svg>
-                            <span>Helpful (<%= review.helpful_count %>)</span>
-                          </button>
-                          
-                          <%= if @current_scope && @current_scope.user && @current_scope.user.id == review.user_id do %>
-                            <div class="flex items-center space-x-2">
-                              <.link
-                                navigate={~p"/#{@product.store.slug}/products/#{@product.id}/reviews/#{review.id}/edit"}
-                                class="text-sm text-blue-600 hover:text-blue-800 transition-colors"
-                              >
-                                Edit
-                              </.link>
-                              <span class="text-gray-300">|</span>
-                              <button 
-                                phx-click="delete_review" 
-                                phx-value-review_id={review.id}
-                                phx-confirm="Are you sure you want to delete this review?"
-                                class="text-sm text-red-600 hover:text-red-800 transition-colors"
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          <% end %>
-                        </div>
-                      </div>
-                    </div>
-                  <% end %>
-                </div>
-              <% else %>
-                <div class="text-center py-12">
-                  <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            <% else %>
+              <!-- No Image Placeholder -->
+              <div class="aspect-square bg-gray-200 rounded-2xl flex items-center justify-center">
+                <div class="text-center">
+                  <svg class="w-24 h-24 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
-                  <h3 class="text-lg font-medium text-gray-900 mb-2">No reviews yet</h3>
-                  <p class="text-gray-500 mb-4">Be the first to share your thoughts about this product!</p>
-                  <%= if @current_scope && @current_scope.user && Shomp.Orders.user_purchased_product?(@current_scope.user.id, @product.id) do %>
-                    <.link
-                      navigate={~p"/#{@product.store.slug}/products/#{@product.id}/reviews/new"}
-                      class="btn btn-primary"
-                    >
-                      Write the First Review
-                    </.link>
-                  <% end %>
+                  <p class="text-gray-500 text-lg">No image available</p>
+                </div>
+              </div>
+            <% end %>
+          </div>
+
+          <!-- Right Column: Product Information -->
+          <div class="space-y-8">
+            <!-- Product Header -->
+            <div class="space-y-4">
+              <h1 class="text-4xl lg:text-5xl font-bold text-gray-900 leading-tight">
+                <%= @product.title %>
+              </h1>
+              
+              <div class="text-3xl lg:text-4xl font-bold text-green-600">
+                $<%= @product.price %>
+              </div>
+            </div>
+
+            <!-- Category Information -->
+            <div class="space-y-4">
+              <%= if @product.category do %>
+                <div class="flex items-center space-x-3">
+                  <span class="text-sm font-medium text-gray-600">Platform:</span>
+                  <span class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-blue-100 text-blue-800 border border-blue-200">
+                    <%= @product.category.name %>
+                  </span>
+                </div>
+              <% end %>
+              
+              <%= if @product.custom_category && Map.has_key?(@product.custom_category, :name) do %>
+                <div class="flex items-center space-x-3">
+                  <span class="text-sm font-medium text-gray-600">Category:</span>
+                  <span class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-green-100 text-green-800 border border-green-200">
+                    <%= @product.custom_category.name %>
+                  </span>
+                </div>
+              <% end %>
+              
+              <div class="flex items-center space-x-3">
+                <span class="text-sm font-medium text-gray-600">Type:</span>
+                <span class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-purple-100 text-purple-800 border border-purple-200">
+                  <%= String.capitalize(@product.type) %> Product
+                </span>
+              </div>
+            </div>
+
+            <!-- Description -->
+            <%= if @product.description do %>
+              <div class="space-y-3">
+                <h3 class="text-xl font-semibold text-gray-900">Description</h3>
+                <div class="prose prose-gray max-w-none">
+                  <p class="text-gray-700 leading-relaxed text-lg"><%= @product.description %></p>
+                </div>
+              </div>
+            <% end %>
+
+            <!-- Digital Product Info -->
+            <%= if @product.type == "digital" and @product.file_path do %>
+              <div class="p-6 bg-blue-50 rounded-2xl border border-blue-200">
+                <div class="flex items-center space-x-3">
+                  <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <h4 class="font-semibold text-blue-900">Digital Product</h4>
+                </div>
+                <p class="text-blue-700 mt-2">File: <%= @product.file_path %></p>
+              </div>
+            <% end %>
+
+            <!-- Action Buttons -->
+            <div class="space-y-4 pt-6">
+              <button 
+                phx-click="buy_now"
+                phx-disable-with="Creating checkout..."
+                class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-8 rounded-2xl text-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1"
+              >
+                Buy Now - $<%= @product.price %>
+              </button>
+              
+              <%= if @current_scope && @current_scope.user do %>
+                <button 
+                  phx-click="add_to_cart"
+                  phx-value-product_id={@product.id}
+                  phx-value-store_id={@product.store_id}
+                  phx-disable-with="Adding to cart..."
+                  class="w-full bg-gray-800 hover:bg-gray-900 text-white font-semibold py-3 px-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-200"
+                >
+                  🛒 Add to Cart
+                </button>
+              <% end %>
+              
+              <%= if @current_scope && @current_scope.user && @current_scope.user.id == @product.store.user_id do %>
+                <div class="pt-4 border-t border-gray-200">
+                  <.link
+                    navigate={~p"/dashboard/products/#{@product.id}/edit"}
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-200 text-center block"
+                  >
+                    Edit Product
+                  </.link>
                 </div>
               <% end %>
             </div>
           </div>
         </div>
       </div>
-    </Layouts.app>
+    </div>
     """
   end
 
