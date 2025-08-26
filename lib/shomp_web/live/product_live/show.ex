@@ -226,17 +226,29 @@ defmodule ShompWeb.ProductLive.Show do
 
               <!-- Product Images Section -->
               <div class="space-y-4">
-                <%= if @product.image_original || (@product.additional_images && length(@product.additional_images) > 0) do %>
+                <%= if has_valid_image(@product.image_original) || (@product.additional_images && length(@product.additional_images) > 0) do %>
                   <!-- Main Product Image Carousel -->
                   <div class="relative">
                     <div class="relative h-80 overflow-hidden rounded-lg shadow-lg">
                       <!-- Main Image Display -->
-                      <img 
-                        src={@current_image || @product.image_original} 
-                        alt={@product.title}
-                        class="w-full h-full object-cover transition-opacity duration-500"
-                        id="main-product-image"
-                      />
+                      <%= if has_valid_image(@current_image) || has_valid_image(@product.image_original) do %>
+                        <img 
+                          src={@current_image || @product.image_original} 
+                          alt={@product.title}
+                          class="w-full h-full object-cover transition-opacity duration-500"
+                          id="main-product-image"
+                        />
+                      <% else %>
+                        <!-- No Image Placeholder -->
+                        <div class="w-full h-full flex items-center justify-center bg-gray-200">
+                          <div class="text-center">
+                            <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <p class="text-gray-500">No image available</p>
+                          </div>
+                        </div>
+                      <% end %>
                       
                       <!-- Previous/Next Navigation -->
                       <%= if @product.additional_images && length(@product.additional_images) > 0 do %>
@@ -279,17 +291,19 @@ defmodule ShompWeb.ProductLive.Show do
                     <div class="mt-4">
                       <div class="flex space-x-2 overflow-x-auto pb-2">
                         <!-- Primary Image Thumbnail -->
-                        <button 
-                          phx-click="show_image"
-                          phx-value-index="primary"
-                          class={"flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all duration-200 #{if @current_image_index == nil, do: "border-blue-500", else: "border-gray-300 hover:border-gray-400"}"}
-                        >
-                          <img 
-                            src={@product.image_thumb || @product.image_original} 
-                            alt="Primary image"
-                            class="w-full h-full object-cover"
-                          />
-                        </button>
+                        <%= if has_valid_image(@product.image_thumb) || has_valid_image(@product.image_original) do %>
+                          <button 
+                            phx-click="show_image"
+                            phx-value-index="primary"
+                            class={"flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all duration-200 #{if @current_image_index == nil, do: "border-blue-500", else: "border-gray-300 hover:border-gray-400"}"}
+                          >
+                            <img 
+                              src={@product.image_thumb || @product.image_original} 
+                              alt="Primary image"
+                              class="w-full h-full object-cover"
+                            />
+                          </button>
+                        <% end %>
                         
                         <!-- Additional Images Thumbnails -->
                         <%= for {image, index} <- Enum.with_index(@product.additional_images || []) do %>
@@ -676,5 +690,10 @@ defmodule ShompWeb.ProductLive.Show do
            |> put_flash(:error, "Failed to delete review")}
       end
     end
+  end
+
+  # Helper function to check if an image URL is valid and not empty
+  defp has_valid_image(image_url) do
+    image_url && image_url != "" && String.trim(image_url) != ""
   end
 end

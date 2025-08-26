@@ -120,7 +120,7 @@ defmodule ShompWeb.ProductLive.Edit do
             <div class="flex items-center justify-between">
               <h3 class="text-lg font-medium text-gray-900">Product Images</h3>
               <span class="text-sm text-gray-500">
-                <%= if @product.image_thumb do %>
+                <%= if @product.image_original do %>
                   <%= 1 + length(@product.additional_images || []) %>
                 <% else %>
                   <%= length(@product.additional_images || []) %>
@@ -131,10 +131,10 @@ defmodule ShompWeb.ProductLive.Edit do
             <!-- Current Images Gallery -->
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               <!-- Primary Image -->
-              <%= if @product.image_thumb do %>
+              <%= if @product.image_original do %>
                 <div class="relative group">
                   <img 
-                    src={@product.image_thumb} 
+                    src={@product.image_original} 
                     alt="Primary image"
                     class="w-full h-32 object-cover rounded-lg border-2 border-blue-500 transition-all duration-200"
                   />
@@ -163,8 +163,6 @@ defmodule ShompWeb.ProductLive.Edit do
               <!-- Additional Images -->
               <%= for {image_url, index} <- Enum.with_index(@product.additional_images || []) do %>
                 <div class="relative group">
-                  <!-- DEBUG: Show URL -->
-                  <div class="text-xs bg-yellow-200 p-1 mb-1">URL: <%= image_url %></div>
                   <img 
                     src={image_url} 
                     alt="Product image #{index + 2}"
@@ -193,7 +191,7 @@ defmodule ShompWeb.ProductLive.Edit do
                         title="Remove image"
                       >
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
                       </button>
                     </div>
@@ -202,7 +200,7 @@ defmodule ShompWeb.ProductLive.Edit do
               <% end %>
               
               <!-- Add New Image Card -->
-              <%= if (if @product.image_thumb, do: 1, else: 0) + length(@product.additional_images || []) < 10 do %>
+              <%= if (if @product.image_original, do: 1, else: 0) + length(@product.additional_images || []) < 10 do %>
                 <label class="relative border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 transition-colors cursor-pointer">
                   <div class="w-full h-32 flex flex-col items-center justify-center p-4">
                     <svg class="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -214,6 +212,23 @@ defmodule ShompWeb.ProductLive.Edit do
                 </label>
               <% end %>
             </div>
+            
+            <!-- Remove All Images Button -->
+            <%= if @product.image_original || length(@product.additional_images || []) > 0 do %>
+              <div class="mt-4 flex justify-center">
+                <button
+                  type="button"
+                  phx-click="remove_all_images"
+                  phx-confirm="Remove ALL images from this product? This action cannot be undone."
+                  class="btn btn-outline btn-error btn-sm"
+                >
+                  <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  Remove All Images
+                </button>
+              </div>
+            <% end %>
             
             <!-- Upload Status -->
             <%= if @uploads.product_images.entries != [] do %>
@@ -415,27 +430,40 @@ defmodule ShompWeb.ProductLive.Edit do
       # Update the product with the new image
       product = socket.assigns.product
       
-              update_params = if product.image_original == nil do
-          # Make this the primary image
-          %{
-            "image_original" => image_url
-          }
-        else
-          # Add to additional images
-          current_additional = product.additional_images || []
-          %{
-            "additional_images" => current_additional ++ [image_url]
-          }
-        end
+      update_params = if product.image_original == nil do
+        # Make this the primary image - populate all size fields
+        %{
+          "image_original" => image_url,
+          "image_thumb" => image_url,
+          "image_medium" => image_url,
+          "image_large" => image_url,
+          "image_extra_large" => image_url,
+          "image_ultra" => image_url
+        }
+      else
+        # Add to additional images
+        current_additional = product.additional_images || []
+        %{
+          "additional_images" => current_additional ++ [image_url]
+        }
+      end
+      
+      IO.puts("=== UPDATING PRODUCT WITH IMAGE ===")
+      IO.puts("Update params: #{inspect(update_params)}")
       
       case Products.update_product(product, update_params) do
         {:ok, updated_product} ->
+          IO.puts("Product updated successfully!")
+          IO.puts("Updated product additional_images: #{inspect(updated_product.additional_images)}")
+          
           {:noreply, 
            socket
            |> assign(product: updated_product)
            |> put_flash(:info, "Image added successfully!")}
         
-        {:error, _changeset} ->
+        {:error, changeset} ->
+          IO.puts("Failed to update product: #{inspect(changeset.errors)}")
+          
           {:noreply, 
            socket
            |> put_flash(:error, "Failed to save image")}
@@ -458,9 +486,14 @@ defmodule ShompWeb.ProductLive.Edit do
   def handle_event("remove_image", %{"index" => "primary"}, socket) do
     product = socket.assigns.product
     
-    # Remove primary image by setting image field to nil
+    # Remove primary image by setting ALL image fields to nil
     update_params = %{
-      "image_original" => nil
+      "image_original" => nil,
+      "image_thumb" => nil,
+      "image_medium" => nil,
+      "image_large" => nil,
+      "image_extra_large" => nil,
+      "image_ultra" => nil
     }
     
     case Products.update_product(product, update_params) do
@@ -496,6 +529,34 @@ defmodule ShompWeb.ProductLive.Edit do
         {:noreply, 
          socket
          |> put_flash(:error, "Failed to remove image")}
+    end
+  end
+
+  def handle_event("remove_all_images", _params, socket) do
+    product = socket.assigns.product
+    
+    # Remove ALL image fields
+    update_params = %{
+      "image_original" => nil,
+      "image_thumb" => nil,
+      "image_medium" => nil,
+      "image_large" => nil,
+      "image_extra_large" => nil,
+      "image_ultra" => nil,
+      "additional_images" => []
+    }
+    
+    case Products.update_product(product, update_params) do
+      {:ok, updated_product} ->
+        {:noreply, 
+         socket
+         |> assign(product: updated_product)
+         |> put_flash(:info, "All images removed successfully")}
+      
+      {:error, _changeset} ->
+        {:noreply, 
+         socket
+         |> put_flash(:error, "Failed to remove images")}
     end
   end
 
