@@ -1,11 +1,11 @@
-<div class="min-h-screen bg-gray-50 py-12">
+<div class="min-h-screen bg-base-200 py-12">
   <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
     <!-- Header -->
     <div class="mb-8">
       <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-3xl font-bold text-gray-900">Order Details</h1>
-          <p class="text-lg text-gray-600 mt-2">Order <%= @order.immutable_id %></p>
+          <h1 class="text-3xl font-bold text-base-content">Order Details</h1>
+          <p class="text-lg text-base-content/70 mt-2">Order <%= @order.immutable_id %></p>
         </div>
         <a href={~p"/orders"} class="btn btn-outline">
           ← Back to Orders
@@ -14,29 +14,29 @@
     </div>
 
     <!-- Order Summary -->
-    <div class="bg-white shadow rounded-lg mb-8">
-      <div class="px-6 py-4 border-b border-gray-200">
-        <h2 class="text-lg font-medium text-gray-900">Order Summary</h2>
+    <div class="bg-base-100 shadow rounded-lg mb-8">
+      <div class="px-6 py-4 border-b border-base-300">
+        <h2 class="text-lg font-medium text-base-content">Order Summary</h2>
       </div>
       <div class="px-6 py-4">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <h3 class="text-sm font-medium text-gray-500 mb-2">Order Information</h3>
+            <h3 class="text-sm font-medium text-base-content/70 mb-2">Order Information</h3>
             <dl class="space-y-2">
               <div>
-                <dt class="text-sm text-gray-500">Order ID</dt>
-                <dd class="text-sm font-medium text-gray-900"><%= @order.immutable_id %></dd>
+                <dt class="text-sm text-base-content/70">Order ID</dt>
+                <dd class="text-sm font-medium text-base-content"><%= @order.immutable_id %></dd>
               </div>
               <div>
-                <dt class="text-sm text-gray-500">Date</dt>
-                <dd class="text-sm font-medium text-gray-900">
+                <dt class="text-sm text-base-content/70">Date</dt>
+                <dd class="text-sm font-medium text-base-content">
                   <%= Calendar.strftime(@order.inserted_at, "%B %d, %Y at %I:%M %p") %>
                 </dd>
               </div>
               <div>
-                <dt class="text-sm text-gray-500">Status</dt>
-                <dd class="text-sm font-medium text-gray-900">
-                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                <dt class="text-sm text-base-content/70">Status</dt>
+                <dd class="text-sm font-medium text-base-content">
+                  <span class="badge badge-success">
                     <%= String.capitalize(@order.status) %>
                   </span>
                 </dd>
@@ -44,15 +44,15 @@
             </dl>
           </div>
           <div>
-            <h3 class="text-sm font-medium text-gray-500 mb-2">Payment Information</h3>
+            <h3 class="text-sm font-medium text-base-content/70 mb-2">Payment Information</h3>
             <dl class="space-y-2">
               <div>
-                <dt class="text-sm text-gray-500">Total Amount</dt>
-                <dd class="text-lg font-bold text-gray-900">$<%= Decimal.to_string(@order.total_amount) %></dd>
+                <dt class="text-sm text-base-content/70">Total Amount</dt>
+                <dd class="text-lg font-bold text-base-content">$<%= Decimal.to_string(@order.total_amount) %></dd>
               </div>
               <div>
-                <dt class="text-sm text-gray-500">Stripe Session</dt>
-                <dd class="text-sm font-mono text-gray-600"><%= @order.stripe_session_id %></dd>
+                <dt class="text-sm text-base-content/70">Stripe Session</dt>
+                <dd class="text-sm font-mono text-base-content/60"><%= @order.stripe_session_id %></dd>
               </div>
             </dl>
           </div>
@@ -61,36 +61,36 @@
     </div>
 
     <!-- Order Items -->
-    <div class="bg-white shadow rounded-lg">
-      <div class="px-6 py-4 border-b border-gray-200">
-        <h2 class="text-lg font-medium text-gray-900">Items in This Order</h2>
+    <div class="bg-base-100 shadow rounded-lg">
+      <div class="px-6 py-4 border-b border-base-300">
+        <h2 class="text-lg font-medium text-base-content">Items in This Order</h2>
       </div>
       
-      <ul class="divide-y divide-gray-200">
+      <ul class="divide-y divide-base-300">
         <%= for order_item <- @order.order_items do %>
           <li class="px-6 py-4">
             <div class="flex items-center justify-between">
               <div class="flex items-center space-x-4">
                 <div class="flex-shrink-0">
-                  <div class="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
-                    <svg class="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div class="w-16 h-16 bg-base-300 rounded-lg flex items-center justify-center">
+                    <svg class="w-8 h-8 text-base-content/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                   </div>
                 </div>
                 
                 <div class="flex-1 min-w-0">
-                  <p class="text-lg font-medium text-gray-900">
+                  <p class="text-lg font-medium text-base-content">
                     <%= order_item.product.title %>
                   </p>
-                  <p class="text-sm text-gray-500">
+                  <p class="text-sm text-base-content/70">
                     <%= order_item.product.store.name %> • <%= order_item.product.type %>
                   </p>
                   <div class="flex items-center space-x-4 mt-2">
-                    <span class="text-sm text-gray-500">
+                    <span class="text-sm text-base-content/70">
                       Quantity: <%= order_item.quantity %>
                     </span>
-                    <span class="text-sm text-gray-500">
+                    <span class="text-sm text-base-content/70">
                       Price: $<%= Decimal.to_string(order_item.price) %>
                     </span>
                   </div>
