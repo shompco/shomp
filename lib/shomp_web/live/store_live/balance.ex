@@ -295,7 +295,9 @@ defmodule ShompWeb.StoreLive.Balance do
                             </p>
                           <% end %>
                           <div class="flex flex-col gap-2">
-                            <button class="btn btn-outline btn-sm">
+                            <button 
+                              phx-click="resubmit_kyc"
+                              class="btn btn-outline btn-sm">
                               Resubmit KYC
                             </button>
                             <%= if is_nil(@kyc_record.stripe_account_id) do %>
@@ -408,6 +410,13 @@ defmodule ShompWeb.StoreLive.Balance do
 
   def handle_event("start_shomp_kyc", _params, socket) do
     # Navigate to the KYC page
+    {:noreply, 
+     socket
+     |> push_navigate(to: ~p"/dashboard/store/kyc")}
+  end
+
+  def handle_event("resubmit_kyc", _params, socket) do
+    # Navigate to the KYC page to resubmit
     {:noreply, 
      socket
      |> push_navigate(to: ~p"/dashboard/store/kyc")}

@@ -13,6 +13,11 @@ defmodule ShompWeb.AdminLive.KYCVerification do
     if socket.assigns.current_scope && 
        socket.assigns.current_scope.user.email == @admin_email do
       
+      # Subscribe to KYC updates for real-time status changes
+      if connected?(socket) do
+        Phoenix.PubSub.subscribe(Shomp.PubSub, "kyc_updates")
+      end
+      
       {:ok, 
        socket 
        |> assign(:page_title, @page_title)
@@ -166,6 +171,47 @@ defmodule ShompWeb.AdminLive.KYCVerification do
     {:noreply, assign(socket, show_reject_modal: false)}
   end
 
+  def handle_info(%{event: "kyc_updated", payload: %{kyc_id: kyc_id, store_id: store_id, status: status}}, socket) do
+    # Update the KYC record in the list
+    updated_kyc_records = Enum.map(socket.assigns.kyc_records, fn kyc ->
+      if kyc.id == kyc_id do
+        # Update the status and relevant timestamps
+        updated_kyc = case status do
+          "verified" -> 
+            %{kyc | status: "verified", verified_at: DateTime.utc_now() |> DateTime.truncate(:second)}
+          "rejected" -> 
+            %{kyc | status: "rejected", rejected_at: DateTime.utc_now() |> DateTime.truncate(:second)}
+          "submitted" -> 
+            %{kyc | status: "submitted", submitted_at: DateTime.utc_now() |> DateTime.truncate(:second)}
+          _ -> 
+            kyc
+        end
+        
+        # Update selected_kyc if it's the same record
+        if socket.assigns.selected_kyc && socket.assigns.selected_kyc.id == kyc_id do
+          socket = assign(socket, selected_kyc: updated_kyc)
+        end
+        
+        updated_kyc
+      else
+        kyc
+      end
+    end)
+    
+    # Update KYC stats
+    updated_stats = update_kyc_stats(socket.assigns.kyc_stats, socket.assigns.kyc_records, updated_kyc_records)
+    
+    {:noreply, 
+     socket
+     |> assign(:kyc_records, updated_kyc_records)
+     |> assign(:kyc_stats, updated_stats)}
+  end
+
+  def handle_info(%{event: "kyc_updated", payload: _payload}, socket) do
+    # Ignore other KYC updates
+    {:noreply, socket}
+  end
+
   def handle_event("update_admin_notes", %{"kyc_id" => kyc_id, "notes" => notes}, socket) do
     kyc_id = String.to_integer(kyc_id)
     
@@ -251,6 +297,16 @@ defmodule ShompWeb.AdminLive.KYCVerification do
       "rejected" -> %{stats | rejected: stats.rejected + 1}
       _ -> stats
     end
+  end
+
+  defp update_kyc_stats(stats, old_records, new_records) do
+    # Recalculate stats from the updated records
+    %{
+      pending: Enum.count(new_records, &(&1.status == "pending")),
+      submitted: Enum.count(new_records, &(&1.status == "submitted")),
+      verified: Enum.count(new_records, &(&1.status == "verified")),
+      rejected: Enum.count(new_records, &(&1.status == "rejected"))
+    }
   end
 
   def render(assigns) do
@@ -486,7 +542,7 @@ defmodule ShompWeb.AdminLive.KYCVerification do
                   <div class="border border-base-300 rounded-lg p-4 bg-gray-50">
                     <%= if String.ends_with?(String.downcase(@selected_kyc.id_document_path), [".jpg", ".jpeg", ".png", ".gif", ".webp"]) do %>
                       <img 
-                        src={@selected_kyc.id_document_path} 
+                        src={~p"/kyc-images/#{Path.basename(@selected_kyc.id_document_path)}"} 
                         alt="ID Document" 
                         class="max-w-full h-auto max-h-96 mx-auto rounded-lg shadow-sm border border-gray-200"
                       />

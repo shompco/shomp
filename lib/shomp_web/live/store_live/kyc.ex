@@ -2,6 +2,7 @@ defmodule ShompWeb.StoreLive.KYC do
   use ShompWeb, :live_view
 
   alias Shomp.Stores.StoreKYCContext
+  alias Phoenix.PubSub
 
   on_mount {ShompWeb.UserAuth, :require_authenticated}
 
@@ -11,25 +12,21 @@ defmodule ShompWeb.StoreLive.KYC do
     # Get the user's store
     case get_user_store(user_id) do
       nil ->
-        IO.puts("No store found for user #{user_id}")
+
         {:ok,
          socket
          |> put_flash(:error, "You don't have a store yet")
          |> push_navigate(to: ~p"/new")}
 
       store ->
-        IO.puts("Store found: #{inspect(store.id)}")
         # Get or create KYC record
         kyc_record = case StoreKYCContext.get_kyc_by_store_id(store.store_id) do
           nil ->
-            IO.puts("No KYC record found, creating one...")
             {:ok, new_kyc} = StoreKYCContext.create_minimal_kyc(%{store_id: store.id})
             new_kyc
           existing_kyc ->
-            IO.puts("Found existing KYC record: #{inspect(existing_kyc.id)}")
             existing_kyc
         end
-        IO.puts("KYC Record: #{inspect(kyc_record)}")
         
         socket = socket
                  |> assign(:store, store)
@@ -43,7 +40,7 @@ defmodule ShompWeb.StoreLive.KYC do
                    auto_upload: true,
                    progress: &handle_upload_progress/3) # 10MB
         
-        IO.puts("Upload config: #{inspect(socket.assigns.uploads)}")
+
         {:ok, socket}
     end
   end
@@ -145,8 +142,8 @@ defmodule ShompWeb.StoreLive.KYC do
           </div>
           
           <div class="px-6 py-6">
-            <%= if @kyc_record && @kyc_record.id_document_path do %>
-              <!-- Document Already Uploaded -->
+            <%= if @kyc_record && @kyc_record.id_document_path && @kyc_record.status != "rejected" do %>
+              <!-- Document Already Uploaded (not rejected) -->
               <div class="text-center py-8">
                 <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
                   <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -167,6 +164,36 @@ defmodule ShompWeb.StoreLive.KYC do
                 <% end %>
               </div>
             <% else %>
+              <!-- Rejection Notice (if applicable) -->
+              <%= if @kyc_record && @kyc_record.status == "rejected" do %>
+                <div class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+                  <div class="flex">
+                    <div class="flex-shrink-0">
+                      <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                      </svg>
+                    </div>
+                    <div class="ml-3">
+                      <h3 class="text-sm font-medium text-red-800">
+                        Previous Submission Rejected
+                      </h3>
+                      <div class="mt-2 text-sm text-red-700">
+                        <p class="mb-2">
+                          Your previous KYC submission was rejected on 
+                          <%= Calendar.strftime(@kyc_record.rejected_at, "%B %d, %Y at %I:%M %p") %>.
+                        </p>
+                        <%= if @kyc_record.rejection_reason do %>
+                          <p class="mb-2"><strong>Reason:</strong> <%= @kyc_record.rejection_reason %></p>
+                        <% end %>
+                        <p>
+                          Please upload a new, clear photo of your government-issued ID document below.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              <% end %>
+
               <!-- Upload Form -->
               <form phx-submit="submit_kyc" phx-change="validate_kyc" phx-upload-ref="id_document">
                 <div class="space-y-6">
@@ -324,16 +351,10 @@ defmodule ShompWeb.StoreLive.KYC do
   end
 
   def handle_event("validate_kyc", _params, socket) do
-    IO.puts("=== KYC VALIDATE EVENT ===")
-    IO.puts("Upload entries: #{inspect(socket.assigns.uploads.id_document.entries)}")
-    IO.puts("Upload errors: #{inspect(socket.assigns.uploads.id_document.errors)}")
     {:noreply, socket}
   end
 
   def handle_event("remove_uploaded_file", %{"file-path" => file_path}, socket) do
-    IO.puts("=== REMOVE UPLOADED FILE ===")
-    IO.puts("Removing file: #{file_path}")
-    
     # Remove the file from the uploaded_files list
     updated_files = Enum.reject(socket.assigns.uploaded_files, &(&1 == file_path))
     
@@ -342,29 +363,21 @@ defmodule ShompWeb.StoreLive.KYC do
       full_path = Path.join([Application.app_dir(:shomp, "priv/static"), file_path])
       if File.exists?(full_path) do
         File.rm!(full_path)
-        IO.puts("Physical file deleted: #{full_path}")
       end
     rescue
-      error ->
-        IO.puts("Error deleting physical file: #{inspect(error)}")
+      _error ->
+        # Ignore file deletion errors
     end
     
     {:noreply, assign(socket, uploaded_files: updated_files)}
   end
 
   def handle_event("view_kyc_image", %{"image-path" => image_path}, socket) do
-    IO.puts("=== VIEW KYC IMAGE ===")
-    IO.puts("Viewing image: #{image_path}")
-    
     # Send event to JavaScript hook to open modal
     {:noreply, push_event(socket, "open_kyc_image", %{image_url: image_path, store_name: socket.assigns.store.name})}
   end
 
   def handle_event("submit_kyc", _params, socket) do
-    IO.puts("=== KYC SUBMIT EVENT ===")
-    IO.puts("Upload entries: #{inspect(socket.assigns.uploads.id_document.entries)}")
-    IO.puts("Upload errors: #{inspect(socket.assigns.uploads.id_document.errors)}")
-    
     _store = socket.assigns.store
     kyc_record = socket.assigns.kyc_record
     
@@ -384,6 +397,16 @@ defmodule ShompWeb.StoreLive.KYC do
       
       case StoreKYCContext.update_kyc(kyc_record.id, attrs) do
         {:ok, updated_kyc} ->
+          # Broadcast the KYC update to all connected clients
+          Phoenix.PubSub.broadcast(Shomp.PubSub, "kyc_updates", %{
+            event: "kyc_updated",
+            payload: %{
+              kyc_id: kyc_record.id,
+              store_id: socket.assigns.store.store_id,
+              status: "submitted"
+            }
+          })
+          
           {:noreply,
            socket
            |> assign(:kyc_record, updated_kyc)
@@ -402,11 +425,6 @@ defmodule ShompWeb.StoreLive.KYC do
   end
 
   def handle_upload_progress(:id_document, entry, socket) do
-    IO.puts("=== KYC UPLOAD PROGRESS ===")
-    IO.puts("Entry: #{entry.client_name}")
-    IO.puts("Progress: #{entry.progress}%")
-    IO.puts("Done: #{entry.done?}")
-    
     if entry.done? do
       # Process the completed upload immediately
       process_completed_kyc_upload(entry, socket)
@@ -416,8 +434,6 @@ defmodule ShompWeb.StoreLive.KYC do
   end
 
   defp process_completed_kyc_upload(entry, socket) do
-    IO.puts("Processing completed KYC upload: #{entry.client_name}")
-    
     # Use consume_uploaded_entries to get the file path
     uploaded_files = consume_uploaded_entries(socket, :id_document, fn meta, upload_entry ->
       if upload_entry.ref == entry.ref do
@@ -442,10 +458,8 @@ defmodule ShompWeb.StoreLive.KYC do
     valid_files = Enum.filter(uploaded_files, & &1)
     
     if length(valid_files) > 0 do
-      IO.puts("KYC file stored successfully: #{List.first(valid_files)}")
       {:noreply, assign(socket, uploaded_files: valid_files)}
     else
-      IO.puts("Failed to store KYC file")
       {:noreply, socket}
     end
   end
@@ -453,7 +467,6 @@ defmodule ShompWeb.StoreLive.KYC do
   defp get_user_store(user_id) do
     alias Shomp.Stores
     stores = Stores.get_stores_by_user(user_id)
-    IO.puts("Stores for user #{user_id}: #{inspect(stores)}")
     List.first(stores)
   end
 

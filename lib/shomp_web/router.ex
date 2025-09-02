@@ -160,6 +160,9 @@ defmodule ShompWeb.Router do
     put "/reviews/:id", ReviewController, :update
     delete "/reviews/:id", ReviewController, :delete
     post "/reviews/:review_id/vote", ReviewController, :vote
+    
+    # Secure KYC image access
+    get "/kyc-images/:filename", KYCImageController, :show
   end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
