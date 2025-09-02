@@ -1,0 +1,251 @@
+defmodule Shomp.StripeConnect do
+  @moduledoc """
+  The StripeConnect context for managing Stripe Connect accounts and onboarding.
+  """
+
+  alias Shomp.Stores.StoreKYCContext
+
+  @doc """
+  Creates a Stripe Connect Express account for a store.
+  """
+  def create_connect_account(store_id) do
+    case StoreKYCContext.get_or_create_kyc(store_id) do
+      {:ok, kyc} ->
+        if kyc.stripe_account_id do
+          {:ok, kyc}
+        else
+          create_stripe_account(kyc, store_id)
+        end
+      
+      {:error, changeset} ->
+        {:error, changeset}
+    end
+  end
+
+  @doc """
+  Creates an onboarding link for a Stripe Connect account.
+  """
+  def create_onboarding_link(stripe_account_id, refresh_url, return_url) do
+    Stripe.AccountLink.create(%{
+      account: stripe_account_id,
+      refresh_url: refresh_url,
+      return_url: return_url,
+      type: "account_onboarding"
+    })
+  end
+
+  @doc """
+  Retrieves a Stripe Connect account and updates the local KYC record.
+  """
+  def sync_account_status(stripe_account_id) do
+    case Stripe.Account.retrieve(stripe_account_id) do
+      {:ok, account} ->
+        # Log what data is actually available from Stripe
+        IO.puts("=== STRIPE ACCOUNT DATA AVAILABLE ===")
+        IO.puts("Account ID: #{account.id}")
+        IO.puts("Country: #{account.country}")
+        IO.puts("Type: #{account.type}")
+        IO.puts("Charges Enabled: #{account.charges_enabled}")
+        IO.puts("Payouts Enabled: #{account.payouts_enabled}")
+        IO.puts("Details Submitted: #{account.details_submitted}")
+        IO.puts("Email: #{account.email}")
+        IO.puts("Business Type: #{account.business_type}")
+        IO.puts("Business Profile: #{inspect(account.business_profile)}")
+        IO.puts("Individual: #{inspect(account.individual)}")
+        IO.puts("Company: #{inspect(account.company)}")
+        IO.puts("Requirements: #{inspect(account.requirements)}")
+        
+        # Extract individual information if available
+        individual_info = if account.individual do
+          %{
+            first_name: account.individual.first_name,
+            last_name: account.individual.last_name,
+            email: account.individual.email,
+            phone: account.individual.phone,
+            dob: account.individual.dob
+          }
+        else
+          nil
+        end
+        IO.puts("Individual Info: #{inspect(individual_info)}")
+        IO.puts("=====================================")
+        
+        update_kyc_from_stripe_account(account)
+      
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  Updates KYC record based on Stripe account status.
+  """
+  def update_kyc_from_stripe_account(account) do
+    # Find the KYC record by stripe_account_id
+    case StoreKYCContext.get_kyc_by_stripe_account_id(account.id) do
+      nil ->
+        {:error, :kyc_not_found}
+      
+      kyc ->
+        # Extract individual information if available
+        individual_info = if account.individual do
+          %{
+            first_name: account.individual.first_name,
+            last_name: account.individual.last_name,
+            email: account.individual.email,
+            phone: account.individual.phone,
+            dob: account.individual.dob
+          }
+        else
+          nil
+        end
+        
+        attrs = %{
+          charges_enabled: account.charges_enabled,
+          payouts_enabled: account.payouts_enabled,
+          requirements: account.requirements,
+          onboarding_completed: account.details_submitted,
+          stripe_individual_info: individual_info
+        }
+        
+        StoreKYCContext.update_kyc_stripe_status(kyc.id, attrs)
+    end
+  end
+
+  @doc """
+  Checks if an account is fully verified and can process payments.
+  """
+  def account_verified?(account) do
+    account.charges_enabled && account.payouts_enabled && account.details_submitted
+  end
+
+  @doc """
+  Gets the onboarding URL for a store.
+  """
+  def get_onboarding_url(store_id, return_url) do
+    IO.puts("=== GET_ONBOARDING_URL CALLED ===")
+    IO.puts("Store ID: #{store_id}")
+    IO.puts("Return URL: #{return_url}")
+    
+    case create_connect_account(store_id) do
+      {:ok, kyc} ->
+        IO.puts("KYC record found/created: #{kyc.id}")
+        IO.puts("Stripe Account ID: #{kyc.stripe_account_id}")
+        refresh_url = "#{return_url}?refresh=true"
+        
+        case create_onboarding_link(kyc.stripe_account_id, refresh_url, return_url) do
+          {:ok, account_link} ->
+            IO.puts("Account link created successfully: #{account_link.url}")
+            {:ok, account_link.url}
+          
+          {:error, reason} ->
+            IO.puts("Error creating account link: #{inspect(reason)}")
+            {:error, reason}
+        end
+      
+      {:error, reason} ->
+        IO.puts("Error creating connect account: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  Handles Stripe webhook events for account updates.
+  """
+  def handle_account_updated(account_id) do
+    sync_account_status(account_id)
+  end
+
+  # Private functions
+
+  defp create_stripe_account(kyc, store_id) do
+    IO.puts("=== CREATING STRIPE ACCOUNT ===")
+    IO.puts("KYC ID: #{kyc.id}")
+    IO.puts("KYC Email: #{kyc.email}")
+    IO.puts("KYC Business Type: #{kyc.business_type}")
+    
+    # Get the user's email from the store
+    user_email = get_user_email_from_store(store_id)
+    IO.puts("User Email from Store: #{user_email}")
+    
+    # Create a minimal Stripe account - Stripe will collect the details during onboarding
+    account_params = %{
+      type: "express",
+      country: "US",
+      capabilities: %{
+        card_payments: %{requested: true},
+        transfers: %{requested: true}
+      }
+    }
+    
+    # Use user email if KYC email is not available
+    email_to_use = kyc.email || user_email
+    account_params = if email_to_use do
+      Map.put(account_params, :email, email_to_use)
+    else
+      account_params
+    end
+    
+    account_params = if kyc.business_type do
+      Map.put(account_params, :business_type, map_business_type(kyc.business_type))
+    else
+      account_params
+    end
+    
+    IO.puts("Account params: #{inspect(account_params)}")
+
+    case Stripe.Account.create(account_params) do
+      {:ok, account} ->
+        IO.puts("Stripe account created: #{account.id}")
+        # Update the KYC record with the Stripe account ID
+        attrs = %{
+          stripe_account_id: account.id,
+          charges_enabled: account.charges_enabled,
+          payouts_enabled: account.payouts_enabled,
+          requirements: account.requirements,
+          onboarding_completed: account.details_submitted
+        }
+        
+        case StoreKYCContext.update_kyc_stripe_status(kyc.id, attrs) do
+          {:ok, updated_kyc} ->
+            IO.puts("KYC record updated successfully")
+            {:ok, updated_kyc}
+          
+          {:error, changeset} ->
+            IO.puts("Error updating KYC record: #{inspect(changeset)}")
+            {:error, changeset}
+        end
+      
+      {:error, reason} ->
+        IO.puts("Error creating Stripe account: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
+
+  defp get_user_email_from_store(store_id) do
+    alias Shomp.Stores
+    
+    case Stores.get_store_with_user!(store_id) do
+      nil -> nil
+      store -> 
+        if store.user do
+          store.user.email
+        else
+          nil
+        end
+    end
+  rescue
+    Ecto.NoResultsError -> nil
+  end
+
+  defp map_business_type(business_type) do
+    case business_type do
+      "individual" -> "individual"
+      "llc" -> "company"
+      "corporation" -> "company"
+      "partnership" -> "company"
+      "sole_proprietorship" -> "individual"
+      _ -> "individual"
+    end
+  end
+end

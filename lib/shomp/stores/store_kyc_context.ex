@@ -38,7 +38,7 @@ defmodule Shomp.Stores.StoreKYCContext do
   def get_or_create_kyc(store_id) do
     case get_kyc(store_id) do
       nil ->
-        create_kyc(%{store_id: store_id})
+        create_minimal_kyc(%{store_id: store_id})
       kyc ->
         {:ok, kyc}
     end
@@ -59,6 +59,15 @@ defmodule Shomp.Stores.StoreKYCContext do
   def create_kyc(attrs \\ %{}) do
     %StoreKYC{}
     |> StoreKYC.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc """
+  Creates a minimal KYC record for Stripe Connect.
+  """
+  def create_minimal_kyc(attrs \\ %{}) do
+    %StoreKYC{}
+    |> StoreKYC.minimal_changeset(attrs)
     |> Repo.insert()
   end
 
@@ -86,6 +95,45 @@ defmodule Shomp.Stores.StoreKYCContext do
       
       {:error, changeset} ->
         {:error, changeset}
+    end
+  end
+
+  @doc """
+  Gets KYC by Stripe account ID.
+  """
+  def get_kyc_by_stripe_account_id(stripe_account_id) do
+    StoreKYC
+    |> where([k], k.stripe_account_id == ^stripe_account_id)
+    |> Repo.one()
+  end
+
+  @doc """
+  Updates KYC record.
+  """
+  def update_kyc(kyc_id, attrs) do
+    case Repo.get(StoreKYC, kyc_id) do
+      nil ->
+        {:error, :not_found}
+      
+      kyc ->
+        kyc
+        |> StoreKYC.changeset(attrs)
+        |> Repo.update()
+    end
+  end
+
+  @doc """
+  Updates KYC Stripe Connect status.
+  """
+  def update_kyc_stripe_status(kyc_id, attrs) do
+    case Repo.get(StoreKYC, kyc_id) do
+      nil ->
+        {:error, :not_found}
+      
+      kyc ->
+        kyc
+        |> StoreKYC.changeset(attrs)
+        |> Repo.update()
     end
   end
 

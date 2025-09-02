@@ -10,6 +10,7 @@ defmodule Shomp.Payments do
   alias Shomp.Payments.Payment
   alias Shomp.Products
   alias Shomp.Downloads
+  alias Shomp.StripeConnect
 
   @doc """
   Creates a Stripe checkout session for a donation.
@@ -129,6 +130,9 @@ defmodule Shomp.Payments do
 
       "payment_intent.payment_failed" ->
         handle_payment_failed(event.data.object)
+
+      "account.updated" ->
+        handle_account_updated(event.data.object)
 
       _ ->
         {:ok, :ignored}
@@ -728,6 +732,31 @@ defmodule Shomp.Payments do
       
       {:error, reason} ->
         IO.puts("Warning: Failed to create cart order for session #{session_id}: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  Handles Stripe Connect account.updated webhook events.
+  """
+  def handle_account_updated(account) do
+    IO.puts("=== ACCOUNT UPDATED WEBHOOK ===")
+    IO.puts("Account ID: #{account.id}")
+    IO.puts("Charges enabled: #{account.charges_enabled}")
+    IO.puts("Payouts enabled: #{account.payouts_enabled}")
+    IO.puts("Details submitted: #{account.details_submitted}")
+    
+    case StripeConnect.handle_account_updated(account.id) do
+      {:ok, _updated_kyc} ->
+        IO.puts("Successfully updated KYC record for account #{account.id}")
+        {:ok, :account_updated}
+      
+      {:error, :kyc_not_found} ->
+        IO.puts("Warning: No KYC record found for account #{account.id}")
+        {:ok, :ignored}
+      
+      {:error, reason} ->
+        IO.puts("Error updating KYC record for account #{account.id}: #{inspect(reason)}")
         {:error, reason}
     end
   end

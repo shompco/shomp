@@ -56,30 +56,93 @@ Select these events to listen for:
 - `checkout.session.completed`
 - `payment_intent.succeeded`
 - `payment_intent.payment_failed`
+- `account.updated` (for Stripe Connect account status updates)
 
 ### 3.4 Get Webhook Secret
 After creating the webhook, click on it and copy the "Signing secret" (starts with `whsec_`)
 
-## Step 4: Test the Integration
+## Step 4: Stripe Connect Setup
 
-### 4.1 Start Your Application
+### 4.1 Enable Stripe Connect (Test Mode)
+1. Go to your Stripe Dashboard
+2. **Make sure you're in Test Mode** (toggle in the top-left corner)
+3. Navigate to "Connect" in the left sidebar
+4. Click "Get started" to enable Stripe Connect
+5. Choose "Express accounts" for the simplest onboarding experience
+
+### 4.2 Configure Connect Settings
+1. In the Connect settings, set up your platform information
+2. Configure your branding and terms of service
+3. Set up your payout schedule (recommended: daily or weekly)
+4. **For testing**: You can use placeholder information like "Test Platform" for your business name
+
+### 4.3 Testing Stripe Connect in Sandbox Mode
+**Important**: Stripe Connect works perfectly in test mode! Here's what you can test:
+
+- ✅ **Account Creation**: Create test Connect accounts
+- ✅ **Onboarding Flow**: Complete the full Stripe-hosted onboarding
+- ✅ **Identity Verification**: Test with fake documents and information
+- ✅ **Account Status Updates**: Receive webhooks for account changes
+- ✅ **Payout Simulation**: Test payout flows (no real money moves)
+- ✅ **API Integration**: All Connect API calls work in test mode
+
+**Test Data You Can Use:**
+- Use any fake business information during onboarding
+- Upload any image files as "documents" (they don't need to be real)
+- Use test bank account numbers (see below)
+- All verification steps will complete successfully in test mode
+
+**Test Bank Account Numbers:**
+- **US Bank Account**: `000123456789` (routing: `110000000`)
+- **US Bank Account (ACH)**: `000123456789` (routing: `110000000`)
+- **International**: Use any fake account numbers for non-US accounts
+
+**Test Credit Cards for Connect Testing:**
+- `4242424242424242` - Visa (succeeds)
+- `4000000000000002` - Visa (declined)
+- `4000000000009995` - Visa (insufficient funds)
+
+## Step 5: Test the Integration
+
+### 5.1 Start Your Application
 ```bash
 mix phx.server
 ```
 
-### 4.2 Create a Test Product
+### 5.2 Create a Test Product
 1. Go to `/stores/new` and create a store
 2. Go to `/dashboard/products/new` and create a product
 3. Set a price (e.g., $9.99)
 
-### 4.3 Test the Buy Button
+### 5.3 Test Stripe Connect Onboarding
+1. Go to your store's balance page (`/stores/{store_id}/balance`)
+2. Click "Start Stripe Onboarding" in the KYC Status section
+3. Complete the Stripe-hosted onboarding flow with test data:
+   - Use any fake business name and address
+   - Upload any image file as your ID document
+   - Use the test bank account number: `000123456789` (routing: `110000000`)
+4. Complete all steps in the onboarding flow
+5. Return to the balance page to see the updated status
+6. **Check your webhook logs** to see the `account.updated` events being received
+
+### 5.4 Test Webhook Events (Optional)
+To test webhook events locally, you can use Stripe CLI:
+```bash
+# Install Stripe CLI
+stripe listen --forward-to localhost:4000/payments/webhook
+
+# In another terminal, trigger test events
+stripe trigger account.updated
+```
+
+### 5.5 Test the Buy Button
 1. Go to the product page
 2. Click "Buy Now"
 3. You should see a message "Checkout functionality coming soon!"
 
-## Step 5: Enable Live Checkout (Optional)
+## Step 6: Enable Live Checkout (Optional)
 
-### 5.1 Update the Buy Now Button
+### 6.1 Update the Buy Now Button
 Currently, the Buy Now button shows a placeholder message. To enable actual Stripe checkout:
 
 1. **Update the product show page** (`lib/shomp_web/live/product_live/show.ex`)

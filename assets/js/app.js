@@ -94,13 +94,31 @@ const VoteUpdates = {
   }
 }
 
+// File upload debugging hook
+const FileUploadHook = {
+  mounted() {
+    console.log("FileUploadHook mounted")
+    this.el.addEventListener("change", (e) => {
+      console.log("File selected:", e.target.files)
+      console.log("File count:", e.target.files.length)
+      if (e.target.files.length > 0) {
+        console.log("First file:", e.target.files[0])
+        console.log("File name:", e.target.files[0].name)
+        console.log("File size:", e.target.files[0].size)
+        console.log("File type:", e.target.files[0].type)
+      }
+    })
+  }
+}
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
   hooks: {
     ...colocatedHooks,
-    VoteUpdates
+    VoteUpdates,
+    FileUploadHook
   },
 })
 
