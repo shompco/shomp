@@ -89,9 +89,22 @@
                   <p class="text-lg font-bold text-base-content">
                     $<%= Decimal.to_string(order.total_amount) %>
                   </p>
-                  <span class="badge badge-success">
-                    <%= String.capitalize(order.status) %>
-                  </span>
+                  <div class="flex flex-col gap-1 items-end">
+                    <span class="badge badge-success">
+                      <%= String.capitalize(order.status) %>
+                    </span>
+                    <span class="badge badge-info badge-sm">
+                      <%= String.capitalize(order.fulfillment_status || "unfulfilled") %>
+                    </span>
+                    <span class="badge badge-warning badge-sm">
+                      <%= String.capitalize(order.payment_status || "pending") %>
+                    </span>
+                    <%= if order.shipped_at do %>
+                      <span class="badge badge-primary badge-sm">
+                        Shipped <%= Calendar.strftime(order.shipped_at, "%m/%d") %>
+                      </span>
+                    <% end %>
+                  </div>
                 </div>
               </div>
               

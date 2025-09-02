@@ -234,7 +234,8 @@ defmodule ShompWeb.ProductLive.New do
             accept: ~w(.jpg .jpeg .png .gif .webp),
             max_entries: 10,
             max_file_size: 10_000_000,
-            auto_upload: false
+            auto_upload: true,
+            progress: &handle_progress/3
           )
         
         {:ok, assign_form(socket, changeset, store_options, stores, physical_categories, custom_categories) 
@@ -280,21 +281,36 @@ defmodule ShompWeb.ProductLive.New do
   end
 
   def handle_event("upload_images", _params, socket) do
-    # Get all entries from the upload
-    entries = socket.assigns.uploads.product_images.entries
+    # This event is no longer needed with auto_upload: true
+    {:noreply, socket}
+  end
+
+  def handle_progress(:product_images, entry, socket) do
+    IO.puts("=== UPLOAD PROGRESS ===")
+    IO.puts("Entry: #{entry.client_name}")
+    IO.puts("Progress: #{entry.progress}%")
+    IO.puts("Done: #{entry.done?}")
+    IO.puts("Current uploaded_images count: #{length(socket.assigns[:uploaded_images] || [])}")
     
-    IO.puts("Processing #{length(entries)} upload entries")
+    if entry.done? do
+      # Process the completed upload immediately
+      process_completed_entry(entry, socket)
+    else
+      {:noreply, socket}
+    end
+  end
+
+  defp process_completed_entry(entry, socket) do
+    IO.puts("Processing completed entry: #{entry.client_name}")
     
-    if length(entries) > 0 do
-      # Process all uploaded images and store them in the socket state
-      uploaded_images = consume_uploaded_entries(socket, :product_images, fn meta, entry ->
-        IO.puts("Processing entry: #{entry.client_name}")
-        
-        # Create a temporary upload structure for our existing upload system
+    # Use consume_uploaded_entries to get the file path
+    uploaded_files = consume_uploaded_entries(socket, :product_images, fn meta, upload_entry ->
+      if upload_entry.ref == entry.ref do
+        # Create a temporary upload structure
         temp_upload = %{
-          filename: entry.client_name,
+          filename: upload_entry.client_name,
           path: meta.path,
-          content_type: entry.client_type
+          content_type: upload_entry.client_type
         }
         
         # Generate a temporary product ID for storage
@@ -302,31 +318,41 @@ defmodule ShompWeb.ProductLive.New do
         
         case Shomp.Uploads.store_product_image(temp_upload, temp_product_id) do
           {:ok, image_url} ->
-            IO.puts("Successfully processed: #{entry.client_name}")
+            IO.puts("Image stored successfully: #{image_url}")
             %{
               image_url: image_url,
-              filename: entry.client_name,
+              filename: upload_entry.client_name,
               temp_id: temp_product_id
             }
           
           {:error, reason} ->
-            IO.puts("Failed to process: #{entry.client_name} - #{inspect(reason)}")
+            IO.puts("Failed to store image: #{inspect(reason)}")
             nil
         end
-      end)
-      
-      # Filter out any failed uploads and combine with existing images
-      valid_images = Enum.filter(uploaded_images, & &1)
+      else
+        nil
+      end
+    end)
+    
+    # Filter out failed uploads
+    valid_images = Enum.filter(uploaded_files, & &1)
+    
+    if length(valid_images) > 0 do
+      # Add the new images to the existing images
       current_images = socket.assigns.uploaded_images || []
       all_images = current_images ++ valid_images
       
-      IO.puts("Uploaded #{length(valid_images)} new images. Total images: #{length(all_images)}")
-      IO.puts("All images: #{inspect(all_images)}")
+      IO.puts("Auto-uploaded #{length(valid_images)} image(s). Total images: #{length(all_images)}")
+      IO.puts("Valid images: #{inspect(valid_images)}")
+      IO.puts("All images after update: #{inspect(all_images)}")
       
-      {:noreply, assign(socket, uploaded_images: all_images)}
+      {:noreply, 
+       socket
+       |> put_flash(:info, "Image '#{entry.client_name}' uploaded successfully!")
+       |> assign(uploaded_images: all_images)}
     else
-      IO.puts("No upload entries to process")
-      {:noreply, socket}
+      IO.puts("No valid images to add to socket state")
+      {:noreply, put_flash(socket, :error, "Failed to process uploaded image")}
     end
   end
 
@@ -364,6 +390,8 @@ defmodule ShompWeb.ProductLive.New do
     IO.puts("Product params: #{inspect(product_params)}")
     IO.puts("Full params: #{inspect(params)}")
     IO.puts("Pre-uploaded files: #{inspect(socket.assigns[:uploaded_files])}")
+    IO.puts("Socket assigns keys: #{inspect(Map.keys(socket.assigns))}")
+    IO.puts("Uploaded images in socket: #{inspect(socket.assigns[:uploaded_images])}")
     
     # Create the product first
     case Products.create_product(product_params) do
