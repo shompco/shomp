@@ -55,10 +55,11 @@ defmodule ShompWeb.AdminLive.Stores do
     store = Enum.find(socket.assigns.stores, &(&1.id == String.to_integer(store_id)))
     
     if store && store.kyc_id_document_path do
-      # Open the KYC image in a new tab
+      # Open the KYC image in a new tab using secure route
+      secure_url = "/kyc-images/#{store.kyc_id_document_path}"
       {:noreply, 
        socket 
-       |> push_event("open_kyc_image", %{image_url: store.kyc_id_document_path, store_name: store.name})}
+       |> push_event("open_kyc_image", %{image_url: secure_url, store_name: store.name})}
     else
       {:noreply, socket |> put_flash(:error, "KYC document not found")}
     end

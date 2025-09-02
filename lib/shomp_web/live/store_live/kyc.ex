@@ -254,7 +254,7 @@ defmodule ShompWeb.StoreLive.KYC do
                             <div class="text-center">
                               <%= if String.ends_with?(String.downcase(file_path), [".jpg", ".jpeg", ".png", ".gif", ".webp"]) do %>
                                 <img 
-                                  src={file_path} 
+                                  src={~p"/kyc-images/#{file_path}"} 
                                   alt="Uploaded ID Document" 
                                   class="max-w-full h-auto max-h-96 mx-auto rounded-lg shadow-sm border border-gray-200 cursor-pointer hover:shadow-md transition-shadow"
                                   phx-click="view_kyc_image"
@@ -360,7 +360,7 @@ defmodule ShompWeb.StoreLive.KYC do
     
     # Optionally delete the physical file
     try do
-      full_path = Path.join([Application.app_dir(:shomp, "priv/static"), file_path])
+      full_path = Path.join([Application.app_dir(:shomp, "priv/secure_uploads/kyc"), file_path])
       if File.exists?(full_path) do
         File.rm!(full_path)
       end
@@ -442,13 +442,13 @@ defmodule ShompWeb.StoreLive.KYC do
         extension = get_file_extension(upload_entry.client_name)
         filename = "#{timestamp}.#{extension}"
         
-        # Copy the file to the uploads directory
-        dest = Path.join([Application.app_dir(:shomp, "priv/static/uploads/kyc"), filename])
+        # Copy the file to the secure uploads directory
+        dest = Path.join([Application.app_dir(:shomp, "priv/secure_uploads/kyc"), filename])
         File.mkdir_p!(Path.dirname(dest))
         File.cp!(meta.path, dest)
         
-        # Return the relative path for storage
-        "/uploads/kyc/#{filename}"
+        # Return just the filename for storage (not a web path)
+        filename
       else
         nil
       end

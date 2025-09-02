@@ -47,7 +47,7 @@ defmodule ShompWeb.KYCImageController do
     # Check if user is admin
     if user.email == "v1nc3ntpull1ng@gmail.com" do
       # Admin can access any KYC image
-      file_path = Path.join([Application.app_dir(:shomp, "priv/static/uploads/kyc"), filename])
+      file_path = Path.join([Application.app_dir(:shomp, "priv/secure_uploads/kyc"), filename])
       if File.exists?(file_path) do
         {:ok, file_path}
       else
@@ -62,7 +62,7 @@ defmodule ShompWeb.KYCImageController do
         kyc_record ->
           # Check if the user owns the store associated with this KYC
           if user_owns_kyc(user, kyc_record) do
-            file_path = Path.join([Application.app_dir(:shomp, "priv/static/uploads/kyc"), filename])
+            file_path = Path.join([Application.app_dir(:shomp, "priv/secure_uploads/kyc"), filename])
             if File.exists?(file_path) do
               {:ok, file_path}
             else
