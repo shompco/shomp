@@ -3503,6 +3503,11 @@
   .p-8 {
     padding: calc(var(--spacing) * 8);
   }
+  .badge-lg {
+    --size: calc(var(--size-selector, 0.25rem) * 7);
+    font-size: 1rem;
+    padding-inline: calc(0.25rem * 3.5 - var(--border));
+  }
   .badge-sm {
     --size: calc(var(--size-selector, 0.25rem) * 5);
     font-size: 0.75rem;
