@@ -50,6 +50,20 @@ defmodule ShompWeb.AdminLive.Stores do
      |> assign(:stores, search_stores(socket.assigns.search_term, status))}
   end
 
+  def handle_event("view_kyc_image", %{"store_id" => store_id}, socket) do
+    # Find the store with KYC data
+    store = Enum.find(socket.assigns.stores, &(&1.id == String.to_integer(store_id)))
+    
+    if store && store.kyc_id_document_path do
+      # Open the KYC image in a new tab
+      {:noreply, 
+       socket 
+       |> push_event("open_kyc_image", %{image_url: store.kyc_id_document_path, store_name: store.name})}
+    else
+      {:noreply, socket |> put_flash(:error, "KYC document not found")}
+    end
+  end
+
   defp count_stores do
     Shomp.Repo.aggregate(Shomp.Stores.Store, :count, :id)
   end
@@ -58,6 +72,7 @@ defmodule ShompWeb.AdminLive.Stores do
     Shomp.Repo.all(
       from s in Shomp.Stores.Store,
       join: u in Shomp.Accounts.User, on: s.user_id == u.id,
+      left_join: k in Shomp.Stores.StoreKYC, on: s.id == k.store_id,
       order_by: [desc: s.inserted_at],
       select: %{
         id: s.id,
@@ -69,18 +84,24 @@ defmodule ShompWeb.AdminLive.Stores do
         user_username: u.username,
         user_name: u.name,
         inserted_at: s.inserted_at,
-        updated_at: s.updated_at
+        updated_at: s.updated_at,
+        kyc_status: k.status,
+        kyc_id_document_path: k.id_document_path,
+        kyc_stripe_individual_info: k.stripe_individual_info,
+        kyc_charges_enabled: k.charges_enabled,
+        kyc_payouts_enabled: k.payouts_enabled
       }
     )
   end
 
   defp search_stores(search_term, filter_status) do
     base_query = from s in Shomp.Stores.Store,
-      join: u in Shomp.Accounts.User, on: s.user_id == u.id
+      join: u in Shomp.Accounts.User, on: s.user_id == u.id,
+      left_join: k in Shomp.Stores.StoreKYC, on: s.id == k.store_id
 
     base_query = if search_term != "" do
       base_query
-      |> where([s, u], ilike(s.name, ^"%#{search_term}%") or 
+      |> where([s, u, k], ilike(s.name, ^"%#{search_term}%") or 
                        ilike(s.slug, ^"%#{search_term}%") or 
                        ilike(u.username, ^"%#{search_term}%"))
     else
@@ -98,7 +119,7 @@ defmodule ShompWeb.AdminLive.Stores do
     Shomp.Repo.all(
       base_query
       |> order_by([s], [desc: s.inserted_at])
-      |> select([s, u], %{
+      |> select([s, u, k], %{
         id: s.id,
         name: s.name,
         slug: s.slug,
@@ -108,7 +129,12 @@ defmodule ShompWeb.AdminLive.Stores do
         user_username: u.username,
         user_name: u.name,
         inserted_at: s.inserted_at,
-        updated_at: s.updated_at
+        updated_at: s.updated_at,
+        kyc_status: k.status,
+        kyc_id_document_path: k.id_document_path,
+        kyc_stripe_individual_info: k.stripe_individual_info,
+        kyc_charges_enabled: k.charges_enabled,
+        kyc_payouts_enabled: k.payouts_enabled
       })
     )
   end
@@ -197,10 +223,67 @@ defmodule ShompWeb.AdminLive.Stores do
                     <%= Calendar.strftime(store.inserted_at, "%b %d, %Y") %>
                   </span>
                 </div>
+                
+                <!-- KYC Status -->
+                <div class="flex justify-between text-sm">
+                  <span class="text-base-content/70">KYC Status:</span>
+                  <span class="font-medium">
+                    <%= if store.kyc_status do %>
+                      <%= cond do %>
+                        <% store.kyc_status == "verified" -> %>
+                          <span class="badge badge-sm badge-success">
+                            <%= String.capitalize(store.kyc_status) %>
+                          </span>
+                        <% store.kyc_status == "submitted" -> %>
+                          <span class="badge badge-sm badge-warning">
+                            <%= String.capitalize(store.kyc_status) %>
+                          </span>
+                        <% store.kyc_status == "rejected" -> %>
+                          <span class="badge badge-sm badge-error">
+                            <%= String.capitalize(store.kyc_status) %>
+                          </span>
+                        <% true -> %>
+                          <span class="badge badge-sm badge-neutral">
+                            <%= String.capitalize(store.kyc_status) %>
+                          </span>
+                      <% end %>
+                    <% else %>
+                      <span class="badge badge-sm badge-neutral">Not Started</span>
+                    <% end %>
+                  </span>
+                </div>
+                
+                <!-- Stripe Connect Status -->
+                <%= if store.kyc_charges_enabled && store.kyc_payouts_enabled do %>
+                  <div class="flex justify-between text-sm">
+                    <span class="text-base-content/70">Stripe Connect:</span>
+                    <span class="badge badge-sm badge-success">Verified</span>
+                  </div>
+                <% end %>
+                
+                <!-- Stripe Individual Info -->
+                <%= if store.kyc_stripe_individual_info && not Enum.empty?(store.kyc_stripe_individual_info) do %>
+                  <%= if store.kyc_stripe_individual_info["first_name"] do %>
+                    <div class="flex justify-between text-sm">
+                      <span class="text-base-content/70">Stripe Name:</span>
+                      <span class="font-medium">
+                        <%= store.kyc_stripe_individual_info["first_name"] %> <%= store.kyc_stripe_individual_info["last_name"] %>
+                      </span>
+                    </div>
+                  <% end %>
+                <% end %>
               </div>
               
               <div class="card-actions justify-end">
                 <a href={~p"/#{store.slug}"} class="btn btn-primary btn-sm">View Store</a>
+                <%= if store.kyc_id_document_path do %>
+                  <button 
+                    phx-click="view_kyc_image" 
+                    phx-value-store_id={store.id}
+                    class="btn btn-outline btn-sm">
+                    View KYC
+                  </button>
+                <% end %>
                 <button class="btn btn-outline btn-sm">Manage</button>
               </div>
             </div>

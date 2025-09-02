@@ -7,6 +7,7 @@ defmodule ShompWeb.AdminLive.Dashboard do
   alias Shomp.Accounts
   alias Shomp.Uploads
   alias Shomp.AdminLogs
+  alias Shomp.Stores.StoreKYCContext
   alias Phoenix.PubSub
 
   @page_title "Admin Dashboard - Shomp"
@@ -79,6 +80,7 @@ defmodule ShompWeb.AdminLive.Dashboard do
     |> assign(:total_products, count_products())
     |> assign(:total_subscriptions, EmailSubscriptions.count_email_subscriptions())
     |> assign(:active_subscriptions, EmailSubscriptions.count_active_subscriptions())
+    |> assign(:kyc_stats, StoreKYCContext.get_kyc_stats())
     |> assign(:recent_users, list_recent_users())
     |> assign(:recent_stores, list_recent_stores())
     |> assign(:recent_products, list_recent_products())
@@ -264,7 +266,7 @@ defmodule ShompWeb.AdminLive.Dashboard do
       </div>
 
       <!-- Stats Overview -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
         <.stat_card 
           title="Total Users" 
           value={@total_users} 
@@ -289,6 +291,13 @@ defmodule ShompWeb.AdminLive.Dashboard do
           icon="📧" 
           color="success" 
           link={~p"/admin/email-subscriptions"} />
+        
+        <.stat_card 
+          title="Pending KYC" 
+          value={@kyc_stats.pending} 
+          icon="🆔" 
+          color="warning" 
+          link={~p"/admin/kyc-verification"} />
       </div>
 
       <!-- Recent Activity Sections -->
@@ -537,6 +546,12 @@ defmodule ShompWeb.AdminLive.Dashboard do
             icon="📦" 
             title="Product Management" 
             description="Review and manage products" />
+          
+          <.action_button 
+            href={~p"/admin/kyc-verification"} 
+            icon="🆔" 
+            title="KYC Verification" 
+            description="Review and verify store KYC submissions" />
         </div>
       </div>
 

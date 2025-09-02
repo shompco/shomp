@@ -123,6 +123,21 @@ defmodule Shomp.Stores.StoreKYCContext do
   end
 
   @doc """
+  Updates KYC record by ID (for admin use).
+  """
+  def update_kyc_by_id(kyc_id, attrs) do
+    case Repo.get(StoreKYC, kyc_id) do
+      nil ->
+        {:error, :not_found}
+      
+      kyc ->
+        kyc
+        |> StoreKYC.changeset(attrs)
+        |> Repo.update()
+    end
+  end
+
+  @doc """
   Updates KYC Stripe Connect status.
   """
   def update_kyc_stripe_status(kyc_id, attrs) do
@@ -165,6 +180,21 @@ defmodule Shomp.Stores.StoreKYCContext do
   end
 
   @doc """
+  Verifies KYC by KYC ID (for admin use).
+  """
+  def verify_kyc_by_id(kyc_id) do
+    case Repo.get(StoreKYC, kyc_id) do
+      nil ->
+        {:error, :not_found}
+      
+      kyc ->
+        kyc
+        |> StoreKYC.verify_changeset()
+        |> Repo.update()
+    end
+  end
+
+  @doc """
   Rejects KYC for a store using string store_id.
   """
   def reject_kyc_by_store_id(store_id_string, reason) do
@@ -183,6 +213,21 @@ defmodule Shomp.Stores.StoreKYCContext do
     case get_kyc(store_id) do
       nil ->
         {:error, :kyc_not_found}
+      
+      kyc ->
+        kyc
+        |> StoreKYC.reject_changeset(reason)
+        |> Repo.update()
+    end
+  end
+
+  @doc """
+  Rejects KYC by KYC ID (for admin use).
+  """
+  def reject_kyc_by_id(kyc_id, reason) do
+    case Repo.get(StoreKYC, kyc_id) do
+      nil ->
+        {:error, :not_found}
       
       kyc ->
         kyc
@@ -219,6 +264,54 @@ defmodule Shomp.Stores.StoreKYCContext do
   def list_kyc_records do
     StoreKYC
     |> preload([:store])
+    |> Repo.all()
+  end
+
+  @doc """
+  Lists all KYC records with store and user information for admin interface.
+  """
+  def list_kyc_records_with_users do
+    from(k in StoreKYC,
+      join: s in Shomp.Stores.Store, on: k.store_id == s.id,
+      join: u in Shomp.Accounts.User, on: s.user_id == u.id,
+      order_by: [desc: k.inserted_at],
+      select: %{
+        id: k.id,
+        status: k.status,
+        legal_name: k.legal_name,
+        business_type: k.business_type,
+        email: k.email,
+        phone: k.phone,
+        id_document_path: k.id_document_path,
+        business_license_path: k.business_license_path,
+        tax_document_path: k.tax_document_path,
+        submitted_at: k.submitted_at,
+        verified_at: k.verified_at,
+        rejected_at: k.rejected_at,
+        rejection_reason: k.rejection_reason,
+        admin_notes: k.admin_notes,
+        stripe_account_id: k.stripe_account_id,
+        charges_enabled: k.charges_enabled,
+        payouts_enabled: k.payouts_enabled,
+        onboarding_completed: k.onboarding_completed,
+        stripe_individual_info: k.stripe_individual_info,
+        store: %{
+          id: s.id,
+          store_id: s.store_id,
+          name: s.name,
+          slug: s.slug,
+          description: s.description
+        },
+        user: %{
+          id: u.id,
+          email: u.email,
+          username: u.username,
+          name: u.name
+        },
+        inserted_at: k.inserted_at,
+        updated_at: k.updated_at
+      }
+    )
     |> Repo.all()
   end
 
@@ -279,6 +372,21 @@ defmodule Shomp.Stores.StoreKYCContext do
     case get_kyc(store_id) do
       nil ->
         {:error, :kyc_not_found}
+      
+      kyc ->
+        kyc
+        |> StoreKYC.changeset(%{admin_notes: notes})
+        |> Repo.update()
+    end
+  end
+
+  @doc """
+  Updates admin notes for KYC by KYC ID (for admin use).
+  """
+  def update_admin_notes_by_id(kyc_id, notes) do
+    case Repo.get(StoreKYC, kyc_id) do
+      nil ->
+        {:error, :not_found}
       
       kyc ->
         kyc

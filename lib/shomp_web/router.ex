@@ -138,6 +138,7 @@ defmodule ShompWeb.Router do
       live "/admin/stores", AdminLive.Stores, :show
       live "/admin/products", AdminLive.Products, :show
       live "/admin/products/:id/edit", AdminLive.ProductEdit, :edit
+      live "/admin/kyc-verification", AdminLive.KYCVerification, :show
     end
 
     post "/users/update-password", UserSessionController, :update_password

@@ -89,6 +89,15 @@ defmodule Shomp.StripeConnect do
       kyc ->
         # Extract individual information if available
         individual_info = if account.individual do
+          IO.puts("=== STRIPE INDIVIDUAL INFO ===")
+          IO.puts("Individual object: #{inspect(account.individual)}")
+          IO.puts("First name: #{account.individual.first_name}")
+          IO.puts("Last name: #{account.individual.last_name}")
+          IO.puts("Email: #{account.individual.email}")
+          IO.puts("Phone: #{account.individual.phone}")
+          IO.puts("DOB: #{inspect(account.individual.dob)}")
+          IO.puts("=============================")
+          
           %{
             first_name: account.individual.first_name,
             last_name: account.individual.last_name,
@@ -97,6 +106,9 @@ defmodule Shomp.StripeConnect do
             dob: account.individual.dob
           }
         else
+          IO.puts("=== NO INDIVIDUAL INFO AVAILABLE ===")
+          IO.puts("Account individual field: #{inspect(account.individual)}")
+          IO.puts("=====================================")
           nil
         end
         

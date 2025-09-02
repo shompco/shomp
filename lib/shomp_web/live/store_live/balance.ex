@@ -8,9 +8,12 @@ defmodule ShompWeb.StoreLive.Balance do
   on_mount {ShompWeb.UserAuth, :require_authenticated}
 
   def mount(params, _session, socket) do
-    IO.puts("=== MOUNTING STORE BALANCE PAGE ===")
     user_id = socket.assigns.current_scope.user.id
-    IO.puts("User ID: #{user_id}")
+    
+    # Subscribe to KYC updates for real-time status changes
+    if connected?(socket) do
+      Phoenix.PubSub.subscribe(Shomp.PubSub, "kyc_updates")
+    end
     
     # Get the user's store
     case get_user_store(user_id) do
@@ -354,20 +357,14 @@ defmodule ShompWeb.StoreLive.Balance do
   end
 
   def handle_event("start_stripe_onboarding", _params, socket) do
-    IO.puts("=== STRIPE ONBOARDING BUTTON CLICKED ===")
     store = socket.assigns.store
     return_url = ShompWeb.Endpoint.url() <> "/dashboard/store/balance"
     
-    IO.puts("Store ID: #{store.id}")
-    IO.puts("Return URL: #{return_url}")
-    
     case StripeConnect.get_onboarding_url(store.id, return_url) do
       {:ok, onboarding_url} ->
-        IO.puts("Onboarding URL created: #{onboarding_url}")
         {:noreply, redirect(socket, external: onboarding_url)}
       
       {:error, reason} ->
-        IO.puts("Error creating onboarding URL: #{inspect(reason)}")
         error_message = case reason do
           %Stripe.Error{message: message} -> message
           _ -> "Failed to start Stripe onboarding. Please try again."
@@ -379,24 +376,12 @@ defmodule ShompWeb.StoreLive.Balance do
   end
 
   def handle_event("refresh_stripe_status", _params, socket) do
-    IO.puts("=== REFRESH STRIPE STATUS EVENT TRIGGERED ===")
     store = socket.assigns.store
     kyc_record = socket.assigns.kyc_record
     
-    IO.puts("Store: #{inspect(store)}")
-    IO.puts("KYC Record: #{inspect(kyc_record)}")
-    IO.puts("Stripe Account ID: #{kyc_record && kyc_record.stripe_account_id}")
-    
     if kyc_record && kyc_record.stripe_account_id do
-      IO.puts("Calling StripeConnect.sync_account_status...")
       case StripeConnect.sync_account_status(kyc_record.stripe_account_id) do
         {:ok, updated_kyc} ->
-          IO.puts("Stripe sync successful!")
-          IO.puts("Updated KYC: #{inspect(updated_kyc)}")
-          IO.puts("Charges enabled: #{updated_kyc.charges_enabled}")
-          IO.puts("Payouts enabled: #{updated_kyc.payouts_enabled}")
-          IO.puts("Onboarding completed: #{updated_kyc.onboarding_completed}")
-          
           # Update the socket with the new KYC record and show success message
           {:noreply, 
            socket
@@ -404,7 +389,6 @@ defmodule ShompWeb.StoreLive.Balance do
            |> put_flash(:info, "Stripe status updated successfully!")}
         
         {:error, reason} ->
-          IO.puts("Stripe sync failed: #{inspect(reason)}")
           {:noreply,
            socket
            |> put_flash(:error, "Failed to refresh Stripe status: #{inspect(reason)}")}
@@ -417,20 +401,12 @@ defmodule ShompWeb.StoreLive.Balance do
   end
 
   def handle_event("test_button", _params, socket) do
-    IO.puts("=== TEST BUTTON CLICKED ===")
     {:noreply, 
      socket
      |> put_flash(:info, "Test button works!")}
   end
 
   def handle_event("start_shomp_kyc", _params, socket) do
-    IO.puts("=== START SHOMP KYC CLICKED ===")
-    store = socket.assigns.store
-    kyc_record = socket.assigns.kyc_record
-    
-    IO.puts("Store: #{inspect(store)}")
-    IO.puts("KYC Record: #{inspect(kyc_record)}")
-    
     # Navigate to the KYC page
     {:noreply, 
      socket
@@ -454,6 +430,23 @@ defmodule ShompWeb.StoreLive.Balance do
     else
       {:noreply, socket}
     end
+  end
+
+  def handle_info(%{event: "kyc_updated", payload: %{kyc_id: kyc_id, store_id: store_id}}, socket) do
+    # Check if this update is for the current store
+    if socket.assigns.store.store_id == store_id do
+      # Reload the KYC record
+      updated_kyc = StoreKYCContext.get_kyc_by_store_id(store_id)
+      
+      {:noreply, assign(socket, kyc_record: updated_kyc)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_info(%{event: "kyc_updated", payload: _payload}, socket) do
+    # Ignore updates for other stores
+    {:noreply, socket}
   end
 
   defp get_user_store(user_id) do

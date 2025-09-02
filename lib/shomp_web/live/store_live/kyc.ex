@@ -2,12 +2,10 @@ defmodule ShompWeb.StoreLive.KYC do
   use ShompWeb, :live_view
 
   alias Shomp.Stores.StoreKYCContext
-  alias Shomp.Stores.StoreKYC
 
   on_mount {ShompWeb.UserAuth, :require_authenticated}
 
   def mount(_params, _session, socket) do
-    IO.puts("=== KYC MOUNT ===")
     user_id = socket.assigns.current_scope.user.id
     
     # Get the user's store
@@ -37,10 +35,13 @@ defmodule ShompWeb.StoreLive.KYC do
                  |> assign(:store, store)
                  |> assign(:kyc_record, kyc_record)
                  |> assign(:page_title, "Shomp KYC Verification")
+                 |> assign(:uploaded_files, [])
                  |> allow_upload(:id_document, 
                    accept: ~w(.jpg .jpeg .png .pdf),
                    max_entries: 1,
-                   max_file_size: 10_000_000) # 10MB
+                   max_file_size: 10_000_000,
+                   auto_upload: true,
+                   progress: &handle_upload_progress/3) # 10MB
         
         IO.puts("Upload config: #{inspect(socket.assigns.uploads)}")
         {:ok, socket}
@@ -184,15 +185,11 @@ defmodule ShompWeb.StoreLive.KYC do
                           <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                         </svg>
                         <div class="flex text-sm text-gray-600">
-                          <label for="id_document" class="relative cursor-pointer bg-white rounded-md font-medium text-primary hover:text-primary focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary">
+                          <label class="relative cursor-pointer bg-white rounded-md font-medium text-primary hover:text-primary focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary">
                             <span>Upload a file</span>
-                            <input 
-                              id="id_document" 
-                              name="id_document" 
-                              type="file" 
-                              class="sr-only" 
-                              accept=".jpg,.jpeg,.png,.pdf"
-                              phx-hook="FileUploadHook"
+                            <.live_file_input 
+                              upload={@uploads.id_document}
+                              class="sr-only"
                             />
                           </label>
                           <p class="pl-1">or drag and drop</p>
@@ -218,6 +215,51 @@ defmodule ShompWeb.StoreLive.KYC do
                             ✅ Upload complete
                           </div>
                         <% end %>
+                      </div>
+                    <% end %>
+
+                    <!-- Uploaded Image Preview -->
+                    <%= if length(@uploaded_files) > 0 do %>
+                      <div class="mt-6">
+                        <h4 class="text-sm font-medium text-gray-900 mb-3">Uploaded Document Preview</h4>
+                        <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                          <%= for file_path <- @uploaded_files do %>
+                            <div class="text-center">
+                              <%= if String.ends_with?(String.downcase(file_path), [".jpg", ".jpeg", ".png", ".gif", ".webp"]) do %>
+                                <img 
+                                  src={file_path} 
+                                  alt="Uploaded ID Document" 
+                                  class="max-w-full h-auto max-h-96 mx-auto rounded-lg shadow-sm border border-gray-200 cursor-pointer hover:shadow-md transition-shadow"
+                                  phx-click="view_kyc_image"
+                                  phx-value-image-path={file_path}
+                                />
+                              <% else %>
+                                <div class="flex items-center justify-center h-32 bg-gray-100 rounded-lg border border-gray-200">
+                                  <div class="text-center">
+                                    <svg class="mx-auto h-12 w-12 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    <p class="text-sm text-gray-600">PDF Document</p>
+                                    <p class="text-xs text-gray-500">File uploaded successfully</p>
+                                  </div>
+                                </div>
+                              <% end %>
+                              <div class="mt-2 flex items-center justify-center space-x-4">
+                                <p class="text-sm text-gray-600">
+                                  <%= Path.basename(file_path) %>
+                                </p>
+                                <button
+                                  type="button"
+                                  phx-click="remove_uploaded_file"
+                                  phx-value-file-path={file_path}
+                                  class="text-red-600 hover:text-red-800 text-sm font-medium"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            </div>
+                          <% end %>
+                        </div>
                       </div>
                     <% end %>
 
@@ -259,7 +301,7 @@ defmodule ShompWeb.StoreLive.KYC do
                     <button 
                       type="submit" 
                       class="btn btn-primary"
-                      disabled={Enum.empty?(@uploads.id_document.entries)}
+                      disabled={Enum.empty?(@uploaded_files)}
                     >
                       Submit for Verification
                     </button>
@@ -288,52 +330,123 @@ defmodule ShompWeb.StoreLive.KYC do
     {:noreply, socket}
   end
 
+  def handle_event("remove_uploaded_file", %{"file-path" => file_path}, socket) do
+    IO.puts("=== REMOVE UPLOADED FILE ===")
+    IO.puts("Removing file: #{file_path}")
+    
+    # Remove the file from the uploaded_files list
+    updated_files = Enum.reject(socket.assigns.uploaded_files, &(&1 == file_path))
+    
+    # Optionally delete the physical file
+    try do
+      full_path = Path.join([Application.app_dir(:shomp, "priv/static"), file_path])
+      if File.exists?(full_path) do
+        File.rm!(full_path)
+        IO.puts("Physical file deleted: #{full_path}")
+      end
+    rescue
+      error ->
+        IO.puts("Error deleting physical file: #{inspect(error)}")
+    end
+    
+    {:noreply, assign(socket, uploaded_files: updated_files)}
+  end
+
+  def handle_event("view_kyc_image", %{"image-path" => image_path}, socket) do
+    IO.puts("=== VIEW KYC IMAGE ===")
+    IO.puts("Viewing image: #{image_path}")
+    
+    # Send event to JavaScript hook to open modal
+    {:noreply, push_event(socket, "open_kyc_image", %{image_url: image_path, store_name: socket.assigns.store.name})}
+  end
+
   def handle_event("submit_kyc", _params, socket) do
     IO.puts("=== KYC SUBMIT EVENT ===")
     IO.puts("Upload entries: #{inspect(socket.assigns.uploads.id_document.entries)}")
     IO.puts("Upload errors: #{inspect(socket.assigns.uploads.id_document.errors)}")
     
-    store = socket.assigns.store
+    _store = socket.assigns.store
     kyc_record = socket.assigns.kyc_record
     
-    # Consume the uploaded file
-    case consume_uploaded_entries(socket, :id_document, fn %{path: path}, entry ->
-      # Generate a unique filename
-      filename = "#{store.store_id}_id_document_#{System.system_time(:millisecond)}.#{get_file_extension(entry.client_name)}"
+    # Check if we have uploaded files ready to process
+    uploaded_files = socket.assigns.uploaded_files || []
+    
+    if length(uploaded_files) > 0 do
+      # Use the already uploaded file
+      id_document_path = List.first(uploaded_files)
       
-      # Copy the file to the uploads directory
-      dest = Path.join([Application.app_dir(:shomp, "priv/static/uploads/kyc"), filename])
-      File.mkdir_p!(Path.dirname(dest))
-      File.cp!(path, dest)
+      # Update the KYC record with the uploaded document
+      attrs = %{
+        id_document_path: id_document_path,
+        status: "submitted",
+        submitted_at: DateTime.utc_now() |> DateTime.truncate(:second)
+      }
       
-      # Return the relative path for storage
-      "/uploads/kyc/#{filename}"
-    end) do
-      {[id_document_path], socket} ->
-        # Update the KYC record with the uploaded document
-        attrs = %{
-          id_document_path: id_document_path,
-          status: "submitted",
-          submitted_at: DateTime.utc_now() |> DateTime.truncate(:second)
-        }
+      case StoreKYCContext.update_kyc(kyc_record.id, attrs) do
+        {:ok, updated_kyc} ->
+          {:noreply,
+           socket
+           |> assign(:kyc_record, updated_kyc)
+           |> put_flash(:info, "ID document submitted successfully! Your verification is being reviewed.")}
         
-        case StoreKYCContext.update_kyc(kyc_record.id, attrs) do
-          {:ok, updated_kyc} ->
-            {:noreply,
-             socket
-             |> assign(:kyc_record, updated_kyc)
-             |> put_flash(:info, "ID document submitted successfully! Your verification is being reviewed.")}
-          
-          {:error, _changeset} ->
-            {:noreply,
-             socket
-             |> put_flash(:error, "Failed to submit document. Please try again.")}
-        end
-      
-      {[], socket} ->
-        {:noreply,
-         socket
-         |> put_flash(:error, "Please upload an ID document before submitting.")}
+        {:error, _changeset} ->
+          {:noreply,
+           socket
+           |> put_flash(:error, "Failed to submit document. Please try again.")}
+      end
+    else
+      {:noreply,
+       socket
+       |> put_flash(:error, "Please upload an ID document before submitting.")}
+    end
+  end
+
+  def handle_upload_progress(:id_document, entry, socket) do
+    IO.puts("=== KYC UPLOAD PROGRESS ===")
+    IO.puts("Entry: #{entry.client_name}")
+    IO.puts("Progress: #{entry.progress}%")
+    IO.puts("Done: #{entry.done?}")
+    
+    if entry.done? do
+      # Process the completed upload immediately
+      process_completed_kyc_upload(entry, socket)
+    else
+      {:noreply, socket}
+    end
+  end
+
+  defp process_completed_kyc_upload(entry, socket) do
+    IO.puts("Processing completed KYC upload: #{entry.client_name}")
+    
+    # Use consume_uploaded_entries to get the file path
+    uploaded_files = consume_uploaded_entries(socket, :id_document, fn meta, upload_entry ->
+      if upload_entry.ref == entry.ref do
+        # Generate a unique filename using timestamp
+        timestamp = System.system_time(:millisecond)
+        extension = get_file_extension(upload_entry.client_name)
+        filename = "#{timestamp}.#{extension}"
+        
+        # Copy the file to the uploads directory
+        dest = Path.join([Application.app_dir(:shomp, "priv/static/uploads/kyc"), filename])
+        File.mkdir_p!(Path.dirname(dest))
+        File.cp!(meta.path, dest)
+        
+        # Return the relative path for storage
+        "/uploads/kyc/#{filename}"
+      else
+        nil
+      end
+    end)
+    
+    # Filter out failed uploads
+    valid_files = Enum.filter(uploaded_files, & &1)
+    
+    if length(valid_files) > 0 do
+      IO.puts("KYC file stored successfully: #{List.first(valid_files)}")
+      {:noreply, assign(socket, uploaded_files: valid_files)}
+    else
+      IO.puts("Failed to store KYC file")
+      {:noreply, socket}
     end
   end
 
