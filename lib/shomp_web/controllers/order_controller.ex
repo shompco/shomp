@@ -4,6 +4,14 @@ defmodule ShompWeb.OrderController do
   alias Shomp.Orders
 
   def show(conn, %{"id" => order_id}) do
+    show_order(conn, order_id)
+  end
+
+  def show(conn, %{"immutable_id" => order_id}) do
+    show_order(conn, order_id)
+  end
+
+  defp show_order(conn, order_id) do
     case Orders.get_order_by_immutable_id!(order_id) do
       nil ->
         conn

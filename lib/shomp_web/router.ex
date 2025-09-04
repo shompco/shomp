@@ -101,16 +101,6 @@ defmodule ShompWeb.Router do
     delete "/users/log-out", UserSessionController, :delete
   end
 
-  # User profile routes - handle intelligent routing between usernames and stores
-  scope "/", ShompWeb do
-    pipe_through :browser
-
-    live_session :public_profiles,
-      on_mount: [{ShompWeb.UserAuth, :mount_current_scope}, {ShompWeb.CartHook, :default}] do
-      live "/:username", ProfileLive.Show, :show
-    end
-  end
-
   ## Authenticated routes
 
   scope "/", ShompWeb do
@@ -146,6 +136,10 @@ defmodule ShompWeb.Router do
       live "/admin/products", AdminLive.Products, :show
       live "/admin/products/:id/edit", AdminLive.ProductEdit, :edit
       live "/admin/kyc-verification", AdminLive.KYCVerification, :show
+      
+      # Admin order routes
+      get "/admin/orders", OrderController, :index
+      get "/admin/orders/:immutable_id", OrderController, :show
     end
 
     post "/users/update-password", UserSessionController, :update_password
@@ -170,6 +164,16 @@ defmodule ShompWeb.Router do
     
     # Secure KYC image access
     get "/kyc-images/:filename", KYCImageController, :show
+  end
+
+  # User profile routes - must come after admin routes to avoid conflicts
+  scope "/", ShompWeb do
+    pipe_through :browser
+
+    live_session :public_profiles,
+      on_mount: [{ShompWeb.UserAuth, :mount_current_scope}, {ShompWeb.CartHook, :default}] do
+      live "/:username", ProfileLive.Show, :show
+    end
   end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development

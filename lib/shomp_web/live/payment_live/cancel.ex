@@ -63,7 +63,7 @@ defmodule ShompWeb.PaymentLive.Cancel do
             <div class="text-center space-y-3">
               <a href="/" class="btn btn-primary w-full">Return to Home</a>
               <%= if @store_slug do %>
-                <a href={"/#{@store_slug}"} class="btn btn-outline w-full">Return to Store</a>
+                <a href={"/stores/#{@store_slug}"} class="btn btn-outline w-full">Return to Store</a>
               <% end %>
             </div>
           </div>

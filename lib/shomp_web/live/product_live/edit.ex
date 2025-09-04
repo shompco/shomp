@@ -301,7 +301,7 @@ defmodule ShompWeb.ProductLive.Edit do
             </.button>
             
             <.link
-              navigate={~p"/#{@product.store.slug}/products/#{@product.id}"}
+              navigate={~p"/stores/#{@product.store.slug}/products/#{@product.id}"}
               class="btn btn-secondary flex-1"
             >
               View Product

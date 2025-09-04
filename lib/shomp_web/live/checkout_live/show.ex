@@ -125,7 +125,7 @@ defmodule ShompWeb.CheckoutLive.Show do
         <!-- Back to Product -->
         <div class="mt-6 text-center">
           <.link
-            navigate={~p"/#{@product.store.slug}/products/#{@product.id}"}
+            navigate={~p"/stores/#{@product.store.slug}/products/#{@product.id}"}
             class="text-indigo-600 hover:text-indigo-500"
           >
             ← Back to product

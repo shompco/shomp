@@ -8,6 +8,7 @@ defmodule ShompWeb.AdminLive.Dashboard do
   alias Shomp.Uploads
   alias Shomp.AdminLogs
   alias Shomp.Stores.StoreKYCContext
+  alias Shomp.Orders
   alias Phoenix.PubSub
 
   @page_title "Admin Dashboard - Shomp"
@@ -84,6 +85,7 @@ defmodule ShompWeb.AdminLive.Dashboard do
     |> assign(:recent_users, list_recent_users())
     |> assign(:recent_stores, list_recent_stores())
     |> assign(:recent_products, list_recent_products())
+    |> assign(:recent_orders, list_recent_orders())
     |> assign(:recent_images, list_recent_images())
     |> assign(:recent_admin_logs, list_recent_admin_logs())
   end
@@ -160,6 +162,28 @@ defmodule ShompWeb.AdminLive.Dashboard do
           name: c.name,
           slug: c.slug
         }
+      }
+    )
+  end
+
+  defp list_recent_orders do
+    # Get 5 most recent orders with user and product info
+    Shomp.Repo.all(
+      from o in Shomp.Orders.Order,
+      join: u in Shomp.Accounts.User, on: o.user_id == u.id,
+      order_by: [desc: o.inserted_at],
+      limit: 5,
+      select: %{
+        id: o.id,
+        immutable_id: o.immutable_id,
+        total_amount: o.total_amount,
+        status: o.status,
+        payment_status: o.payment_status,
+        fulfillment_status: o.fulfillment_status,
+        shipping_status: o.shipping_status,
+        user_email: u.email,
+        user_username: u.username,
+        inserted_at: o.inserted_at
       }
     )
   end
@@ -301,7 +325,7 @@ defmodule ShompWeb.AdminLive.Dashboard do
       </div>
 
       <!-- Recent Activity Sections -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+      <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8 mb-8">
         <!-- Recent Stores -->
         <div class="bg-base-100 rounded-lg shadow p-6">
           <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
@@ -364,9 +388,9 @@ defmodule ShompWeb.AdminLive.Dashboard do
                   <div class="flex gap-2">
                     <%= if product.store_slug && product.slug do %>
                       <%= if product.custom_category && Map.has_key?(product.custom_category, :slug) && product.custom_category.slug do %>
-                        <a href={~p"/#{product.store_slug}/#{product.custom_category.slug}/#{product.slug}"} class="btn btn-xs btn-outline">View</a>
+                        <a href={~p"/stores/#{product.store_slug}/#{product.custom_category.slug}/#{product.slug}"} class="btn btn-xs btn-outline">View</a>
                       <% else %>
-                        <a href={~p"/#{product.store_slug}/products/#{product.slug}"} class="btn btn-xs btn-outline">View</a>
+                        <a href={~p"/stores/#{product.store_slug}/products/#{product.slug}"} class="btn btn-xs btn-outline">View</a>
                       <% end %>
                     <% else %>
                       <span class="btn btn-xs btn-outline btn-disabled">View</span>
@@ -379,6 +403,53 @@ defmodule ShompWeb.AdminLive.Dashboard do
             <% end %>
             <%= if Enum.empty?(@recent_products) do %>
               <p class="text-base-content/50 text-center py-4">No products yet</p>
+            <% end %>
+          </div>
+        </div>
+
+        <!-- Recent Orders -->
+        <div class="bg-base-100 rounded-lg shadow p-6">
+          <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+            <span class="text-2xl">🛒</span>
+            Recent Orders
+          </h2>
+          <div class="space-y-3">
+            <%= for order <- @recent_orders do %>
+              <div class="border border-base-300 rounded-lg p-3 hover:border-primary/50 transition-colors">
+                <div class="flex justify-between items-start">
+                  <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-1">
+                      <h3 class="font-semibold">Order #<%= order.immutable_id %></h3>
+                      <%= if is_recent?(order.inserted_at) do %>
+                        <span class="badge badge-xs badge-primary animate-pulse">New</span>
+                      <% end %>
+                    </div>
+                    <p class="text-sm text-base-content/70">$<%= order.total_amount %></p>
+                    <div class="flex items-center gap-2 mb-1">
+                      <span class={[
+                        "badge badge-xs",
+                        case order.status do
+                          "completed" -> "badge-success"
+                          "processing" -> "badge-warning"
+                          "pending" -> "badge-info"
+                          "cancelled" -> "badge-error"
+                          _ -> "badge-outline"
+                        end
+                      ]}>
+                        <%= String.capitalize(order.status) %>
+                      </span>
+                    </div>
+                    <p class="text-xs text-base-content/50">
+                      Customer: <%= order.user_username || order.user_email %> • 
+                      <%= Calendar.strftime(order.inserted_at, "%b %d, %Y at %I:%M %p") %>
+                    </p>
+                  </div>
+                  <a href={~p"/admin/orders/#{order.immutable_id}"} class="btn btn-xs btn-outline">View</a>
+                </div>
+              </div>
+            <% end %>
+            <%= if Enum.empty?(@recent_orders) do %>
+              <p class="text-base-content/50 text-center py-4">No orders yet</p>
             <% end %>
           </div>
         </div>

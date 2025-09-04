@@ -22,7 +22,7 @@ defmodule ShompWeb.StoreLive.Show do
             {:ok,
              socket
              |> put_flash(:error, "Category not found")
-             |> push_navigate(to: ~p"/#{store_slug}")}
+             |> push_navigate(to: ~p"/stores/#{store_slug}")}
           
           category ->
             # Load products in this specific category
@@ -248,7 +248,7 @@ defmodule ShompWeb.StoreLive.Show do
                           <%= length(Map.get(@products_by_category, category)) %> product<%= if length(Map.get(@products_by_category, category)) != 1, do: "s" %>
                         </span>
                         <.link
-                          navigate={~p"/#{@store.slug}/#{category.slug}"}
+                          navigate={~p"/stores/#{@store.slug}/#{category.slug}"}
                           class="text-primary hover:text-primary-focus font-semibold text-sm hover:underline transition-colors"
                         >
                           View All →
@@ -283,12 +283,12 @@ defmodule ShompWeb.StoreLive.Show do
              Map.has_key?(@product.custom_category, :slug) && 
              @product.custom_category.slug && 
              @product.custom_category.slug != "" do
-            ~p"/#{@store.slug}/#{@product.custom_category.slug}/#{@product.slug}"
+            ~p"/stores/#{@store.slug}/#{@product.custom_category.slug}/#{@product.slug}"
           else
-            ~p"/#{@store.slug}/products/#{@product.slug}"
+            ~p"/stores/#{@store.slug}/products/#{@product.slug}"
           end
         else
-          ~p"/#{@store.slug}/products/#{@product.id}"
+          ~p"/stores/#{@store.slug}/products/#{@product.id}"
         end
       }
       class="group block bg-white rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden"

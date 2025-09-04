@@ -200,7 +200,7 @@ defmodule ShompWeb.AdminLive.ProductEdit do
               <h3 class="text-lg font-semibold mb-4">Quick Actions</h3>
               <div class="space-y-3">
                 <.link
-                  navigate={~p"/#{@product.store.slug}/products/#{@product.slug}"}
+                  navigate={~p"/stores/#{@product.store.slug}/products/#{@product.slug}"}
                   class="btn btn-outline w-full"
                   target="_blank"
                 >

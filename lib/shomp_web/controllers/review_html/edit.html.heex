@@ -10,7 +10,7 @@
               <p class="text-sm text-gray-500 mt-1">Update your thoughts about <%= @product.title %></p>
             </div>
             <.link
-              href={~p"/#{@product.store.slug}/products/#{@product.id}"}
+              href={~p"/stores/#{@product.store.slug}/products/#{@product.id}"}
               class="text-blue-600 hover:text-blue-800 text-sm"
             >
               ← Back to Product
@@ -19,7 +19,7 @@
         </div>
         
         <div class="px-6 py-6">
-          <.form for={@changeset} action={~p"/#{@product.store.slug}/products/#{@product.id}/reviews/#{@review.id}"} method="post">
+          <.form for={@changeset} action={~p"/stores/#{@product.store.slug}/products/#{@product.id}/reviews/#{@review.id}"} method="post">
             <input type="hidden" name="_method" value="put" />
             
             <!-- Product Info -->
@@ -85,7 +85,7 @@
               </div>
               <div class="flex space-x-3">
                 <.link
-                  href={~p"/#{@product.store.slug}/products/#{@product.id}"}
+                  href={~p"/stores/#{@product.store.slug}/products/#{@product.id}"}
                   class="btn btn-outline"
                 >
                   Cancel
@@ -98,7 +98,7 @@
           </.form>
 
           <!-- Hidden delete form -->
-          <form id="delete-form" action={~p"/#{@product.store.slug}/products/#{@product.id}/reviews/#{@review.id}"} method="post" class="hidden">
+          <form id="delete-form" action={~p"/stores/#{@product.store.slug}/products/#{@product.id}/reviews/#{@review.id}"} method="post" class="hidden">
             <input type="hidden" name="_method" value="delete" />
           </form>
         </div>

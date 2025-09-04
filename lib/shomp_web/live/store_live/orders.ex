@@ -253,7 +253,7 @@ defmodule ShompWeb.StoreLive.Orders do
                           </div>
                         </div>
                         <div class="flex items-center space-x-2">
-                          <a href={~p"/#{@store.slug}/products/#{order_item.product_id}"} class="btn btn-xs btn-outline">
+                          <a href={~p"/stores/#{@store.slug}/products/#{order_item.product_id}"} class="btn btn-xs btn-outline">
                             View Product
                           </a>
                         </div>

@@ -101,12 +101,12 @@
                 <a href={
                   if order_item.product.slug do
                     if order_item.product.custom_category do
-                      ~p"/#{order_item.product.store.slug}/#{order_item.product.custom_category.slug}/#{order_item.product.slug}"
+                      ~p"/stores/#{order_item.product.store.slug}/#{order_item.product.custom_category.slug}/#{order_item.product.slug}"
                     else
-                      ~p"/#{order_item.product.store.slug}/#{order_item.product.slug}"
+                      ~p"/stores/#{order_item.product.store.slug}/#{order_item.product.slug}"
                     end
                   else
-                    ~p"/#{order_item.product.store.slug}/products/#{order_item.product_id}"
+                    ~p"/stores/#{order_item.product.store.slug}/products/#{order_item.product_id}"
                   end
                 } class="btn btn-outline">
                   View Product
@@ -118,7 +118,7 @@
                     </a>
                   <% end %>
                 <% end %>
-                <a href={~p"/#{order_item.product.store.slug}/products/#{order_item.product_id}/reviews/new"} class="btn btn-secondary">
+                <a href={~p"/stores/#{order_item.product.store.slug}/products/#{order_item.product_id}/reviews/new"} class="btn btn-secondary">
                   Review
                 </a>
               </div>

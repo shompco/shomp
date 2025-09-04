@@ -109,7 +109,7 @@ defmodule ShompWeb.PaymentLive.Success do
                   </p>
                   <%= for order_item <- @order.order_items do %>
                     <a 
-                      href={"/#{@store_slug}/products/#{order_item.product_id}/reviews/new"} 
+                      href={"/stores/#{@store_slug}/products/#{order_item.product_id}/reviews/new"} 
                       class="inline-block bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-700 transition-colors"
                     >
                       Review <%= order_item.product.title %>
@@ -160,7 +160,7 @@ defmodule ShompWeb.PaymentLive.Success do
             <div class="text-center space-y-3">
               <a href="/" class="btn btn-primary w-full">Return to Home</a>
               <%= if @store_slug do %>
-                <a href={"/#{@store_slug}"} class="btn btn-outline w-full">Return to Store</a>
+                <a href={"/stores/#{@store_slug}"} class="btn btn-outline w-full">Return to Store</a>
               <% end %>
               <a href="/dashboard" class="btn btn-outline w-full">Go to Dashboard</a>
             </div>

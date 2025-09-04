@@ -454,7 +454,7 @@ defmodule ShompWeb.ProductLive.New do
             {:noreply,
              socket
              |> put_flash(:info, "Product created successfully!")
-             |> push_navigate(to: ~p"/#{store.slug}")}
+             |> push_navigate(to: ~p"/stores/#{store.slug}")}
         end
 
       {:error, %Ecto.Changeset{} = changeset} ->

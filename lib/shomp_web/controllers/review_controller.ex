@@ -16,13 +16,13 @@ defmodule ShompWeb.ReviewController do
     if product.store.slug != store_slug do
       conn
       |> put_flash(:error, "Product not found in this store")
-      |> redirect(to: ~p"/#{store_slug}")
+      |> redirect(to: ~p"/stores/#{store_slug}")
     else
       # Check if user has already reviewed this product
       if Reviews.user_has_reviewed_product?(user_id, product_id) do
         conn
         |> put_flash(:error, "You have already reviewed this product")
-        |> redirect(to: ~p"/#{store_slug}/products/#{product_id}")
+        |> redirect(to: ~p"/stores/#{store_slug}/products/#{product_id}")
       else
         # Check if user has purchased this product
         if Orders.user_purchased_product?(user_id, product_id) do
@@ -46,7 +46,7 @@ defmodule ShompWeb.ReviewController do
         else
           conn
           |> put_flash(:error, "You must purchase this product before you can review it")
-          |> redirect(to: ~p"/#{store_slug}/products/#{product_id}")
+          |> redirect(to: ~p"/stores/#{store_slug}/products/#{product_id}")
         end
       end
     end
@@ -69,7 +69,7 @@ defmodule ShompWeb.ReviewController do
         {:ok, _review} ->
           conn
           |> put_flash(:info, "Review submitted successfully!")
-          |> redirect(to: ~p"/#{store_slug}/products/#{product_id}")
+          |> redirect(to: ~p"/stores/#{store_slug}/products/#{product_id}")
       
         {:error, %Ecto.Changeset{} = changeset} ->
           product = Products.get_product_with_store!(product_id)
@@ -86,7 +86,7 @@ defmodule ShompWeb.ReviewController do
     else
       conn
       |> put_flash(:error, "You must purchase this product before you can review it")
-      |> redirect(to: ~p"/#{store_slug}/products/#{product_id}")
+                |> redirect(to: ~p"/stores/#{store_slug}/products/#{product_id}")
     end
   end
 
@@ -98,7 +98,7 @@ defmodule ShompWeb.ReviewController do
     if product.store.slug != store_slug do
       conn
       |> put_flash(:error, "Product not found in this store")
-      |> redirect(to: ~p"/#{store_slug}")
+      |> redirect(to: ~p"/stores/#{store_slug}")
     else
       # Get reviews for this product
       reviews = Reviews.get_product_reviews(product_id)
@@ -126,14 +126,14 @@ defmodule ShompWeb.ReviewController do
     if review.user_id != user_id do
       conn
       |> put_flash(:error, "You can only edit your own reviews")
-      |> redirect(to: ~p"/#{store_slug}/products/#{product_id}")
+                |> redirect(to: ~p"/stores/#{store_slug}/products/#{product_id}")
     else
       # Verify the product belongs to the store with the given slug
       product = Products.get_product_with_store!(product_id)
       if product.store.slug != store_slug do
         conn
         |> put_flash(:error, "Product not found in this store")
-        |> redirect(to: ~p"/#{store_slug}")
+        |> redirect(to: ~p"/stores/#{store_slug}")
       else
         changeset = Reviews.change_review(review)
         
@@ -156,13 +156,13 @@ defmodule ShompWeb.ReviewController do
     if review.user_id != user_id do
       conn
       |> put_flash(:error, "You can only edit your own reviews")
-      |> redirect(to: ~p"/#{store_slug}/products/#{product_id}")
+                |> redirect(to: ~p"/stores/#{store_slug}/products/#{product_id}")
     else
       case Reviews.update_review(review, review_params) do
         {:ok, _review} ->
           conn
           |> put_flash(:info, "Review updated successfully!")
-          |> redirect(to: ~p"/#{store_slug}/products/#{product_id}")
+          |> redirect(to: ~p"/stores/#{store_slug}/products/#{product_id}")
         
         {:error, %Ecto.Changeset{} = changeset} ->
           product = Products.get_product_with_store!(product_id)
@@ -186,18 +186,18 @@ defmodule ShompWeb.ReviewController do
     if review.user_id != user_id do
       conn
       |> put_flash(:error, "You can only delete your own reviews")
-      |> redirect(to: ~p"/#{store_slug}/products/#{product_id}")
+                |> redirect(to: ~p"/stores/#{store_slug}/products/#{product_id}")
     else
       case Reviews.delete_review(review) do
         {:ok, _review} ->
           conn
           |> put_flash(:info, "Review deleted successfully!")
-          |> redirect(to: ~p"/#{store_slug}/products/#{product_id}")
+          |> redirect(to: ~p"/stores/#{store_slug}/products/#{product_id}")
         
         {:error, _changeset} ->
           conn
           |> put_flash(:error, "Failed to delete review")
-          |> redirect(to: ~p"/#{store_slug}/products/#{product_id}")
+          |> redirect(to: ~p"/stores/#{store_slug}/products/#{product_id}")
       end
     end
   end
