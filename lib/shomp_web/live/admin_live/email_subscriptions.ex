@@ -160,14 +160,6 @@ defmodule ShompWeb.AdminLive.EmailSubscriptions do
     |> Enum.join("")
   end
 
-  defp format_datetime(nil), do: ""
-  defp format_datetime(datetime) do
-    try do
-      Calendar.strftime(datetime, Calendar.ISO, "%Y-%m-%d %H:%M:%S UTC")
-    rescue
-      _ -> "Invalid date"
-    end
-  end
   
   defp safe_format_date(nil), do: "-"
   defp safe_format_date(datetime) do

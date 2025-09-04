@@ -272,9 +272,9 @@ defmodule ShompWeb.AdminLive.Products do
                     <div class="flex gap-2">
                       <%= if product.store_slug && product.slug do %>
                         <%= if product.custom_category && product.custom_category.slug do %>
-                          <a href={~p"/#{product.store_slug}/#{product.custom_category.slug}/#{product.slug}"} class="btn btn-xs btn-outline">View</a>
+                          <a href={~p"/stores/#{product.store_slug}/#{product.custom_category.slug}/#{product.slug}"} class="btn btn-xs btn-outline">View</a>
                         <% else %>
-                          <a href={~p"/#{product.store_slug}/#{product.slug}"} class="btn btn-xs btn-outline">View</a>
+                          <a href={~p"/stores/#{product.store_slug}/#{product.slug}"} class="btn btn-xs btn-outline">View</a>
                         <% end %>
                       <% else %>
                         <span class="btn btn-xs btn-outline btn-disabled">View</span>

@@ -610,7 +610,7 @@ defmodule ShompWeb.ProductLive.Edit do
     end
   end
 
-  def handle_event("save", %{"product" => product_params} = params, socket) do
+  def handle_event("save", %{"product" => product_params} = _params, socket) do
     IO.puts("=== SAVE EVENT TRIGGERED (EDIT) ===")
     IO.puts("Product params: #{inspect(product_params)}")
     IO.puts("Uploads available: #{inspect(socket.assigns[:uploads])}")
@@ -744,7 +744,7 @@ defmodule ShompWeb.ProductLive.Edit do
     Map.merge(product_params, Map.merge(image_params, file_params))
   end
   
-  defp process_image_uploads_from_uploads(product_id) do
+  defp process_image_uploads_from_uploads(_product_id) do
     # This will be called from the save event, so we need to get uploads from the socket
     # For now, return empty params - we'll handle this in the save event
     %{}

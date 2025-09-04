@@ -24,6 +24,15 @@ defmodule Shomp.Stores do
   end
 
   @doc """
+  Returns the list of stores with user and products associations loaded.
+  """
+  def list_stores_with_users_and_products do
+    Store
+    |> Repo.all()
+    |> Repo.preload([:user, :products])
+  end
+
+  @doc """
   Gets a single store.
 
   Raises `Ecto.NoResultsError` if the Store does not exist.

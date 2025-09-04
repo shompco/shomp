@@ -21,7 +21,7 @@ defmodule ShompWeb.ProductLive.Show do
       {:ok,
        socket
        |> put_flash(:error, "Product not found in this store")
-       |> push_navigate(to: ~p"/#{store_slug}")}
+       |> push_navigate(to: ~p"/stores/#{store_slug}")}
     end
   end
 
@@ -42,7 +42,7 @@ defmodule ShompWeb.ProductLive.Show do
             {:ok,
              socket
              |> put_flash(:error, "Category not found")
-             |> push_navigate(to: ~p"/#{store_slug}")}
+             |> push_navigate(to: ~p"/stores/#{store_slug}")}
           
           category ->
             # Get the product by slug within the store and category
@@ -51,7 +51,7 @@ defmodule ShompWeb.ProductLive.Show do
                 {:ok,
                  socket
                  |> put_flash(:error, "Product not found")
-                 |> push_navigate(to: ~p"/#{store_slug}")}
+                 |> push_navigate(to: ~p"/stores/#{store_slug}")}
               
               product ->
                 # Fetch reviews for this product
@@ -81,7 +81,7 @@ defmodule ShompWeb.ProductLive.Show do
             {:ok,
              socket
              |> put_flash(:error, "Product not found")
-             |> push_navigate(to: ~p"/#{store_slug}")}
+             |> push_navigate(to: ~p"/stores/#{store_slug}")}
           
           product ->
             # Fetch reviews for this product
@@ -109,10 +109,10 @@ defmodule ShompWeb.ProductLive.Show do
         <div class="mb-6">
           <nav class="flex items-center space-x-2 text-sm text-base-content/70">
             <.link
-              navigate={~p"/"}
+              navigate={~p"/stores"}
               class="hover:text-base-content transition-colors"
             >
-              Home
+              Stores
             </.link>
             <span>/</span>
             <.link
@@ -125,7 +125,7 @@ defmodule ShompWeb.ProductLive.Show do
             <%= if @product.custom_category && Map.has_key?(@product.custom_category, :slug) && @product.custom_category.slug do %>
               <span>/</span>
               <.link
-                navigate={~p"/#{@product.store.slug}/#{@product.custom_category.slug}"}
+                navigate={~p"/stores/#{@product.store.slug}/#{@product.custom_category.slug}"}
                 class="hover:text-base-content transition-colors"
               >
                 <%= @product.custom_category.name %>

@@ -379,7 +379,7 @@ defmodule ShompWeb.StoreLive.Orders do
     order = Orders.get_order!(order_id)
     
     case Orders.update_order_status(order, status) do
-      {:ok, updated_order} ->
+      {:ok, _updated_order} ->
         # Don't manually update the list here - the PubSub broadcast will handle it
         {:noreply, put_flash(socket, :info, "Order status updated to #{status}")}
       
