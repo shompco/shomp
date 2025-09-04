@@ -167,7 +167,7 @@ defmodule ShompWeb.LandingLive.Show do
   defp social_proof(assigns) do
     ~H"""
     <div class="flex flex-wrap justify-center gap-8 text-base-content/60">
-      <.proof_item icon="✅" text="100% Creator Earnings" />
+      <.proof_item icon="✅" text="No Platform Fee" />
       <.proof_item icon="🏛️" text="501c3 Nonprofit (applying)" />
       <.proof_item icon="🔓" text="Open Source" />
     </div>

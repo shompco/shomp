@@ -6,6 +6,7 @@ defmodule Shomp.Orders do
   import Ecto.Query, warn: false
   alias Shomp.Repo
   alias Shomp.Orders.{Order, OrderItem}
+  alias Shomp.Products.Product
 
   @doc """
   Returns the list of orders.
@@ -17,7 +18,11 @@ defmodule Shomp.Orders do
   @doc """
   Gets a single order.
   """
-  def get_order!(id), do: Repo.get!(Order, id)
+  def get_order!(id) do
+    Order
+    |> Repo.get!(id)
+    |> Repo.preload([:order_items, :products, :user])
+  end
 
   @doc """
   Gets a single order by immutable_id.
@@ -51,9 +56,51 @@ defmodule Shomp.Orders do
   Updates an order status.
   """
   def update_order_status(%Order{} = order, status) do
-    order
-    |> Order.status_changeset(status)
-    |> Repo.update()
+    case order
+         |> Order.status_changeset(status)
+         |> Repo.update() do
+      {:ok, updated_order} ->
+        # Broadcast the order update to all subscribers
+        broadcast_order_update(updated_order)
+        {:ok, updated_order}
+      
+      error -> error
+    end
+  end
+
+  @doc """
+  Updates an order with comprehensive changes (status, shipping, tracking, etc.).
+  """
+  def update_order_comprehensive(%Order{} = order, attrs) do
+    case order
+         |> Order.update_changeset(attrs)
+         |> Repo.update() do
+      {:ok, updated_order} ->
+        # Broadcast the order update to all subscribers
+        broadcast_order_update(updated_order)
+        {:ok, updated_order}
+      
+      error -> error
+    end
+  end
+
+  defp broadcast_order_update(order) do
+    # Preload the order with all necessary associations
+    order_with_preloads = order
+    |> Repo.preload([:order_items, :products, :user])
+
+    # Get all stores that have products in this order
+    store_ids = order_with_preloads.order_items
+    |> Enum.map(& &1.product.store_id)
+    |> Enum.uniq()
+
+    # Broadcast to each store's order channel
+    Enum.each(store_ids, fn store_id ->
+      Phoenix.PubSub.broadcast(Shomp.PubSub, "store_orders:#{store_id}", %{
+        event: "order_updated",
+        payload: order_with_preloads
+      })
+    end)
   end
 
   @doc """
@@ -77,6 +124,20 @@ defmodule Shomp.Orders do
     Order
     |> where(user_id: ^user_id)
     |> preload([:order_items, :products])
+    |> order_by([o], [desc: o.inserted_at])
+    |> Repo.all()
+  end
+
+  @doc """
+  Lists orders for a specific store (orders containing products from that store).
+  Takes the store's store_id (UUID string), not the database ID.
+  """
+  def list_store_orders(store_id) do
+    Order
+    |> join(:inner, [o], oi in OrderItem, on: o.id == oi.order_id)
+    |> join(:inner, [o, oi], p in Product, on: oi.product_id == p.id)
+    |> where([o, oi, p], p.store_id == ^store_id)
+    |> preload([:order_items, :products, :user])
     |> order_by([o], [desc: o.inserted_at])
     |> Repo.all()
   end

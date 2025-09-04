@@ -72,7 +72,7 @@
               <a href={
                 if product.store do
                   if product.slug do
-                    if product.custom_category do
+                    if product.custom_category && product.custom_category.slug do
                       "/#{product.store.slug}/#{product.custom_category.slug}/#{product.slug}"
                     else
                       "/#{product.store.slug}/#{product.slug}"
@@ -154,7 +154,7 @@
               <a href={
                 if product.store do
                   if product.slug do
-                    if product.custom_category do
+                    if product.custom_category && product.custom_category.slug do
                       "/#{product.store.slug}/#{product.custom_category.slug}/#{product.slug}"
                     else
                       "/#{product.store.slug}/#{product.slug}"

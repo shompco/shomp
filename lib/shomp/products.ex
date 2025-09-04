@@ -293,35 +293,15 @@ defmodule Shomp.Products do
   """
   def get_latest_products(limit \\ 8) do
     Product
+    |> preload([:category, :custom_category])
     |> order_by([p], [desc: p.inserted_at])
     |> limit(^limit)
     |> Repo.all()
     |> Enum.map(fn product ->
+      # Load store data manually since it's a virtual field
       case Shomp.Stores.get_store_by_store_id(product.store_id) do
         nil -> product
-        store -> 
-          product = Map.put(product, :store, store)
-          
-          # Load platform category if it exists
-          if product.category_id do
-            case Repo.get(Shomp.Categories.Category, product.category_id) do
-              nil -> product
-              category -> Map.put(product, :category, category)
-            end
-          else
-            product
-          end
-          |> then(fn product ->
-            # Load custom category if it exists
-            if product.custom_category_id do
-              case Repo.get(Shomp.Categories.Category, product.custom_category_id) do
-                nil -> product
-                custom_category -> Map.put(product, :custom_category, custom_category)
-              end
-            else
-              product
-            end
-          end)
+        store -> Map.put(product, :store, store)
       end
     end)
   end
@@ -331,36 +311,16 @@ defmodule Shomp.Products do
   """
   def get_featured_products(limit \\ 2) do
     Product
+    |> preload([:category, :custom_category])
     |> where([p], p.price > 20)  # Products with higher prices as "featured"
     |> order_by([p], [desc: p.price])
     |> limit(^limit)
     |> Repo.all()
     |> Enum.map(fn product ->
+      # Load store data manually since it's a virtual field
       case Shomp.Stores.get_store_by_store_id(product.store_id) do
         nil -> product
-        store -> 
-          product = Map.put(product, :store, store)
-          
-          # Load platform category if it exists
-          if product.category_id do
-            case Repo.get(Shomp.Categories.Category, product.category_id) do
-              nil -> product
-              category -> Map.put(product, :category, category)
-            end
-          else
-            product
-          end
-          |> then(fn product ->
-            # Load custom category if it exists
-            if product.custom_category_id do
-              case Repo.get(Shomp.Categories.Category, product.custom_category_id) do
-                nil -> product
-                custom_category -> Map.put(product, :custom_category, custom_category)
-              end
-            else
-              product
-            end
-          end)
+        store -> Map.put(product, :store, store)
       end
     end)
   end

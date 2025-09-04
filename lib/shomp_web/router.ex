@@ -123,9 +123,15 @@ defmodule ShompWeb.Router do
       live "/users/tier-selection", UserLive.TierSelection, :new
       live "/users/profile", ProfileLive.Edit, :edit
       live "/my/stores", StoreLive.MyStores, :index
+      
+      # Address management
+      live "/dashboard/addresses", AddressLive.Index, :index
+      live "/dashboard/addresses/new", AddressLive.New, :new
+      live "/dashboard/addresses/:id/edit", AddressLive.Edit, :edit
       live "/dashboard/store", StoreLive.Edit, :edit
       live "/dashboard/store/balance", StoreLive.Balance, :show
       live "/dashboard/store/kyc", StoreLive.KYC, :show
+      live "/dashboard/orders", StoreLive.Orders, :index
       live "/dashboard/products/new", ProductLive.New, :new
       live "/dashboard/products/:id/edit", ProductLive.Edit, :edit
       live "/cart", CartLive.Show, :show
@@ -189,17 +195,17 @@ defmodule ShompWeb.Router do
 
     live_session :public_stores_with_cart,
       on_mount: [{ShompWeb.UserAuth, :mount_current_scope}, {ShompWeb.CartHook, :default}] do
-      # Store routes - only match non-empty slugs (exclude root path)
-      live "/:slug", StoreLive.Show, :show
-      
-      # Product routes - new structure with /products/ prefix
+      # Product routes - new structure with /products/ prefix (MOST SPECIFIC)
       live "/:store_slug/products/:product_slug", ProductLive.Show, :show_by_store_product_slug
       
-      # Custom category product routes - MORE SPECIFIC FIRST
+      # Custom category product routes - MORE SPECIFIC
       live "/:store_slug/:category_slug/:product_slug", ProductLive.Show, :show_by_slug
       
-      # Store category route - LESS SPECIFIC LAST
+      # Store category route - LESS SPECIFIC
       live "/:store_slug/:category_slug", StoreLive.Show, :show_category
+      
+      # Store routes - only match non-empty slugs (exclude root path) - LEAST SPECIFIC
+      live "/:slug", StoreLive.Show, :show
       
       # Store-specific review routes
       get "/:store_slug/products/:product_id/reviews", ReviewController, :index

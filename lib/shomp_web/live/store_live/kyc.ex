@@ -2,7 +2,6 @@ defmodule ShompWeb.StoreLive.KYC do
   use ShompWeb, :live_view
 
   alias Shomp.Stores.StoreKYCContext
-  alias Phoenix.PubSub
 
   on_mount {ShompWeb.UserAuth, :require_authenticated}
 
@@ -465,6 +464,7 @@ defmodule ShompWeb.StoreLive.KYC do
     rescue
       _error ->
         # Ignore file deletion errors
+        :ok
     end
     
     {:noreply, assign(socket, uploaded_files: updated_files)}
