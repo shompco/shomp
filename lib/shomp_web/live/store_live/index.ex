@@ -100,7 +100,7 @@ defmodule ShompWeb.StoreLive.Index do
                 <div class="p-6">
                   <h3 class="text-xl font-semibold text-gray-900 mb-2">
                     <.link
-                      navigate={~p"/#{store.slug}"}
+                      navigate={~p"/stores/#{store.slug}"}
                       class="hover:text-blue-600 transition-colors duration-200"
                     >
                       <%= store.name %>
@@ -118,7 +118,7 @@ defmodule ShompWeb.StoreLive.Index do
                       by <%= store.user.username || "Creator" %>
                     </div>
                     <.link
-                      navigate={~p"/#{store.slug}"}
+                      navigate={~p"/stores/#{store.slug}"}
                       class="btn btn-outline btn-sm"
                     >
                       Visit Store

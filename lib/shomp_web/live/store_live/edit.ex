@@ -77,7 +77,7 @@ defmodule ShompWeb.StoreLive.Edit do
                 </.button>
                 
                 <.link
-                  navigate={~p"/#{@store.slug}"}
+                  navigate={~p"/stores/#{@store.slug}"}
                   class="btn btn-secondary flex-1"
                 >
                   View Store
@@ -228,7 +228,7 @@ defmodule ShompWeb.StoreLive.Edit do
         {:noreply,
          socket
          |> put_flash(:info, "Store updated successfully!")
-         |> push_navigate(to: ~p"/#{store.slug}")}
+         |> push_navigate(to: ~p"/stores/#{store.slug}")}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign(socket, form: to_form(changeset))}

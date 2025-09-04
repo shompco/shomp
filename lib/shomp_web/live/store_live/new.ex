@@ -76,7 +76,7 @@ defmodule ShompWeb.StoreLive.New do
         {:noreply,
          socket
          |> put_flash(:info, "Store created successfully!")
-         |> push_navigate(to: ~p"/#{store.slug}")}
+         |> push_navigate(to: ~p"/stores/#{store.slug}")}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign_form(socket, changeset)}

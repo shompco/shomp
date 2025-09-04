@@ -435,7 +435,7 @@ defmodule ShompWeb.ProductLive.New do
                 {:noreply,
                  socket
                  |> put_flash(:info, "Product created with #{length(uploaded_image_data)} images successfully!")
-                 |> push_navigate(to: ~p"/#{store.slug}")}
+                 |> push_navigate(to: ~p"/stores/#{store.slug}")}
               
               {:error, changeset} ->
                 IO.puts("Failed to update product with images: #{inspect(changeset.errors)}")
@@ -444,7 +444,7 @@ defmodule ShompWeb.ProductLive.New do
                 {:noreply,
                  socket
                  |> put_flash(:warning, "Product created but image update failed")
-                 |> push_navigate(to: ~p"/#{store.slug}")}
+                 |> push_navigate(to: ~p"/stores/#{store.slug}")}
             end
           
           _ ->

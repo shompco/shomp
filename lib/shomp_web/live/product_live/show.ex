@@ -116,7 +116,7 @@ defmodule ShompWeb.ProductLive.Show do
             </.link>
             <span>/</span>
             <.link
-              navigate={~p"/#{@product.store.slug}"}
+              navigate={~p"/stores/#{@product.store.slug}"}
               class="hover:text-base-content transition-colors"
             >
               <%= @product.store.name %>

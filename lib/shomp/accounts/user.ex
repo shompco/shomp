@@ -165,11 +165,34 @@ defmodule Shomp.Accounts.User do
         message: "can only contain letters, numbers, underscores, and hyphens"
       )
       |> validate_length(:username, min: 3, max: 30)
+      |> validate_username_store_conflict()
 
     if Keyword.get(opts, :validate_unique, true) do
       changeset
       |> unsafe_validate_unique(:username, Shomp.Repo)
       |> unique_constraint(:username)
+    else
+      changeset
+    end
+  end
+
+  defp validate_username_store_conflict(changeset) do
+    username = get_change(changeset, :username) || get_field(changeset, :username)
+    
+    if username do
+      # Convert username to store slug format for comparison
+      potential_store_slug = username
+      |> String.downcase()
+      |> String.replace(~r/[^a-z0-9-]/, "-")
+      |> String.replace(~r/-+/, "-")
+      |> String.trim("-")
+      
+      # Check if this would conflict with an existing store slug
+      case Shomp.Repo.get_by(Shomp.Stores.Store, slug: potential_store_slug) do
+        nil -> changeset
+        _store -> 
+          add_error(changeset, :username, "username conflicts with existing store name '#{potential_store_slug}'. Please choose a different username.")
+      end
     else
       changeset
     end

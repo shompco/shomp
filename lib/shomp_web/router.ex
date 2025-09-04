@@ -59,6 +59,7 @@ defmodule ShompWeb.Router do
       on_mount: [{ShompWeb.UserAuth, :mount_current_scope}, {ShompWeb.CartHook, :default}] do
       live "/new", StoreLive.New, :new
       live "/", StoreLive.Index, :index
+      live "/:slug", StoreLive.Show, :show
     end
   end
 
@@ -100,8 +101,8 @@ defmodule ShompWeb.Router do
     delete "/users/log-out", UserSessionController, :delete
   end
 
-  # User profile routes
-  scope "/users", ShompWeb do
+  # User profile routes - handle intelligent routing between usernames and stores
+  scope "/", ShompWeb do
     pipe_through :browser
 
     live_session :public_profiles,
@@ -188,32 +189,28 @@ defmodule ShompWeb.Router do
     end
   end
 
-  # CATCH-ALL ROUTES - MUST BE LAST!
-  # These routes are very broad and will catch anything that doesn't match above
+  # Product and category routes - specific patterns
   scope "/", ShompWeb do
     pipe_through :browser
 
-    live_session :public_stores_with_cart,
+    live_session :public_products_with_cart,
       on_mount: [{ShompWeb.UserAuth, :mount_current_scope}, {ShompWeb.CartHook, :default}] do
-      # Product routes - new structure with /products/ prefix (MOST SPECIFIC)
-      live "/:store_slug/products/:product_slug", ProductLive.Show, :show_by_store_product_slug
+      # Product routes - new structure with /stores/ prefix
+      live "/stores/:store_slug/products/:product_slug", ProductLive.Show, :show_by_store_product_slug
       
-      # Custom category product routes - MORE SPECIFIC
-      live "/:store_slug/:category_slug/:product_slug", ProductLive.Show, :show_by_slug
+      # Custom category product routes
+      live "/stores/:store_slug/:category_slug/:product_slug", ProductLive.Show, :show_by_slug
       
-      # Store category route - LESS SPECIFIC
-      live "/:store_slug/:category_slug", StoreLive.Show, :show_category
-      
-      # Store routes - only match non-empty slugs (exclude root path) - LEAST SPECIFIC
-      live "/:slug", StoreLive.Show, :show
-      
-      # Store-specific review routes
-      get "/:store_slug/products/:product_id/reviews", ReviewController, :index
-      get "/:store_slug/products/:product_id/reviews/new", ReviewController, :new
-      post "/:store_slug/products/:product_id/reviews", ReviewController, :create
-      get "/:store_slug/products/:product_id/reviews/:id/edit", ReviewController, :edit
-      put "/:store_slug/products/:product_id/reviews/:id", ReviewController, :update
-      delete "/:store_slug/products/:product_id/reviews/:id", ReviewController, :delete
+      # Store category route
+      live "/stores/:store_slug/:category_slug", StoreLive.Show, :show_category
     end
+
+    # Store-specific review routes
+    get "/stores/:store_slug/products/:product_id/reviews", ReviewController, :index
+    get "/stores/:store_slug/products/:product_id/reviews/new", ReviewController, :new
+    post "/stores/:store_slug/products/:product_id/reviews", ReviewController, :create
+    get "/stores/:store_slug/products/:product_id/reviews/:id/edit", ReviewController, :edit
+    put "/stores/:store_slug/products/:product_id/reviews/:id", ReviewController, :update
+    delete "/stores/:store_slug/products/:product_id/reviews/:id", ReviewController, :delete
   end
 end

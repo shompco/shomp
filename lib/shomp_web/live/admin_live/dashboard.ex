@@ -325,7 +325,7 @@ defmodule ShompWeb.AdminLive.Dashboard do
                     </p>
                   </div>
                   <%= if store.slug do %>
-                    <a href={~p"/#{store.slug}"} class="btn btn-xs btn-outline">View</a>
+                    <a href={~p"/stores/#{store.slug}"} class="btn btn-xs btn-outline">View</a>
                   <% else %>
                     <span class="btn btn-xs btn-outline btn-disabled">View</span>
                   <% end %>

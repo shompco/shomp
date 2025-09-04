@@ -127,7 +127,7 @@ defmodule ShompWeb.ProfileLive.Show do
                 <div class="card bg-base-200 hover:bg-base-300 transition-colors cursor-pointer">
                   <div class="card-body">
                     <h3 class="card-title text-lg">
-                      <.link href={~p"/#{store.slug}"} class="hover:text-primary">
+                      <.link href={~p"/stores/#{store.slug}"} class="hover:text-primary">
                         <%= store.name %>
                       </.link>
                     </h3>
@@ -137,7 +137,7 @@ defmodule ShompWeb.ProfileLive.Show do
                       </p>
                     <% end %>
                     <div class="card-actions justify-end mt-4">
-                      <.link href={~p"/#{store.slug}"} class="btn btn-primary btn-sm">
+                      <.link href={~p"/stores/#{store.slug}"} class="btn btn-primary btn-sm">
                         Visit Store
                       </.link>
                     </div>

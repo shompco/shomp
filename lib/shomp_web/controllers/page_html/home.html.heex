@@ -7,7 +7,7 @@
       Welcome to Shomp
     </h1>
     <p class="text-xl md:text-2xl text-base-content/70 mb-8 max-w-3xl mx-auto">
-      Discover amazing products from independent creators. From digital art to physical goods, 
+      The platform with zero platform fee. Discover amazing products from independent creators. From digital art to physical goods, 
       find exactly what you need to enhance your life.
     </p>
     <div class="flex flex-col sm:flex-row gap-4 justify-center">
@@ -73,12 +73,12 @@
                 if product.store do
                   if product.slug do
                     if product.custom_category && product.custom_category.slug do
-                      "/#{product.store.slug}/#{product.custom_category.slug}/#{product.slug}"
+                      "/stores/#{product.store.slug}/#{product.custom_category.slug}/#{product.slug}"
                     else
-                      "/#{product.store.slug}/#{product.slug}"
+                      "/stores/#{product.store.slug}/#{product.slug}"
                     end
                   else
-                    "/#{product.store.slug}/products/#{product.id}"
+                    "/stores/#{product.store.slug}/products/#{product.id}"
                   end
                 else
                   "#"
@@ -155,12 +155,12 @@
                 if product.store do
                   if product.slug do
                     if product.custom_category && product.custom_category.slug do
-                      "/#{product.store.slug}/#{product.custom_category.slug}/#{product.slug}"
+                      "/stores/#{product.store.slug}/#{product.custom_category.slug}/#{product.slug}"
                     else
-                      "/#{product.store.slug}/#{product.slug}"
+                      "/stores/#{product.store.slug}/#{product.slug}"
                     end
                   else
-                    "/#{product.store.slug}/products/#{product.id}"
+                    "/stores/#{product.store.slug}/products/#{product.id}"
                   end
                 else
                   "#"

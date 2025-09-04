@@ -118,7 +118,7 @@ defmodule ShompWeb.StoreLive.MyStores do
                   
                   <div class="flex space-x-2">
                     <.link 
-                      navigate={~p"/#{store.slug}"} 
+                      navigate={~p"/stores/#{store.slug}"} 
                       class="btn btn-outline btn-sm flex-1"
                     >
                       View Store

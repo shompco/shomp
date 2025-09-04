@@ -276,7 +276,7 @@ defmodule ShompWeb.AdminLive.Stores do
               </div>
               
               <div class="card-actions justify-end">
-                <a href={~p"/#{store.slug}"} class="btn btn-primary btn-sm">View Store</a>
+                <a href={~p"/stores/#{store.slug}"} class="btn btn-primary btn-sm">View Store</a>
                 <%= if store.kyc_id_document_path do %>
                   <button 
                     phx-click="view_kyc_image" 

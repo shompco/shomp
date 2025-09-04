@@ -46,7 +46,7 @@ defmodule ShompWeb.ProductLive.Edit do
       {:ok,
        socket
        |> put_flash(:error, "You can only edit products in your own store")
-       |> push_navigate(to: ~p"/#{product.store.slug}")}
+       |> push_navigate(to: ~p"/stores/#{product.store.slug}")}
     end
   end
 
@@ -693,7 +693,7 @@ defmodule ShompWeb.ProductLive.Edit do
         {:noreply,
          socket
          |> put_flash(:info, "Product deleted successfully!")
-         |> push_navigate(to: ~p"/#{socket.assigns.product.store.slug}")}
+         |> push_navigate(to: ~p"/stores/#{socket.assigns.product.store.slug}")}
 
       {:error, _changeset} ->
         {:noreply,

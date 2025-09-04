@@ -29,6 +29,7 @@ defmodule Shomp.Stores.Store do
     |> validate_length(:slug, min: 3, max: 50)
     |> validate_format(:slug, ~r/^[a-z0-9-]+$/, message: "must contain only lowercase letters, numbers, and hyphens")
     |> validate_length(:description, max: 1000)
+    |> validate_store_username_conflict()
     |> unique_constraint(:slug)
     |> foreign_key_constraint(:user_id)
   end
@@ -46,6 +47,7 @@ defmodule Shomp.Stores.Store do
     |> validate_length(:slug, min: 3, max: 50)
     |> validate_format(:slug, ~r/^[a-z0-9-]+$/, message: "must contain only lowercase letters, numbers, and hyphens")
     |> validate_length(:description, max: 1000)
+    |> validate_store_username_conflict()
     |> unique_constraint(:slug)
     |> unique_constraint(:store_id)
     |> foreign_key_constraint(:user_id)
@@ -79,6 +81,21 @@ defmodule Shomp.Stores.Store do
         put_change(changeset, :store_id, store_id)
       _ ->
         changeset
+    end
+  end
+
+  defp validate_store_username_conflict(changeset) do
+    slug = get_change(changeset, :slug) || get_field(changeset, :slug)
+    
+    if slug do
+      # Check if this store slug conflicts with any existing username
+      case Shomp.Repo.get_by(Shomp.Accounts.User, username: slug) do
+        nil -> changeset
+        _user -> 
+          add_error(changeset, :slug, "store name conflicts with existing username '#{slug}'. Please choose a different store name.")
+      end
+    else
+      changeset
     end
   end
 end

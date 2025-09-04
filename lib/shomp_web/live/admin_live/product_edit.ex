@@ -208,7 +208,7 @@ defmodule ShompWeb.AdminLive.ProductEdit do
                 </.link>
                 
                 <.link
-                  navigate={~p"/#{@product.store.slug}"}
+                  navigate={~p"/stores/#{@product.store.slug}"}
                   class="btn btn-outline w-full"
                   target="_blank"
                 >

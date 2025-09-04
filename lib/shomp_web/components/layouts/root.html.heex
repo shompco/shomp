@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="csrf-token" content={get_csrf_token()} />
-    <.live_title default="Shomp" suffix=" · Digital Marketplace">
+    <.live_title default="Shomp" suffix=" · Digital and Physical Marketplace">
       {assigns[:page_title]}
     </.live_title>
     <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
@@ -138,7 +138,7 @@
               </.link>
             </li>
             <li>
-              <.link href={~p"/users/profile"} class="btn btn-ghost btn-sm justify-start">
+              <.link href={~p"/#{@current_scope.user.username}"} class="btn btn-ghost btn-sm justify-start">
                 👤 My Profile
               </.link>
             </li>

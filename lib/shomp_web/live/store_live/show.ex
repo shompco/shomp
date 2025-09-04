@@ -54,27 +54,27 @@ defmodule ShompWeb.StoreLive.Show do
            |> push_navigate(to: ~p"/")}
 
         store ->
-        # Load products for this store using the immutable store_id
-        products = Shomp.Products.list_products_by_store(store.store_id)
-        
-        # Load custom categories for this store
-        custom_categories = Shomp.StoreCategories.list_store_categories_with_counts(store.store_id)
-        
-        # Group products by custom category
-        products_by_category = Enum.group_by(products, fn product -> 
-          if product.custom_category_id do
-            Enum.find(custom_categories, fn cat -> cat.id == product.custom_category_id end)
-          else
-            nil
-          end
-        end)
-        
-        {:ok, assign(socket, 
-          store: store, 
-          products: products, 
-          custom_categories: custom_categories,
-          products_by_category: products_by_category
-        )}
+          # Load products for this store using the immutable store_id
+          products = Shomp.Products.list_products_by_store(store.store_id)
+          
+          # Load custom categories for this store
+          custom_categories = Shomp.StoreCategories.list_store_categories_with_counts(store.store_id)
+          
+          # Group products by custom category
+          products_by_category = Enum.group_by(products, fn product -> 
+            if product.custom_category_id do
+              Enum.find(custom_categories, fn cat -> cat.id == product.custom_category_id end)
+            else
+              nil
+            end
+          end)
+          
+          {:ok, assign(socket, 
+            store: store, 
+            products: products, 
+            custom_categories: custom_categories,
+            products_by_category: products_by_category
+          )}
       end
     end
   end
@@ -91,7 +91,7 @@ defmodule ShompWeb.StoreLive.Show do
           <nav class="flex items-center space-x-2 text-sm text-gray-500 mb-6">
             <.link navigate={~p"/"} class="hover:text-gray-700">Home</.link>
             <span>/</span>
-            <.link navigate={~p"/#{@store.slug}"} class="hover:text-gray-700"><%= @store.name %></.link>
+            <.link navigate={~p"/stores/#{@store.slug}"} class="hover:text-gray-700"><%= @store.name %></.link>
             <span>/</span>
             <span class="text-gray-900 font-medium"><%= @category.name %></span>
           </nav>
