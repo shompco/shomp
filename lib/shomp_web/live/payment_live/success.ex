@@ -63,54 +63,54 @@ defmodule ShompWeb.PaymentLive.Success do
 
   def render(assigns) do
     ~H"""
-    <div class="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div class="min-h-screen bg-base-200 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div class="sm:mx-auto sm:w-full sm:max-w-md">
-        <div class="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+        <div class="bg-base-100 py-8 px-4 shadow sm:rounded-lg sm:px-10">
           <div class="text-center">
-            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
-              <svg class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-success/20">
+              <svg class="h-6 w-6 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h2 class="mt-6 text-3xl font-extrabold text-gray-900">
+            <h2 class="mt-6 text-3xl font-extrabold text-base-content">
               Payment Successful!
             </h2>
-            <p class="mt-2 text-sm text-gray-600">
+            <p class="mt-2 text-sm text-base-content/70">
               Thank you for your purchase. Your payment has been processed successfully.
             </p>
             
             <%= if @order do %>
-              <div class="mt-4 p-4 bg-green-50 rounded-md border border-green-200">
-                <h3 class="text-lg font-medium text-green-900 mb-2">Purchase Details</h3>
+              <div class="mt-4 p-4 bg-success/10 rounded-md border border-success/20">
+                <h3 class="text-lg font-medium text-success mb-2">Purchase Details</h3>
                 <div class="space-y-2">
                   <%= for order_item <- @order.order_items do %>
                     <div class="flex justify-between items-center">
-                      <span class="text-sm text-green-800">
+                      <span class="text-sm text-base-content">
                         <%= order_item.product.title %>
                       </span>
-                      <span class="text-sm font-medium text-green-900">
+                      <span class="text-sm font-medium text-base-content">
                         $<%= Decimal.to_string(order_item.price) %>
                       </span>
                     </div>
                   <% end %>
-                  <div class="border-t border-green-200 pt-2 mt-2">
+                  <div class="border-t border-base-300 pt-2 mt-2">
                     <div class="flex justify-between items-center">
-                      <span class="font-medium text-green-900">Total</span>
-                      <span class="font-bold text-green-900">
+                      <span class="font-medium text-base-content">Total</span>
+                      <span class="font-bold text-base-content">
                         $<%= Decimal.to_string(@order.total_amount) %>
                       </span>
                     </div>
                   </div>
                 </div>
                 
-                <div class="mt-4 pt-3 border-t border-green-200">
-                  <p class="text-sm text-green-700 mb-3">
+                <div class="mt-4 pt-3 border-t border-base-300">
+                  <p class="text-sm text-base-content/70 mb-3">
                     Enjoy your purchase! You can now review this product.
                   </p>
                   <%= for order_item <- @order.order_items do %>
                     <a 
                       href={"/stores/#{@store_slug}/products/#{order_item.product_id}/reviews/new"} 
-                      class="inline-block bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-700 transition-colors"
+                      class="inline-block btn btn-success btn-sm"
                     >
                       Review <%= order_item.product.title %>
                     </a>
@@ -119,12 +119,12 @@ defmodule ShompWeb.PaymentLive.Success do
               </div>
             <% else %>
               <%= if @payment do %>
-                <div class="mt-4 p-4 bg-blue-50 rounded-md border border-blue-200">
+                <div class="mt-4 p-4 bg-info/10 rounded-md border border-info/20">
                   <div class="flex items-center justify-center">
-                    <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                    <span class="ml-2 text-sm text-blue-700">Processing your order...</span>
+                    <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-info"></div>
+                    <span class="ml-2 text-sm text-info">Processing your order...</span>
                   </div>
-                  <p class="text-xs text-blue-600 mt-2 text-center">
+                  <p class="text-xs text-info/70 mt-2 text-center">
                     This may take a few moments. Please wait while we finalize your purchase.
                   </p>
                 </div>
@@ -132,15 +132,15 @@ defmodule ShompWeb.PaymentLive.Success do
             <% end %>
             
             <%= if @session_id do %>
-              <div class="mt-4 p-3 bg-gray-50 rounded-md">
-                <p class="text-xs text-gray-500">Session ID: <%= @session_id %></p>
+              <div class="mt-4 p-3 bg-base-200 rounded-md">
+                <p class="text-xs text-base-content/60">Session ID: <%= @session_id %></p>
               </div>
             <% end %>
           </div>
 
           <!-- Donation Section -->
-          <div class="mt-8 pt-6 border-t border-gray-200">
-            <h3 class="text-lg font-medium text-gray-900 text-center mb-4">
+          <div class="mt-8 pt-6 border-t border-base-300">
+            <h3 class="text-lg font-medium text-base-content text-center mb-4">
               Donate to Shomp
             </h3>
             <div class="grid grid-cols-2 gap-3">
@@ -152,7 +152,7 @@ defmodule ShompWeb.PaymentLive.Success do
               <button phx-click="donate" phx-value-amount="25" phx-value-frequency="monthly" class="btn btn-outline btn-sm w-full">Donate $25 (Monthly)</button>
             </div>
             <div class="text-center">
-              <p class="text-xs text-gray-500 mt-3">Donations help keep Shomp running and support ongoing development.</p>
+              <p class="text-xs text-base-content/60 mt-3">Donations help keep Shomp running and support ongoing development.</p>
             </div>
           </div>
 
