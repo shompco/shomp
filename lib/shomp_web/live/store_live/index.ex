@@ -48,7 +48,8 @@ defmodule ShompWeb.StoreLive.Index do
       }
     </style>
     <Layouts.app flash={@flash} current_scope={@current_scope}>
-      <div class="w-full px-2 py-8">
+      <!-- Header and Search - constrained to container -->
+      <div class="w-full py-8">
         <div class="text-center mb-12">
           <.header>
             Discover Stores
@@ -65,7 +66,7 @@ defmodule ShompWeb.StoreLive.Index do
           </div>
         </div>
 
-        <div class="mb-8">
+        <div class="mb-8 px-4">
           <form phx-change="search" class="max-w-lg mx-auto">
             <div class="relative">
               <input
@@ -84,134 +85,122 @@ defmodule ShompWeb.StoreLive.Index do
             </div>
           </form>
         </div>
+      </div>
 
+      <!-- Stores List - Full viewport width -->
+      <div class="w-screen relative left-1/2 -translate-x-1/2">
         <%= if Enum.empty?(@filtered_stores) do %>
-          <div class="text-center py-12">
-            <div class="text-gray-500 text-lg mb-4">
-              <%= if @search == "" do %>
-                No stores found yet. Be the first to create one!
+          <!-- Empty state - back to constrained container -->
+          <div class="w-full px-4">
+            <div class="text-center py-12">
+              <div class="text-base-content/70 text-lg mb-4">
+                <%= if @search == "" do %>
+                  No stores found yet. Be the first to create one!
+                <% else %>
+                  No stores match your search for "<%= @search %>"
+                <% end %>
+              </div>
+              <%= if @current_scope do %>
+                <.link
+                  navigate={~p"/stores/new"}
+                  class="btn btn-primary"
+                >
+                  Create Your Store
+                </.link>
               <% else %>
-                No stores match your search for "<%= @search %>"
+                <.link
+                  navigate={~p"/users/register"}
+                  class="btn btn-primary"
+                >
+                  Join and Create a Store
+                </.link>
               <% end %>
             </div>
-            <%= if @current_scope do %>
-              <.link
-                navigate={~p"/stores/new"}
-                class="btn btn-primary"
-              >
-                Create Your Store
-              </.link>
-            <% else %>
-              <.link
-                navigate={~p"/users/register"}
-                class="btn btn-primary"
-              >
-                Join and Create a Store
-              </.link>
-            <% end %>
           </div>
         <% else %>
           <div class="space-y-0">
             <%= for store <- @filtered_stores do %>
-              <div class="bg-white border-b border-gray-200 hover:bg-gray-50 transition-colors duration-200 relative">
-                <!-- Store Info Section with padding -->
-                <div class="px-4 py-3">
-                  <div class="flex items-center space-x-6">
-                    <div class="flex-shrink-0 w-80 lg:w-96">
-                      <.link
-                        navigate={~p"/stores/#{store.slug}"}
-                        class="text-lg font-semibold text-gray-900 hover:text-blue-600 transition-colors duration-200 block"
-                      >
-                        <%= store.name %>
-                      </.link>
-                      
-                      <%= if store.description do %>
-                        <p class="text-gray-600 text-sm mt-1 line-clamp-1">
-                          <%= store.description %>
-                        </p>
-                      <% end %>
-                      
-                      <div class="flex items-center space-x-3 text-xs text-gray-500 mt-1">
-                        <span class="flex items-center">
-                          <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
-                          </svg>
-                          by <%= store.user.username || "Creator" %>
-                        </span>
-                        <span class="flex items-center">
-                          <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm0 4a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1V8zm8 0a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V8zm0 4a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1v-2z" clip-rule="evenodd" />
-                          </svg>
-                          <%= if store.products, do: length(store.products), else: 0 %> products
-                        </span>
-                      </div>
-                    </div>
+              <div class="w-full bg-base-100 border-b border-base-300 hover:bg-base-200 transition-colors duration-200">
+                <div class="flex items-center justify-between w-full px-4 py-3">
+                  <!-- Store Info Section - fixed width -->
+                  <div class="flex-shrink-0 w-80 lg:w-96">
+                    <.link
+                      navigate={~p"/stores/#{store.slug}"}
+                      class="text-lg font-semibold text-base-content hover:text-primary transition-colors duration-200 block"
+                    >
+                      <%= store.name %>
+                    </.link>
                     
-                    <!-- Spacer to push images to the right -->
-                    <div class="flex-1"></div>
-                  </div>
-                </div>
-                
-                <!-- Product Images Section - proper height within row -->
-                <div class="absolute top-0 right-0 h-full flex items-center pr-4">
-                  <div class="flex-1 min-w-0">
-                      <%= if store.products && length(store.products) > 0 do %>
-                        <div class="flex gap-1">
-                          <%= for product <- Enum.take(store.products, 4) do %>
-                            <.link
-                              navigate={~p"/stores/#{store.slug}/products/#{product.slug || product.id}"}
-                              class="block w-20 h-20 bg-gray-100 overflow-hidden hover:shadow-sm transition-all duration-200 hover:scale-105 rounded-lg"
-                            >
-                              <%= if product.image_thumb && product.image_thumb != "" do %>
-                                <img
-                                  src={product.image_thumb}
-                                  alt={product.title}
-                                  class="w-full h-full object-cover"
-                                  loading="lazy"
-                                />
-                              <% else %>
-                                <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
-                                  <div class="text-center p-1">
-                                    <svg class="w-5 h-5 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                    </svg>
-                                  </div>
-                                </div>
-                              <% end %>
-                            </.link>
-                          <% end %>
-                          
-                          <%= if store.products && length(store.products) > 4 do %>
-                            <.link
-                              navigate={~p"/stores/#{store.slug}"}
-                              class="w-20 h-20 bg-gray-50 flex items-center justify-center hover:bg-gray-100 transition-colors rounded-lg"
-                            >
-                                <div class="text-center">
-                                  <svg class="w-5 h-5 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                  </svg>
-                                  <p class="text-xs text-gray-500 font-medium mt-1">+<%= (store.products && length(store.products) - 4) || 0 %></p>
-                                </div>
-                              </.link>
-                          <% end %>
-                        </div>
-                      <% else %>
-                        <div class="w-20 h-20 flex items-center justify-center bg-gray-50 border border-dashed border-gray-300 rounded-lg">
-                          <div class="text-center">
-                            <svg class="w-6 h-6 text-gray-300 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                            </svg>
-                            <p class="text-gray-400 text-xs mt-1">No products yet</p>
-                          </div>
-                        </div>
-                      <% end %>
+                    <%= if store.description do %>
+                      <p class="text-base-content/70 text-sm mt-1 line-clamp-1">
+                        <%= store.description %>
+                      </p>
+                    <% end %>
+                    
+                    <div class="flex items-center space-x-3 text-xs text-base-content/60 mt-1">
+                      <span class="flex items-center">
+                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                          <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
+                        </svg>
+                        by <%= store.user.username || "Creator" %>
+                      </span>
+                      <span class="flex items-center">
+                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                          <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm0 4a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1V8zm8 0a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V8zm0 4a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1v-2z" clip-rule="evenodd" />
+                        </svg>
+                        <%= if store.products, do: length(store.products), else: 0 %> products
+                      </span>
                     </div>
                   </div>
+                  
+                  <!-- Product Images Section - flexible width to fill remaining space -->
+                  <div class="flex-1 flex justify-end min-w-0">
+                    <%= if store.products && length(store.products) > 0 do %>
+                      <div class="flex gap-1 flex-wrap justify-end">
+                        <%= for product <- store.products do %>
+                          <.link
+                            navigate={~p"/stores/#{store.slug}/products/#{product.slug || product.id}"}
+                            class="block w-20 h-20 bg-base-200 overflow-hidden hover:shadow-sm transition-all duration-200 hover:scale-105 rounded-lg flex-shrink-0"
+                          >
+                            <%= if product.image_thumb && product.image_thumb != "" do %>
+                              <img
+                                src={product.image_thumb}
+                                alt={product.title}
+                                class="w-full h-full object-cover"
+                                loading="lazy"
+                              />
+                            <% else %>
+                              <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-base-200 to-base-300">
+                                <div class="text-center p-1">
+                                  <svg class="w-5 h-5 text-base-content/40 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                  </svg>
+                                </div>
+                              </div>
+                            <% end %>
+                          </.link>
+                        <% end %>
+                      </div>
+                    <% else %>
+                      <div class="w-20 h-20 flex items-center justify-center bg-base-200 border border-dashed border-base-300 rounded-lg flex-shrink-0">
+                        <div class="text-center">
+                          <svg class="w-6 h-6 text-base-content/30 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                          </svg>
+                          <p class="text-base-content/40 text-xs mt-1">No products yet</p>
+                        </div>
+                      </div>
+                    <% end %>
+                  </div>
                 </div>
+              </div>
             <% end %>
           </div>
         <% end %>
+      </div>
 
+      <!-- Footer sections - back to constrained container -->
+      <div class="w-full px-4">
         <%= if @current_scope do %>
           <div class="text-center mt-12">
             <.link
