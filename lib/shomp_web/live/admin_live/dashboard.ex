@@ -623,6 +623,12 @@ defmodule ShompWeb.AdminLive.Dashboard do
             icon="🆔" 
             title="KYC Verification" 
             description="Review and verify store KYC submissions" />
+          
+          <.action_button 
+            href={~p"/admin/support"} 
+            icon="🎫" 
+            title="Support Dashboard" 
+            description="Manage support tickets and customer issues" />
         </div>
       </div>
 

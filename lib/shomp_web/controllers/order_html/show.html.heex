@@ -7,9 +7,14 @@
           <h1 class="text-3xl font-bold text-base-content">Order Details</h1>
           <p class="text-lg text-base-content/70 mt-2">Order <%= @order.immutable_id %></p>
         </div>
-        <a href={~p"/orders"} class="btn btn-outline">
-          ← Back to Orders
-        </a>
+        <div class="flex gap-2">
+          <a href={~p"/orders"} class="btn btn-outline">
+            ← Back to Orders
+          </a>
+          <a href={~p"/support?order_id=#{@order.id}"} class="btn btn-primary">
+            🎫 Get Support
+          </a>
+        </div>
       </div>
     </div>
 

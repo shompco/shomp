@@ -16,6 +16,28 @@ defmodule ShompWeb.ProfileLive.Edit do
     ~H"""
     <div class="container mx-auto px-4 py-8">
       <div class="max-w-2xl mx-auto">
+        <!-- Navigation Buttons -->
+        <div class="mb-6 flex flex-wrap gap-2">
+          <a href={~p"/support"} class="btn btn-outline btn-sm">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            Support Tickets
+          </a>
+          <a href={~p"/email-preferences"} class="btn btn-outline btn-sm">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+            </svg>
+            Email Preferences
+          </a>
+          <a href={~p"/orders"} class="btn btn-outline btn-sm">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+            </svg>
+            My Orders
+          </a>
+        </div>
+        
         <div class="bg-base-100 rounded-lg shadow-lg p-8">
           <h1 class="text-3xl font-bold mb-8">Edit Profile</h1>
           

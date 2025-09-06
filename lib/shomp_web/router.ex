@@ -128,6 +128,13 @@ defmodule ShompWeb.Router do
       live "/cart", CartLive.Show, :show
       live "/checkout/cart/:cart_id", CheckoutLive.Cart, :show
       
+      # Support system routes
+      live "/support", SupportLive.Index, :index
+      live "/support/:id", SupportLive.Show, :show
+      
+      # Email preferences
+      live "/email-preferences", UserLive.EmailPreferences, :index
+      
       # Admin routes
       live "/admin", AdminLive.Dashboard, :show
       live "/admin/email-subscriptions", AdminLive.EmailSubscriptions, :show
@@ -136,6 +143,10 @@ defmodule ShompWeb.Router do
       live "/admin/products", AdminLive.Products, :show
       live "/admin/products/:id/edit", AdminLive.ProductEdit, :edit
       live "/admin/kyc-verification", AdminLive.KYCVerification, :show
+      
+      # Admin support routes
+      live "/admin/support", AdminLive.SupportDashboard, :index
+      live "/admin/support/:id", SupportLive.Show, :show
       
       # Admin order routes
       get "/admin/orders", OrderController, :index

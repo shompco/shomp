@@ -21,6 +21,68 @@
   </div>
 </div>
 
+<!-- User Dashboard Section (for authenticated users) -->
+<%= if @current_scope && @current_scope.user do %>
+<div class="py-16 bg-base-100">
+  <div class="container mx-auto px-4">
+    <div class="text-center mb-8">
+      <h2 class="text-3xl font-bold mb-4">Welcome back, <%= @current_scope.user.username || @current_scope.user.email %>!</h2>
+      <p class="text-base-content/70">Manage your account and stay updated</p>
+    </div>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-4xl mx-auto">
+      <a href={~p"/support"} class="card bg-base-200 shadow hover:shadow-lg transition-shadow">
+        <div class="card-body text-center">
+          <div class="text-4xl mb-4">🎫</div>
+          <h3 class="card-title justify-center">Support Tickets</h3>
+          <p class="text-sm text-base-content/70">Get help with your account or orders</p>
+        </div>
+      </a>
+      
+      <a href={~p"/email-preferences"} class="card bg-base-200 shadow hover:shadow-lg transition-shadow">
+        <div class="card-body text-center">
+          <div class="text-4xl mb-4">📧</div>
+          <h3 class="card-title justify-center">Email Preferences</h3>
+          <p class="text-sm text-base-content/70">Manage your notification settings</p>
+        </div>
+      </a>
+      
+      <a href={~p"/orders"} class="card bg-base-200 shadow hover:shadow-lg transition-shadow">
+        <div class="card-body text-center">
+          <div class="text-4xl mb-4">📦</div>
+          <h3 class="card-title justify-center">My Orders</h3>
+          <p class="text-sm text-base-content/70">Track your purchases and downloads</p>
+        </div>
+      </a>
+      
+      <a href={~p"/my/stores"} class="card bg-base-200 shadow hover:shadow-lg transition-shadow">
+        <div class="card-body text-center">
+          <div class="text-4xl mb-4">🏪</div>
+          <h3 class="card-title justify-center">My Stores</h3>
+          <p class="text-sm text-base-content/70">Manage your store and products</p>
+        </div>
+      </a>
+    </div>
+    
+    <!-- Need Help Section -->
+    <div class="mt-12 text-center">
+      <div class="bg-primary/10 rounded-lg p-8">
+        <h3 class="text-2xl font-bold mb-4">Need Help?</h3>
+        <p class="text-base-content/70 mb-6">We're here to help you with any questions or issues you might have.</p>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+          <a href={~p"/support"} class="btn btn-primary btn-lg">
+            🎫 Create Support Ticket
+          </a>
+          <a href={~p"/email-preferences"} class="btn btn-outline btn-lg">
+            📧 Email Preferences
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<% end %>
+
 
 
 
