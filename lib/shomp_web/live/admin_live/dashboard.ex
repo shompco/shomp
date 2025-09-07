@@ -9,6 +9,7 @@ defmodule ShompWeb.AdminLive.Dashboard do
   alias Shomp.AdminLogs
   alias Shomp.Stores.StoreKYCContext
   alias Shomp.Orders
+  alias Shomp.SupportTickets
   alias Phoenix.PubSub
 
   @page_title "Admin Dashboard - Shomp"
@@ -24,6 +25,7 @@ defmodule ShompWeb.AdminLive.Dashboard do
         PubSub.subscribe(Shomp.PubSub, "admin:products")
         PubSub.subscribe(Shomp.PubSub, "admin:users")
         PubSub.subscribe(Shomp.PubSub, "admin:images")
+        PubSub.subscribe(Shomp.PubSub, "admin:support_tickets")
       end
 
       {:ok, 
@@ -74,6 +76,23 @@ defmodule ShompWeb.AdminLive.Dashboard do
     {:noreply, socket}
   end
 
+  def handle_info(%{event: "support_ticket_created", payload: _ticket}, socket) do
+    # Update support ticket count in real-time
+    socket = socket 
+    |> put_flash(:info, "New support ticket created")
+    |> load_admin_stats()
+    
+    {:noreply, socket}
+  end
+
+  def handle_info(%{event: "support_ticket_updated", payload: _ticket}, socket) do
+    # Update support ticket count in real-time
+    socket = socket 
+    |> load_admin_stats()
+    
+    {:noreply, socket}
+  end
+
   defp load_admin_stats(socket) do
     socket
     |> assign(:total_users, count_users())
@@ -82,6 +101,7 @@ defmodule ShompWeb.AdminLive.Dashboard do
     |> assign(:total_subscriptions, EmailSubscriptions.count_email_subscriptions())
     |> assign(:active_subscriptions, EmailSubscriptions.count_active_subscriptions())
     |> assign(:kyc_stats, StoreKYCContext.get_kyc_stats())
+    |> assign(:open_support_tickets, count_open_support_tickets())
     |> assign(:recent_users, list_recent_users())
     |> assign(:recent_stores, list_recent_stores())
     |> assign(:recent_products, list_recent_products())
@@ -103,6 +123,14 @@ defmodule ShompWeb.AdminLive.Dashboard do
   defp count_products do
     # Count total products
     Shomp.Repo.aggregate(Shomp.Products.Product, :count, :id)
+  end
+
+  defp count_open_support_tickets do
+    # Count open support tickets (not resolved or closed)
+    from(t in Shomp.SupportTickets.SupportTicket,
+      where: t.status in ["open", "in_progress", "waiting_customer"]
+    )
+    |> Shomp.Repo.aggregate(:count, :id)
   end
 
   defp list_recent_users do
@@ -290,7 +318,7 @@ defmodule ShompWeb.AdminLive.Dashboard do
       </div>
 
       <!-- Stats Overview -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mb-8">
         <.stat_card 
           title="Total Users" 
           value={@total_users} 
@@ -308,6 +336,13 @@ defmodule ShompWeb.AdminLive.Dashboard do
           value={@total_products} 
           icon="📦" 
           color="accent" />
+        
+        <.stat_card 
+          title="Open Support Tickets" 
+          value={@open_support_tickets} 
+          icon="🎫" 
+          color="error" 
+          link={~p"/admin/support"} />
         
         <.stat_card 
           title="Email Subscriptions" 

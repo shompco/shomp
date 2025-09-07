@@ -39,15 +39,35 @@ defmodule Shomp.SupportTickets do
   def create_ticket(attrs \\ %{}) do
     ticket_number = generate_ticket_number()
     
-    %SupportTicket{}
-    |> SupportTicket.changeset(Map.put(attrs, "ticket_number", ticket_number))
-    |> Repo.insert()
+    case %SupportTicket{}
+         |> SupportTicket.changeset(Map.put(attrs, "ticket_number", ticket_number))
+         |> Repo.insert() do
+      {:ok, ticket} ->
+        # Broadcast ticket creation to admin dashboard
+        Phoenix.PubSub.broadcast(Shomp.PubSub, "admin:support_tickets", %{
+          event: "support_ticket_created",
+          payload: ticket
+        })
+        {:ok, ticket}
+      
+      error -> error
+    end
   end
 
   def update_ticket(ticket, attrs) do
-    ticket
-    |> SupportTicket.changeset(attrs)
-    |> Repo.update()
+    case ticket
+         |> SupportTicket.changeset(attrs)
+         |> Repo.update() do
+      {:ok, updated_ticket} ->
+        # Broadcast ticket update to admin dashboard
+        Phoenix.PubSub.broadcast(Shomp.PubSub, "admin:support_tickets", %{
+          event: "support_ticket_updated",
+          payload: updated_ticket
+        })
+        {:ok, updated_ticket}
+      
+      error -> error
+    end
   end
 
   def assign_ticket(ticket, admin_user_id) do
@@ -57,14 +77,24 @@ defmodule Shomp.SupportTickets do
   end
 
   def resolve_ticket(ticket, admin_user_id, resolution_notes) do
-    ticket
-    |> SupportTicket.resolution_changeset(%{
-      status: "resolved",
-      resolved_at: DateTime.utc_now(),
-      resolved_by_user_id: admin_user_id,
-      resolution_notes: resolution_notes
-    })
-    |> Repo.update()
+    case ticket
+         |> SupportTicket.resolution_changeset(%{
+           status: "resolved",
+           resolved_at: DateTime.utc_now(),
+           resolved_by_user_id: admin_user_id,
+           resolution_notes: resolution_notes
+         })
+         |> Repo.update() do
+      {:ok, updated_ticket} ->
+        # Broadcast ticket update to admin dashboard
+        Phoenix.PubSub.broadcast(Shomp.PubSub, "admin:support_tickets", %{
+          event: "support_ticket_updated",
+          payload: updated_ticket
+        })
+        {:ok, updated_ticket}
+      
+      error -> error
+    end
   end
 
   def add_message(ticket, message_attrs) do
