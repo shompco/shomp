@@ -3805,6 +3805,17 @@
     color: var(--color-secondary-content);
     --input-color: var(--color-secondary);
   }
+  .link-primary {
+    color: var(--color-primary);
+    @media (hover: hover) {
+      &:hover {
+        color: var(--color-primary);
+        @supports (color: color-mix(in lab, red, red)) {
+          color: color-mix(in oklab, var(--color-primary) 80%, #000);
+        }
+      }
+    }
+  }
   .text-accent {
     color: var(--color-accent);
   }

@@ -30,6 +30,12 @@ defmodule Shomp.SupportTickets do
     |> Repo.get!(id)
   end
 
+  def get_ticket_by_ticket_number!(ticket_number) do
+    SupportTicket
+    |> preload([:user, :order, :store, :assigned_to_user, :resolved_by_user, :messages])
+    |> Repo.get_by!(ticket_number: ticket_number)
+  end
+
   def create_ticket(attrs \\ %{}) do
     ticket_number = generate_ticket_number()
     

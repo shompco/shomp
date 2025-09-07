@@ -90,7 +90,7 @@ defmodule ShompWeb.AdminLive.SupportDashboard do
 
   defp update_ticket_in_list(tickets, updated_ticket) do
     Enum.map(tickets, fn ticket ->
-      if ticket.id == updated_ticket.id, do: updated_ticket, else: ticket
+      if ticket.ticket_number == updated_ticket.ticket_number, do: updated_ticket, else: ticket
     end)
   end
 
@@ -151,7 +151,7 @@ defmodule ShompWeb.AdminLive.SupportDashboard do
                       <div class="flex justify-between items-start">
                         <div class="flex-1">
                           <h4 class="font-semibold text-sm">
-                            <a href={~p"/admin/support/#{ticket.id}"} class="link link-hover">
+                            <a href={~p"/admin/support/#{ticket.ticket_number}"} class="link link-hover">
                               <%= ticket.subject %>
                             </a>
                           </h4>
@@ -161,7 +161,7 @@ defmodule ShompWeb.AdminLive.SupportDashboard do
                         </div>
                         <button 
                           phx-click="assign_ticket" 
-                          phx-value-ticket_id={ticket.id}
+                          phx-value-ticket_id={ticket.ticket_number}
                           class="btn btn-xs btn-primary"
                         >
                           Assign
@@ -243,7 +243,7 @@ defmodule ShompWeb.AdminLive.SupportDashboard do
                         <td>
                           <div>
                             <div class="font-bold">
-                              <a href={~p"/admin/support/#{ticket.id}"} class="link link-hover">
+                              <a href={~p"/admin/support/#{ticket.ticket_number}"} class="link link-hover">
                                 <%= ticket.ticket_number %>
                               </a>
                             </div>
@@ -287,14 +287,14 @@ defmodule ShompWeb.AdminLive.SupportDashboard do
                             <%= if !ticket.assigned_to_user do %>
                               <button 
                                 phx-click="assign_ticket" 
-                                phx-value-ticket_id={ticket.id}
+                                phx-value-ticket_id={ticket.ticket_number}
                                 class="btn btn-xs btn-primary"
                               >
                                 Assign
                               </button>
                             <% end %>
                             <%= if ticket.status != "resolved" and ticket.status != "closed" do %>
-                              <a href={~p"/admin/support/#{ticket.id}"} class="btn btn-xs btn-ghost">
+                              <a href={~p"/admin/support/#{ticket.ticket_number}"} class="btn btn-xs btn-ghost">
                                 View
                               </a>
                             <% end %>

@@ -45,6 +45,16 @@ defmodule ShompWeb.SupportLive.Index do
   def handle_event("create_ticket", %{"support_ticket" => ticket_params}, socket) do
     user = socket.assigns.current_scope.user
     
+    # Convert immutable_id to actual order ID if provided
+    ticket_params = if ticket_params["order_id"] && ticket_params["order_id"] != "" do
+      case Orders.get_order_by_immutable_id!(ticket_params["order_id"]) do
+        nil -> ticket_params
+        order -> Map.put(ticket_params, "order_id", order.id)
+      end
+    else
+      ticket_params
+    end
+    
     ticket_params = 
       ticket_params
       |> Map.put("user_id", user.id)
@@ -170,7 +180,7 @@ defmodule ShompWeb.SupportLive.Index do
                 options={[
                   {"No specific order", ""} | 
                   Enum.map(@orders, fn order -> 
-                    {"Order ##{order.immutable_id} - $#{order.total_amount} - #{String.capitalize(order.status)} - #{Calendar.strftime(order.inserted_at, "%b %d, %Y")}", to_string(order.id)}
+                    {"Order ##{order.immutable_id} - $#{order.total_amount} - #{String.capitalize(order.status)} - #{Calendar.strftime(order.inserted_at, "%b %d, %Y")}", order.immutable_id}
                   end)
                 ]}
               />
@@ -206,7 +216,7 @@ defmodule ShompWeb.SupportLive.Index do
                   <div class="flex-1">
                     <div class="flex items-center gap-2 mb-2">
                       <h3 class="text-lg font-semibold">
-                        <a href={~p"/support/#{ticket.id}"} class="link link-hover">
+                        <a href={~p"/support/#{ticket.ticket_number}"} class="link link-hover">
                           <%= ticket.subject %>
                         </a>
                       </h3>
@@ -246,7 +256,7 @@ defmodule ShompWeb.SupportLive.Index do
                   </div>
                   
                   <div class="flex flex-col items-end gap-2">
-                    <a href={~p"/support/#{ticket.id}"} class="btn btn-sm btn-primary">
+                    <a href={~p"/support/#{ticket.ticket_number}"} class="btn btn-sm btn-primary">
                       View Details
                     </a>
                     <%= if ticket.assigned_to_user do %>

@@ -5,8 +5,8 @@ defmodule ShompWeb.SupportLive.Show do
 
   on_mount {ShompWeb.UserAuth, :require_authenticated}
 
-  def mount(%{"id" => id}, _session, socket) do
-    ticket = SupportTickets.get_ticket!(id)
+  def mount(%{"ticket_number" => ticket_number}, _session, socket) do
+    ticket = SupportTickets.get_ticket_by_ticket_number!(ticket_number)
     user = socket.assigns.current_scope.user
     
     # Verify user owns this ticket or is admin
@@ -153,7 +153,7 @@ defmodule ShompWeb.SupportLive.Show do
                       Date: <%= Calendar.strftime(@ticket.order.inserted_at, "%b %d, %Y") %>
                     </p>
                   </div>
-                  <a href={~p"/orders/#{@ticket.order.id}"} class="btn btn-sm btn-outline">
+                  <a href={~p"/orders/#{@ticket.order.immutable_id}"} class="btn btn-sm btn-outline">
                     View Order
                   </a>
                 </div>

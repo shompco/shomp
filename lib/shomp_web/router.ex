@@ -130,7 +130,7 @@ defmodule ShompWeb.Router do
       
       # Support system routes
       live "/support", SupportLive.Index, :index
-      live "/support/:id", SupportLive.Show, :show
+      live "/support/:ticket_number", SupportLive.Show, :show
       
       # Email preferences
       live "/email-preferences", UserLive.EmailPreferences, :index
@@ -146,11 +146,11 @@ defmodule ShompWeb.Router do
       
       # Admin support routes
       live "/admin/support", AdminLive.SupportDashboard, :index
-      live "/admin/support/:id", SupportLive.Show, :show
+      live "/admin/support/:ticket_number", SupportLive.Show, :show
       
       # Admin order routes
       get "/admin/orders", OrderController, :index
-      get "/admin/orders/:immutable_id", OrderController, :show
+      live "/admin/orders/:immutable_id", AdminLive.OrderShow, :show
     end
 
     post "/users/update-password", UserSessionController, :update_password

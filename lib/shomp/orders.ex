@@ -27,7 +27,7 @@ defmodule Shomp.Orders do
   @doc """
   Gets a single order by immutable_id.
   """
-  def get_order_by_immutable_id!(immutable_id), do: Repo.get_by!(Order, immutable_id: immutable_id)
+  def get_order_by_immutable_id!(immutable_id), do: Repo.get_by(Order, immutable_id: immutable_id)
 
   @doc """
   Gets a single order by stripe session ID.

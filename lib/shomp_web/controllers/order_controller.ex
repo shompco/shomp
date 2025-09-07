@@ -14,9 +14,16 @@ defmodule ShompWeb.OrderController do
   defp show_order(conn, order_id) do
     case Orders.get_order_by_immutable_id!(order_id) do
       nil ->
-        conn
-        |> put_flash(:error, "Order not found.")
-        |> redirect(to: ~p"/purchases")
+        # Check if user is admin, if so redirect to admin view
+        if conn.assigns.current_scope.user.role == "admin" do
+          conn
+          |> put_flash(:error, "Order not found in user orders. Redirecting to admin view.")
+          |> redirect(to: ~p"/admin/orders/#{order_id}")
+        else
+          conn
+          |> put_flash(:error, "Order not found.")
+          |> redirect(to: ~p"/purchases")
+        end
 
       order ->
         # Preload order items and products
