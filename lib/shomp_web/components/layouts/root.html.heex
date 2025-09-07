@@ -85,6 +85,26 @@
             </.link>
           </li>
         <% end %>
+        
+        <!-- Notification Bell -->
+        <li>
+          <div class="relative">
+            <.link 
+              href={~p"/notifications"}
+              class="btn btn-ghost btn-sm flex items-center space-x-1"
+              id="notification-bell"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+              </svg>
+              <%= if assigns[:unread_count] && @unread_count > 0 do %>
+                <span class="badge badge-error badge-sm absolute -top-1 -right-1 min-w-[1.25rem] h-5 flex items-center justify-center text-xs">
+                  <%= if @unread_count > 99, do: "99+", else: @unread_count %>
+                </span>
+              <% end %>
+            </.link>
+          </div>
+        </li>
         <li class="dropdown dropdown-end">
           <div tabindex="0" role="button" class="btn btn-ghost btn-sm">
             <%= @current_scope.user.username || "User" %>

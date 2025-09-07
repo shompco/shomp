@@ -27,7 +27,7 @@ defmodule ShompWeb.Router do
     pipe_through :browser
 
     live_session :feature_requests,
-      on_mount: [{ShompWeb.UserAuth, :mount_current_scope}, {ShompWeb.CartHook, :default}] do
+      on_mount: [{ShompWeb.UserAuth, :mount_current_scope}, {ShompWeb.CartHook, :default}, {ShompWeb.NotificationHook, :default}] do
       live "/", RequestLive.Index, :index
       live "/new", RequestLive.Form, :new
       live "/:id", RequestLive.Show, :show
@@ -43,7 +43,7 @@ defmodule ShompWeb.Router do
     get "/", PageController, :home
     
     live_session :public_with_cart,
-      on_mount: [{ShompWeb.UserAuth, :mount_current_scope}, {ShompWeb.CartHook, :default}] do
+      on_mount: [{ShompWeb.UserAuth, :mount_current_scope}, {ShompWeb.CartHook, :default}, {ShompWeb.NotificationHook, :default}] do
       live "/about", AboutLive.Show, :show
       live "/donations", DonationLive.Show, :show
       live "/donations/thank-you", DonationLive.ThankYou, :show
@@ -56,7 +56,7 @@ defmodule ShompWeb.Router do
     pipe_through :browser
 
     live_session :stores_with_cart,
-      on_mount: [{ShompWeb.UserAuth, :mount_current_scope}, {ShompWeb.CartHook, :default}] do
+      on_mount: [{ShompWeb.UserAuth, :mount_current_scope}, {ShompWeb.CartHook, :default}, {ShompWeb.NotificationHook, :default}] do
       live "/new", StoreLive.New, :new
       live "/", StoreLive.Index, :index
       live "/:slug", StoreLive.Show, :show
@@ -91,7 +91,7 @@ defmodule ShompWeb.Router do
     pipe_through :browser
 
     live_session :current_user,
-      on_mount: [{ShompWeb.UserAuth, :mount_current_scope}, {ShompWeb.CartHook, :default}] do
+      on_mount: [{ShompWeb.UserAuth, :mount_current_scope}, {ShompWeb.CartHook, :default}, {ShompWeb.NotificationHook, :default}] do
       live "/users/register", UserLive.Registration, :new
       live "/users/log-in", UserLive.Login, :new
       live "/users/log-in/:token", UserLive.Confirmation, :new
@@ -107,7 +107,7 @@ defmodule ShompWeb.Router do
     pipe_through [:browser, :require_authenticated_user]
 
     live_session :require_authenticated_user,
-      on_mount: [{ShompWeb.UserAuth, :require_authenticated}, {ShompWeb.CartHook, :default}] do
+      on_mount: [{ShompWeb.UserAuth, :require_authenticated}, {ShompWeb.CartHook, :default}, {ShompWeb.NotificationHook, :require_authenticated}] do
       live "/users/settings", UserLive.Settings, :edit
       live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
       live "/users/tier-upgrade", UserLive.TierUpgrade, :new
@@ -134,6 +134,10 @@ defmodule ShompWeb.Router do
       
       # Email preferences
       live "/email-preferences", UserLive.EmailPreferences, :index
+      
+      # Notification preferences and inbox
+      live "/notification-preferences", UserLive.NotificationPreferences, :index
+      live "/notifications", UserLive.Notifications, :index
       
       # Admin routes
       live "/admin", AdminLive.Dashboard, :show
@@ -182,7 +186,7 @@ defmodule ShompWeb.Router do
     pipe_through :browser
 
     live_session :public_profiles,
-      on_mount: [{ShompWeb.UserAuth, :mount_current_scope}, {ShompWeb.CartHook, :default}] do
+      on_mount: [{ShompWeb.UserAuth, :mount_current_scope}, {ShompWeb.CartHook, :default}, {ShompWeb.NotificationHook, :default}] do
       live "/:username", ProfileLive.Show, :show
     end
   end
@@ -209,7 +213,7 @@ defmodule ShompWeb.Router do
     pipe_through :browser
 
     live_session :public_products_with_cart,
-      on_mount: [{ShompWeb.UserAuth, :mount_current_scope}, {ShompWeb.CartHook, :default}] do
+      on_mount: [{ShompWeb.UserAuth, :mount_current_scope}, {ShompWeb.CartHook, :default}, {ShompWeb.NotificationHook, :default}] do
       # Product routes - new structure with /stores/ prefix
       live "/stores/:store_slug/products/:product_slug", ProductLive.Show, :show_by_store_product_slug
       

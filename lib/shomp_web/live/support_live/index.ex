@@ -40,6 +40,63 @@ defmodule ShompWeb.SupportLive.Index do
     {:noreply, assign(socket, :show_new_ticket_form, false)}
   end
 
+  # Notification event handlers
+  def handle_event("toggle_notifications", _params, socket) do
+    show_notifications = !socket.assigns[:show_notifications]
+    {:noreply, assign(socket, :show_notifications, show_notifications)}
+  end
+
+  def handle_event("mark_notification_read", %{"id" => id}, socket) do
+    if socket.assigns[:current_scope] do
+      user = socket.assigns.current_scope.user
+      notification = Shomp.Notifications.get_notification!(id)
+
+      if notification.user_id == user.id do
+        case Shomp.Notifications.mark_as_read(notification) do
+          {:ok, _notification} ->
+            # Refresh notifications and unread count
+            unread_count = Shomp.Notifications.unread_count(user.id)
+            recent_notifications = Shomp.Notifications.list_user_notifications(user.id, limit: 5)
+
+            {:noreply,
+             socket
+             |> assign(:unread_count, unread_count)
+             |> assign(:recent_notifications, recent_notifications)}
+
+          {:error, _changeset} ->
+            {:noreply, socket}
+        end
+      else
+        {:noreply, socket}
+      end
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_event("mark_all_read", _params, socket) do
+    if socket.assigns[:current_scope] do
+      user = socket.assigns.current_scope.user
+
+      case Shomp.Notifications.mark_all_as_read(user.id) do
+        {_count, _} ->
+          # Refresh notifications and unread count
+          unread_count = Shomp.Notifications.unread_count(user.id)
+          recent_notifications = Shomp.Notifications.list_user_notifications(user.id, limit: 5)
+
+          {:noreply,
+           socket
+           |> assign(:unread_count, unread_count)
+           |> assign(:recent_notifications, recent_notifications)}
+
+        _ ->
+          {:noreply, socket}
+      end
+    else
+      {:noreply, socket}
+    end
+  end
+
 
 
   def handle_event("create_ticket", %{"support_ticket" => ticket_params}, socket) do
