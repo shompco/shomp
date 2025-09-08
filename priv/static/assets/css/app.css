@@ -3879,6 +3879,12 @@
       color: color-mix(in oklab, var(--color-base-content) 80%, transparent);
     }
   }
+  .text-base-content\/90 {
+    color: var(--color-base-content);
+    @supports (color: color-mix(in lab, red, red)) {
+      color: color-mix(in oklab, var(--color-base-content) 90%, transparent);
+    }
+  }
   .text-black {
     color: var(--color-black);
   }
@@ -3960,6 +3966,12 @@
   .text-primary-content {
     color: var(--color-primary-content);
   }
+  .text-primary\/30 {
+    color: var(--color-primary);
+    @supports (color: color-mix(in lab, red, red)) {
+      color: color-mix(in oklab, var(--color-primary) 30%, transparent);
+    }
+  }
   .text-primary\/80 {
     color: var(--color-primary);
     @supports (color: color-mix(in lab, red, red)) {
@@ -4025,6 +4037,9 @@
   }
   .text-yellow-800 {
     color: var(--color-yellow-800);
+  }
+  .italic {
+    font-style: italic;
   }
   .link-hover {
     text-decoration-line: none;

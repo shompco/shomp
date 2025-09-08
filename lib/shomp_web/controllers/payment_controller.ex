@@ -81,6 +81,56 @@ defmodule ShompWeb.PaymentController do
     render(conn, :cancel)
   end
 
+  @doc """
+  Creates a custom amount donation checkout session and redirects directly to Stripe.
+  """
+  def custom_donate(conn, %{"amount" => amount}) do
+    # Parse the amount and create checkout session
+    amount_int = case Integer.parse(amount) do
+      {amount, _} when amount > 0 -> amount
+      _ -> 25  # Default to $25 if invalid
+    end
+
+    case Payments.create_donation_session(
+      amount_int,
+      "one_time",
+      "shomp",
+      url(conn, ~p"/payments/success?session_id={CHECKOUT_SESSION_ID}&source=donation"),
+      url(conn, ~p"/payments/cancel?source=donation")
+    ) do
+      {:ok, session} ->
+        redirect(conn, external: session.url)
+
+      {:error, _reason} ->
+        conn
+        |> put_flash(:error, "Failed to create donation session. Please try again.")
+        |> redirect(to: ~p"/donations")
+    end
+  end
+
+  def custom_donate(conn, _params) do
+    # Get the referer to determine where user came from
+    referer = get_req_header(conn, "referer") |> List.first()
+    back_page = get_back_page_name(referer)
+    
+    # Show a simple form to collect the amount
+    render(conn, :custom_donate_form, back_page: back_page)
+  end
+
+  defp get_back_page_name(nil), do: "Home"
+  defp get_back_page_name(referer) do
+    cond do
+      String.contains?(referer, "/about") -> "About"
+      String.contains?(referer, "/requests") -> "Feature Requests"
+      String.contains?(referer, "/stores") -> "Browse Stores"
+      String.contains?(referer, "/donations") -> "Donations"
+      String.contains?(referer, "/landing") -> "About Shomp"
+      String.contains?(referer, "/") -> "Home"
+      true -> "Home"
+    end
+  end
+
+
   # Private functions
 
   defp verify_webhook_signature(payload, [signature]) do

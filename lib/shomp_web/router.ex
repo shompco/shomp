@@ -45,7 +45,9 @@ defmodule ShompWeb.Router do
     live_session :public_with_cart,
       on_mount: [{ShompWeb.UserAuth, :mount_current_scope}, {ShompWeb.CartHook, :default}, {ShompWeb.NotificationHook, :default}] do
       live "/about", AboutLive.Show, :show
+      live "/mission", MissionLive.Show, :show
       live "/donations", DonationLive.Show, :show
+      live "/donations/quick", DonationLive.Quick, :show
       live "/donations/thank-you", DonationLive.ThankYou, :show
       live "/landing", LandingLive.Show, :show
     end
@@ -68,6 +70,7 @@ defmodule ShompWeb.Router do
     pipe_through :browser
 
     post "/checkout", PaymentController, :create_checkout
+    get "/custom-donate", PaymentController, :custom_donate
     live "/success", PaymentLive.Success, :show
     live "/cancel", PaymentLive.Cancel, :show
   end
