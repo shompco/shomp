@@ -7,6 +7,20 @@ defmodule ShompWeb.ProductLive.Show do
   alias Shomp.Stores
   alias Shomp.StoreCategories
 
+  # Helper function to calculate total price with donation
+  defp calculate_total_price(product, donate) do
+    if donate do
+      donation_amount = Decimal.mult(product.price, Decimal.new("0.05"))
+      total = Decimal.add(product.price, donation_amount)
+      # Round to 2 decimal places and format nicely
+      total
+      |> Decimal.round(2)
+      |> Decimal.to_string()
+    else
+      product.price
+    end
+  end
+
   @impl true
   def mount(%{"store_slug" => store_slug, "id" => id}, _session, socket) do
     product = Products.get_product_with_store!(id)
@@ -16,7 +30,7 @@ defmodule ShompWeb.ProductLive.Show do
       # Fetch reviews for this product
       reviews = Shomp.Reviews.get_product_reviews(id)
       
-      {:ok, assign(socket, product: product, reviews: reviews, current_image: product.image_original, current_image_index: nil)}
+      {:ok, assign(socket, product: product, reviews: reviews, current_image: product.image_original, current_image_index: nil, donate: true)}
     else
       {:ok,
        socket
@@ -57,7 +71,7 @@ defmodule ShompWeb.ProductLive.Show do
                 # Fetch reviews for this product
                 reviews = Shomp.Reviews.get_product_reviews(product.id)
                 
-                {:ok, assign(socket, product: product, reviews: reviews, current_image: product.image_original, current_image_index: nil)}
+                {:ok, assign(socket, product: product, reviews: reviews, current_image: product.image_original, current_image_index: nil, donate: true)}
             end
         end
     end
@@ -93,7 +107,7 @@ defmodule ShompWeb.ProductLive.Show do
             IO.puts("Product image_original: #{inspect(product.image_original)}")
             IO.puts("=====================")
             
-            {:ok, assign(socket, product: product, reviews: reviews, current_image: product.image_original, current_image_index: nil)}
+            {:ok, assign(socket, product: product, reviews: reviews, current_image: product.image_original, current_image_index: nil, donate: true)}
         end
     end
   end
@@ -292,14 +306,29 @@ defmodule ShompWeb.ProductLive.Show do
               </div>
             <% end %>
 
+            <!-- Donation Checkbox -->
+            <div class="pt-6 pb-4">
+              <div class="flex items-center space-x-3 p-4 bg-base-200 rounded-lg">
+                <input type="checkbox" 
+                       id="donate_checkbox" 
+                       name="donate"
+                       checked={@donate}
+                       phx-click="toggle_donation"
+                       class="checkbox checkbox-primary" />
+                <label for="donate_checkbox" class="text-base-content/80 cursor-pointer">
+                  Add 5% donation to Shomp
+                </label>
+              </div>
+            </div>
+
             <!-- Action Buttons -->
-            <div class="space-y-4 pt-6">
+            <div class="space-y-4">
               <button 
                 phx-click="buy_now"
                 phx-disable-with="Creating checkout..."
                 class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-8 rounded-2xl text-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1"
               >
-                Buy Now - $<%= @product.price %>
+                Buy Now - $<%= calculate_total_price(@product, @donate) %>
               </button>
               
               <%= if @current_scope && @current_scope.user do %>
@@ -373,13 +402,31 @@ defmodule ShompWeb.ProductLive.Show do
     end
   end
 
+  def handle_event("toggle_donation", _params, socket) do
+    {:noreply, assign(socket, :donate, !socket.assigns.donate)}
+  end
+
   def handle_event("buy_now", _params, socket) do
-    # Redirect to checkout page
-    checkout_url = ~p"/checkout/#{socket.assigns.product.id}"
+    # Create individual item checkout session with donation
+    product = socket.assigns.product
+    donate = socket.assigns.donate
     
-    {:noreply,
-     socket
-     |> push_navigate(to: checkout_url)}
+    case Shomp.Payments.create_individual_item_checkout_session(product, 1, donate, socket.assigns.current_scope.user.id) do
+      {:ok, session} ->
+        {:noreply, redirect(socket, external: session.url)}
+      
+      {:error, reason} ->
+        error_message = case reason do
+          :no_stripe_product ->
+            "This product is not available for online purchase. Please contact the store owner."
+          _ ->
+            "Failed to create checkout session. Please try again or contact support."
+        end
+        
+        {:noreply, 
+         socket
+         |> put_flash(:error, error_message)}
+    end
   end
 
   def handle_event("switch_image", %{"size" => size}, socket) do

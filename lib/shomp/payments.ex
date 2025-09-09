@@ -299,7 +299,7 @@ defmodule Shomp.Payments do
               currency: "usd",
               product_data: %{
                 name: "Donation to Shomp (5%)",
-                description: "Your donation supports infrastructure for Shomp and makes possible creator livelihoods."
+                   description: "Your donation supports infrastructure for Shomp and makes gainful creator livelihoods possible."
               },
               unit_amount: donation_cents
             },
