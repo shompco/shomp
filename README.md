@@ -28,7 +28,7 @@ Our mission is to empower creators and artists to make gainful livelihood throug
 - **Physical Product Sales** - art prints, crafts, merchandise
 - **Service Listings** - consultations, custom work, commissions
 - **Secure Download System** - automatic delivery for digital products
-- **Custom Store Pages** - personalized storefronts with custom URLs
+- **Personalized Links & Profile URL** - shomp.co/username
 - **Integrated Payment Processing** - powered by Stripe for security
 
 ### 🛡️ **Secure & Reliable**

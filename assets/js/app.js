@@ -142,6 +142,24 @@ const KYCImageHook = {
   }
 }
 
+// Cart donation checkbox hook
+const CartDonationHook = {
+  mounted() {
+    // Handle Buy Now button clicks to capture checkbox state
+    this.el.addEventListener('click', (e) => {
+      if (e.target.matches('[data-donate-checkbox]')) {
+        const checkboxId = e.target.getAttribute('data-donate-checkbox')
+        const checkbox = document.getElementById(checkboxId)
+        if (checkbox) {
+          // Update the phx-value-donate attribute based on checkbox state
+          e.target.setAttribute('phx-value-donate', checkbox.checked)
+          console.log('Updated donate value to:', checkbox.checked)
+        }
+      }
+    })
+  }
+}
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
@@ -150,7 +168,8 @@ const liveSocket = new LiveSocket("/live", Socket, {
     ...colocatedHooks,
     VoteUpdates,
     FileUploadHook,
-    KYCImageHook
+    KYCImageHook,
+    CartDonationHook
   },
 })
 

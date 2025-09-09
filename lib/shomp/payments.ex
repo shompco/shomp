@@ -79,6 +79,27 @@ defmodule Shomp.Payments do
   end
 
   @doc """
+  Creates a Stripe checkout session for an individual item with optional donation.
+  """
+  def create_individual_item_checkout_session(product, quantity, donate, user_id) do
+    IO.puts("=== INDIVIDUAL ITEM CHECKOUT DEBUG ===")
+    IO.puts("Product ID: #{product.id}")
+    IO.puts("Quantity: #{quantity}")
+    IO.puts("Donate: #{donate}")
+    IO.puts("User ID: #{user_id}")
+    
+    with {:ok, _synced_product} <- ensure_product_has_stripe_id(product),
+         {:ok, session} <- create_individual_item_stripe_session(product, quantity, donate, user_id) do
+      IO.puts("Individual item checkout session created successfully: #{session.id}")
+      {:ok, session}
+    else
+      {:error, reason} ->
+        IO.puts("Failed to create individual item checkout session: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
+
+  @doc """
   Creates a Stripe checkout session for a cart with multiple items.
   """
   def create_cart_checkout_session(cart_id, user_id) do
@@ -243,6 +264,79 @@ defmodule Shomp.Payments do
     end
   end
 
+  defp create_individual_item_stripe_session(product, quantity, donate, user_id) do
+    IO.puts("=== CREATING INDIVIDUAL ITEM STRIPE SESSION ===")
+    IO.puts("Product ID: #{product.id}")
+    IO.puts("Product Title: #{product.title}")
+    IO.puts("Product Price: #{product.price}")
+    IO.puts("Product Store ID: #{product.store_id}")
+    IO.puts("Quantity: #{quantity}")
+    IO.puts("Donate: #{donate}")
+    
+    case create_or_get_stripe_price(product) do
+      {:ok, price} ->
+        # Create success and cancel URLs
+        success_url = "#{ShompWeb.Endpoint.url()}/payments/success?session_id={CHECKOUT_SESSION_ID}&store_slug=#{product.store.slug}"
+        cancel_url = "#{ShompWeb.Endpoint.url()}/payments/cancel?store_slug=#{product.store.slug}"
+        
+        # Build line items
+        line_items = [
+          %{
+            price: price.id,
+            quantity: quantity
+          }
+        ]
+        
+        # Add donation as a separate line item if requested
+        line_items = if donate do
+          # Calculate 5% donation amount
+          product_total = Decimal.mult(product.price, quantity)
+          donation_amount = Decimal.mult(product_total, Decimal.new("0.05"))
+          donation_cents = trunc(Decimal.to_float(donation_amount) * 100)
+          
+          donation_line_item = %{
+            price_data: %{
+              currency: "usd",
+              product_data: %{
+                name: "Donation to Shomp (5%)",
+                description: "Your donation supports infrastructure for Shomp and makes possible creator livelihoods."
+              },
+              unit_amount: donation_cents
+            },
+            quantity: 1
+          }
+          [donation_line_item | line_items]
+        else
+          line_items
+        end
+        
+        IO.puts("Creating Stripe session with line items: #{inspect(line_items)}")
+        IO.puts("Success URL: #{success_url}")
+        IO.puts("Cancel URL: #{cancel_url}")
+        
+        # Create simple Stripe session
+        Stripe.Session.create(%{
+          payment_method_types: ["card"],
+          line_items: line_items,
+          mode: "payment",
+          success_url: success_url,
+          cancel_url: cancel_url,
+          metadata: %{
+            product_id: product.id,
+            product_type: product.type,
+            quantity: quantity,
+            donate: donate,
+            user_id: user_id,
+            type: "individual_item"
+          }
+        })
+      
+      {:error, reason} ->
+        IO.puts("ERROR: Failed to create or get Stripe price: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
+
   defp create_or_get_stripe_price(product) do
     # Check if we already have a price for this product
     if product.stripe_product_id do
@@ -342,6 +436,10 @@ defmodule Shomp.Payments do
         # This is a legacy cart payment - handle multiple products
         handle_cart_checkout_completed(session)
       
+      %{"type" => "individual_item"} ->
+        IO.puts("Handling individual item payment")
+        handle_individual_item_checkout_completed(session)
+      
       _ ->
         IO.puts("Handling single product payment")
         # This is a single product payment
@@ -390,6 +488,79 @@ defmodule Shomp.Payments do
         end
     end
   end
+
+  defp handle_individual_item_checkout_completed(session) do
+    IO.puts("=== INDIVIDUAL ITEM CHECKOUT ===")
+    IO.puts("Session ID: #{session.id}")
+    IO.puts("Metadata: #{inspect(session.metadata)}")
+    
+    # Create payment record for the individual item
+    product_id = String.to_integer(session.metadata["product_id"])
+    user_id = String.to_integer(session.metadata["user_id"])
+    quantity = String.to_integer(session.metadata["quantity"])
+    donate = session.metadata["donate"] == "true"
+    
+    # Get the product to calculate total amount
+    case Products.get_product!(product_id) do
+      nil ->
+        IO.puts("ERROR: Product not found for ID #{product_id}")
+        {:error, :product_not_found}
+      
+      product ->
+        # Calculate total amount (product price * quantity + donation if applicable)
+        product_total = Decimal.mult(product.price, quantity)
+        total_amount = if donate do
+          donation_amount = Decimal.mult(product_total, Decimal.new("0.05"))
+          Decimal.add(product_total, donation_amount)
+        else
+          product_total
+        end
+        
+        # Create payment record
+        case create_payment(%{
+          amount: total_amount,
+          stripe_payment_id: session.id,
+          product_id: product_id,
+          user_id: user_id
+        }) do
+          {:ok, payment} ->
+            IO.puts("Payment record created: #{payment.id}")
+            
+            # Update payment status to succeeded
+            case update_payment_status(payment, "succeeded") do
+              {:ok, updated_payment} ->
+                IO.puts("Payment status updated to succeeded")
+                
+                # Update store balance
+                update_store_balance_from_payment(updated_payment)
+                IO.puts("Store balance updated")
+                
+                # Create order for review tracking
+                order_result = create_order_from_payment(updated_payment, session.id)
+                IO.puts("Order creation result: #{inspect(order_result)}")
+                
+                # Create download for digital products
+                case create_download_for_product(updated_payment) do
+                  {:ok, _download} -> 
+                    IO.puts("Download created successfully")
+                    {:ok, updated_payment}
+                  {:error, reason} -> 
+                    IO.puts("Warning: Failed to create download: #{inspect(reason)}")
+                    {:ok, updated_payment}
+                end
+              
+              {:error, reason} ->
+                IO.puts("ERROR: Failed to update payment status: #{inspect(reason)}")
+                {:error, reason}
+            end
+          
+          {:error, reason} ->
+            IO.puts("ERROR: Failed to create payment record: #{inspect(reason)}")
+            {:error, reason}
+        end
+    end
+  end
+
 
   defp handle_cart_order_completed(session) do
     # This is a cart order payment - create payment records for all cart items
