@@ -11,6 +11,9 @@ defmodule Shomp.Payments do
   alias Shomp.Products
   alias Shomp.Downloads
   alias Shomp.StripeConnect
+  alias Shomp.UniversalOrders
+  alias Shomp.PaymentSplits
+  alias Shomp.Stores.StoreKYCContext
 
   @doc """
   Creates a Stripe checkout session for a donation.
@@ -644,15 +647,169 @@ defmodule Shomp.Payments do
     end
   end
 
-  defp handle_payment_succeeded(_payment_intent) do
+  defp handle_payment_succeeded(payment_intent) do
     # Handle successful payment intent
-    {:ok, :payment_succeeded}
+    IO.puts("=== PAYMENT SUCCEEDED ===")
+    IO.puts("Payment Intent ID: #{payment_intent.id}")
+    IO.puts("Amount: #{payment_intent.amount}")
+    IO.puts("Metadata: #{inspect(payment_intent.metadata)}")
+    
+    # Get the universal order and payment splits
+    case UniversalOrders.get_universal_order_by_payment_intent(payment_intent.id) do
+      nil ->
+        IO.puts("No universal order found for payment intent: #{payment_intent.id}")
+        {:ok, :no_order_found}
+      
+      universal_order ->
+        IO.puts("Found universal order: #{universal_order.universal_order_id}")
+        
+        # Get payment splits for this order
+        payment_splits = PaymentSplits.list_payment_splits_by_universal_order(universal_order.id)
+        IO.puts("Found #{length(payment_splits)} payment splits")
+        
+        # For direct transfers, Stripe handles the transfer automatically
+        # For escrow payments, update the store's pending balance
+        Enum.each(payment_splits, fn payment_split ->
+          if payment_split.is_escrow do
+            IO.puts("Processing escrow payment for store #{payment_split.store_id}")
+            update_store_pending_balance(payment_split.store_id, payment_split.store_amount)
+            
+            # Update payment split status
+            PaymentSplits.update_payment_split(payment_split, %{
+              transfer_status: "escrow"
+            })
+          else
+            IO.puts("Direct transfer handled automatically by Stripe for store #{payment_split.store_id}")
+            
+            # Update payment split status
+            PaymentSplits.update_payment_split(payment_split, %{
+              transfer_status: "succeeded"
+            })
+            
+            # Update store's available balance
+            update_store_available_balance(payment_split.store_id, payment_split.store_amount)
+          end
+        end)
+        
+        # Update universal order status
+        UniversalOrders.update_universal_order(universal_order, %{
+          status: "completed",
+          payment_status: "succeeded"
+        })
+        
+        {:ok, :payment_processed}
+    end
   end
 
   defp handle_payment_failed(_payment_intent) do
     # Handle failed payment intent
     {:ok, :payment_failed}
   end
+
+  defp process_payment_split_transfer(payment_split, payment_intent) do
+    IO.puts("=== PROCESSING PAYMENT SPLIT TRANSFER ===")
+    IO.puts("Payment Split ID: #{payment_split.payment_split_id}")
+    IO.puts("Store ID: #{payment_split.store_id}")
+    IO.puts("Is Escrow: #{payment_split.is_escrow}")
+    IO.puts("Store Amount: #{payment_split.store_amount}")
+    IO.puts("Platform Fee: #{payment_split.platform_fee_amount}")
+    
+    if payment_split.is_escrow do
+      # This is an escrow payment - just update the store's pending balance
+      IO.puts("Processing escrow payment - updating store pending balance")
+      update_store_pending_balance(payment_split.store_id, payment_split.store_amount)
+      
+      # Update payment split status
+      PaymentSplits.update_payment_split(payment_split, %{
+        transfer_status: "escrow"
+      })
+    else
+      # This is a direct transfer - send money to the connected account
+      IO.puts("Processing direct transfer to connected account")
+      
+      # Get the store's Stripe account ID
+      case StoreKYCContext.get_kyc_by_store_id(payment_split.store_id) do
+        nil ->
+          IO.puts("No KYC found for store #{payment_split.store_id}")
+          {:error, :no_kyc}
+        
+        kyc when is_nil(kyc.stripe_account_id) ->
+          IO.puts("No Stripe account ID for store #{payment_split.store_id}")
+          {:error, :no_stripe_account}
+        
+        kyc ->
+          # Convert store amount to cents
+          store_amount_cents = payment_split.store_amount
+          |> Decimal.mult(100)
+          |> Decimal.round(0)
+          |> Decimal.to_integer()
+          
+          IO.puts("Creating transfer of #{store_amount_cents} cents to #{kyc.stripe_account_id}")
+          
+          # Create Stripe Transfer
+          case Stripe.Transfer.create(%{
+            amount: store_amount_cents,
+            currency: "usd",
+            destination: kyc.stripe_account_id,
+            metadata: %{
+              shomp_transfer_type: "store_payment",
+              payment_split_id: payment_split.payment_split_id,
+              store_id: payment_split.store_id,
+              universal_order_id: payment_split.universal_order_id
+            }
+          }) do
+            {:ok, transfer} ->
+              IO.puts("Transfer created successfully: #{transfer.id}")
+              
+              # Update payment split with transfer info
+              PaymentSplits.update_payment_split(payment_split, %{
+                transfer_status: "succeeded",
+                stripe_transfer_id: transfer.id
+              })
+              
+              # Update store's available balance
+              update_store_available_balance(payment_split.store_id, payment_split.store_amount)
+              
+              {:ok, transfer}
+            
+            {:error, reason} ->
+              IO.puts("Transfer failed: #{inspect(reason)}")
+              
+              # Update payment split with failed status
+              PaymentSplits.update_payment_split(payment_split, %{
+                transfer_status: "failed"
+              })
+              
+              {:error, reason}
+          end
+      end
+    end
+  end
+
+  defp update_store_pending_balance(store_id, amount) do
+    case Shomp.Stores.get_store_by_store_id(store_id) do
+      nil -> 
+        IO.puts("Store not found: #{store_id}")
+        :ok
+      store ->
+        new_pending = Decimal.add(store.pending_balance, amount)
+        Shomp.Stores.update_store(store, %{pending_balance: new_pending})
+        IO.puts("Updated store #{store_id} pending balance to #{new_pending}")
+    end
+  end
+
+  defp update_store_available_balance(store_id, amount) do
+    case Shomp.Stores.get_store_by_store_id(store_id) do
+      nil -> 
+        IO.puts("Store not found: #{store_id}")
+        :ok
+      store ->
+        new_available = Decimal.add(store.available_balance, amount)
+        Shomp.Stores.update_store(store, %{available_balance: new_available})
+        IO.puts("Updated store #{store_id} available balance to #{new_available}")
+    end
+  end
+
 
   defp create_cart_stripe_session(cart, user_id) do
     IO.puts("=== CREATING CART STRIPE SESSION ===")

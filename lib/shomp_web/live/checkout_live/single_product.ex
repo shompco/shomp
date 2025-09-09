@@ -20,6 +20,10 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
       _ -> true
     end
     
+    # Get referrer information
+    from = params["from"] || "unknown"
+    store_slug = params["store"]
+    
     # Calculate amounts
     platform_fee_rate = Decimal.new("0.05")
     platform_fee_amount = if donate do
@@ -45,7 +49,9 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
       donate: donate,
       payment_intent_id: nil,
       payment_status: "pending",
-      error_message: nil
+      error_message: nil,
+      from: from,
+      store_slug: store_slug
     )
     
     {:ok, socket}
@@ -60,12 +66,21 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div class="flex items-center justify-between">
             <h1 class="text-2xl font-bold text-base-content">Checkout</h1>
-            <.link 
-              navigate={~p"/stores/#{@product.store.slug}/products/#{@product.slug}"}
-              class="text-primary hover:text-primary-focus transition-colors"
-            >
-              ← Back to Product
-            </.link>
+            <%= if @from == "cart" do %>
+              <.link 
+                navigate={~p"/cart"}
+                class="text-primary hover:text-primary-focus transition-colors"
+              >
+                ← Back to Cart
+              </.link>
+            <% else %>
+              <.link 
+                navigate={~p"/stores/#{@product.store.slug}"}
+                class="text-primary hover:text-primary-focus transition-colors"
+              >
+                ← Back to Store
+              </.link>
+            <% end %>
           </div>
         </div>
       </div>
@@ -98,13 +113,13 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
 
               <!-- Platform Donation -->
               <div class="border-t border-base-300 pt-4">
-                <div class="flex justify-between items-center mb-2">
+                <div class={"donation-row flex justify-between items-center mb-2 #{if @donate, do: "", else: "hidden"}"}>
                   <span class="text-base-content/70">Donation to Shomp (5%)</span>
-                  <span class="text-base-content/70">$<%= format_amount(@platform_fee_amount) %></span>
+                  <span class="donation-amount text-base-content/70">$<%= format_amount(@platform_fee_amount) %></span>
                 </div>
-                <div class="flex justify-between items-center text-lg font-semibold">
+                <div class="total-row flex justify-between items-center text-lg font-semibold">
                   <span>Total</span>
-                  <span>$<%= format_amount(@total_amount) %></span>
+                  <span class="total-amount">$<%= if @donate, do: format_amount(@total_amount), else: format_amount(@product.price) %></span>
                 </div>
               </div>
             </div>
@@ -116,7 +131,6 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
                   type="checkbox" 
                   id="donate_checkbox" 
                   checked={@donate}
-                  phx-click="toggle_donation"
                   class="checkbox checkbox-primary" 
                 />
                 <label for="donate_checkbox" class="text-base-content/80 cursor-pointer">
@@ -315,7 +329,7 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
                   <%= if @payment_status == "processing" do %>
                     Processing Payment...
                   <% else %>
-                    <%= if @product.type == "physical", do: "Complete Order", else: "Complete Purchase" %> - $<%= format_amount(@total_amount) %>
+                    <%= if @product.type == "physical", do: "Complete Order", else: "Complete Purchase" %> - $<%= if @donate, do: format_amount(@total_amount), else: format_amount(@product.price) %>
                   <% end %>
                 </button>
               </div>
@@ -574,7 +588,7 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
               
               // Re-enable button
               submitButton.disabled = false;
-              submitButton.textContent = '<%= if @product.type == "physical", do: "Complete Order", else: "Complete Purchase" %> - $<%= format_amount(@total_amount) %>';
+              updateButtonText();
             } else {
               // Payment succeeded - redirect to processing page
               window.location.href = '/checkout/processing/' + result.paymentIntent.id;
@@ -589,49 +603,93 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
             
             // Re-enable button
             submitButton.disabled = false;
-            submitButton.textContent = '<%= if @product.type == "physical", do: "Complete Order", else: "Complete Purchase" %> - $<%= format_amount(@total_amount) %>';
+            updateButtonText();
           }
         }
         
+        // Function to update button text based on donation state
+        function updateButtonText() {
+          const donateCheckbox = document.getElementById('donate_checkbox');
+          const submitButton = document.getElementById('submit-payment');
+          const productPrice = <%= Decimal.to_float(@product.price) %>;
+          const donationAmount = donateCheckbox.checked ? productPrice * 0.05 : 0;
+          const totalAmount = productPrice + donationAmount;
+          const buttonText = '<%= if @product.type == "physical", do: "Complete Order", else: "Complete Purchase" %> - $' + totalAmount.toFixed(2);
+          submitButton.textContent = buttonText;
+        }
+
+        // Function to handle donation toggle
+        function handleDonationToggle() {
+          const donateCheckbox = document.getElementById('donate_checkbox');
+          const donationRow = document.querySelector('.donation-row');
+          const totalRow = document.querySelector('.total-row');
+          const productPrice = <%= Decimal.to_float(@product.price) %>;
+          const donationAmount = productPrice * 0.05;
+          
+          if (donateCheckbox && donateCheckbox.checked) {
+            // Show donation row and update amounts
+            if (donationRow) {
+              donationRow.classList.remove('hidden');
+              const donationAmountEl = donationRow.querySelector('.donation-amount');
+              if (donationAmountEl) {
+                donationAmountEl.textContent = '$' + donationAmount.toFixed(2);
+              }
+            }
+            // Update total
+            if (totalRow) {
+              const totalAmountEl = totalRow.querySelector('.total-amount');
+              if (totalAmountEl) {
+                totalAmountEl.textContent = '$' + (productPrice + donationAmount).toFixed(2);
+              }
+            }
+          } else {
+            // Hide donation row and reset amounts
+            if (donationRow) {
+              donationRow.classList.add('hidden');
+            }
+            // Update total
+            if (totalRow) {
+              const totalAmountEl = totalRow.querySelector('.total-amount');
+              if (totalAmountEl) {
+                totalAmountEl.textContent = '$' + productPrice.toFixed(2);
+              }
+            }
+          }
+          
+          updateButtonText();
+        }
+
+        // Add event listener to donation checkbox
+        function setupDonationToggle() {
+          const donateCheckbox = document.getElementById('donate_checkbox');
+          if (donateCheckbox) {
+            donateCheckbox.addEventListener('change', handleDonationToggle);
+          } else {
+            setTimeout(setupDonationToggle, 100);
+          }
+        }
+
         // Initialize when ready
         if (document.readyState === 'loading') {
-          document.addEventListener('DOMContentLoaded', testStripe);
+          document.addEventListener('DOMContentLoaded', function() {
+            testStripe();
+            setupDonationToggle();
+          });
         } else {
           testStripe();
+          setupDonationToggle();
         }
         
         // Fallback test
-        setTimeout(testStripe, 2000);
+        setTimeout(function() {
+          testStripe();
+          setupDonationToggle();
+        }, 2000);
       </script>
     </div>
     """
   end
 
-  @impl true
-  def handle_event("toggle_donation", _params, socket) do
-    donate = !socket.assigns.donate
-    
-    # Recalculate amounts
-    platform_fee_amount = if donate do
-      Decimal.mult(socket.assigns.product.price, socket.assigns.platform_fee_rate)
-    else
-      Decimal.new("0")
-    end
-    
-    total_amount = if donate do
-      Decimal.add(socket.assigns.product.price, platform_fee_amount)
-    else
-      socket.assigns.product.price
-    end
-    
-    socket = assign(socket, 
-      donate: donate,
-      platform_fee_amount: platform_fee_amount,
-      total_amount: total_amount
-    )
-    
-    {:noreply, socket}
-  end
 
   @impl true
   def handle_event("process_payment", _params, socket) do

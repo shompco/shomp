@@ -410,9 +410,10 @@ defmodule ShompWeb.ProductLive.Show do
     # Redirect to custom Stripe Elements checkout
     product = socket.assigns.product
     donate = socket.assigns.donate
+    store_slug = product.store.slug
     
-    # Pass donation preference as URL parameter
-    {:noreply, push_navigate(socket, to: ~p"/checkout/single/#{product.id}?donate=#{donate}")}
+    # Pass donation preference and referrer as URL parameters
+    {:noreply, push_navigate(socket, to: ~p"/checkout/single/#{product.id}?donate=#{donate}&from=store&store=#{store_slug}")}
   end
 
   def handle_event("switch_image", %{"size" => size}, socket) do

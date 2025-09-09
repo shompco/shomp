@@ -101,7 +101,7 @@ defmodule ShompWeb.PaymentIntentController do
     store_kyc = Shomp.Stores.StoreKYCContext.get_kyc_by_store_id(product.store_id)
     
     if store_kyc && store_kyc.stripe_account_id do
-      # Store has completed KYC - create payment intent with direct transfer
+      # Store has completed KYC - create payment intent with direct transfer and application fee
       Stripe.PaymentIntent.create(%{
         amount: total_amount_cents,
         currency: "usd",

@@ -19,6 +19,8 @@ defmodule Shomp.PaymentSplits.PaymentSplit do
     field :refunded_amount, :decimal, default: Decimal.new(0)
     field :refund_status, :string, default: "none"
     field :is_escrow, :boolean, default: false
+  field :stripe_fee_amount, :decimal, default: 0
+  field :adjusted_store_amount, :decimal, default: 0
 
     timestamps(type: :utc_datetime)
   end
@@ -26,13 +28,15 @@ defmodule Shomp.PaymentSplits.PaymentSplit do
   @doc false
   def changeset(payment_split, attrs) do
     payment_split
-    |> cast(attrs, [:payment_split_id, :universal_order_id, :stripe_payment_intent_id, :store_id, :stripe_account_id, :store_amount, :platform_fee_amount, :total_amount, :stripe_transfer_id, :transfer_status, :refunded_amount, :refund_status, :is_escrow])
+    |> cast(attrs, [:payment_split_id, :universal_order_id, :stripe_payment_intent_id, :store_id, :stripe_account_id, :store_amount, :platform_fee_amount, :total_amount, :stripe_transfer_id, :transfer_status, :refunded_amount, :refund_status, :is_escrow, :stripe_fee_amount, :adjusted_store_amount])
     |> validate_required([:payment_split_id, :universal_order_id, :stripe_payment_intent_id, :store_id, :store_amount, :total_amount])
     |> validate_inclusion(:transfer_status, ["pending", "succeeded", "failed", "escrow"])
     |> validate_inclusion(:refund_status, ["none", "partial", "full"])
     |> validate_number(:store_amount, greater_than_or_equal_to: 0)
     |> validate_number(:platform_fee_amount, greater_than_or_equal_to: 0)
     |> validate_number(:total_amount, greater_than: 0)
+    |> validate_number(:stripe_fee_amount, greater_than_or_equal_to: 0)
+    |> validate_number(:adjusted_store_amount, greater_than_or_equal_to: 0)
     |> validate_stripe_account_for_direct_transfers()
     |> unique_constraint(:payment_split_id)
   end

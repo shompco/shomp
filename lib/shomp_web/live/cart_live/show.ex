@@ -10,8 +10,9 @@ defmodule ShompWeb.CartLive.Show do
   def mount(_params, _session, socket) do
     user_id = socket.assigns.current_scope.user.id
     
-    # Get all active carts for the user
+    # Get all active carts for the user and filter out empty ones
     carts = Carts.list_user_carts(user_id)
+    |> Enum.filter(fn cart -> length(cart.cart_items) > 0 end)
     
     socket = socket
              |> assign(:carts, carts)
@@ -29,6 +30,7 @@ defmodule ShompWeb.CartLive.Show do
           {:ok, _cart_item} ->
             # Refresh the carts
             updated_carts = Carts.list_user_carts(user_id)
+            |> Enum.filter(fn cart -> length(cart.cart_items) > 0 end)
             socket = assign(socket, :carts, updated_carts)
             
             # Update cart count in header
@@ -66,6 +68,7 @@ defmodule ShompWeb.CartLive.Show do
         # Refresh the carts
         user_id = socket.assigns.current_scope.user.id
         updated_carts = Carts.list_user_carts(user_id)
+        |> Enum.filter(fn cart -> length(cart.cart_items) > 0 end)
         socket = assign(socket, :carts, updated_carts)
         
         # Update cart count in header
@@ -98,6 +101,7 @@ defmodule ShompWeb.CartLive.Show do
         # Refresh the carts
         user_id = socket.assigns.current_scope.user.id
         updated_carts = Carts.list_user_carts(user_id)
+        |> Enum.filter(fn cart -> length(cart.cart_items) > 0 end)
         socket = assign(socket, :carts, updated_carts)
         
         # Update cart count in header
@@ -168,27 +172,8 @@ defmodule ShompWeb.CartLive.Show do
         IO.puts("Product: #{cart_item.product.title}")
         IO.puts("Product has Stripe ID: #{cart_item.product.stripe_product_id != nil}")
         
-        # Create individual item checkout session with donation
-        case Payments.create_individual_item_checkout_session(cart_item.product, quantity, donate, user_id) do
-          {:ok, session} ->
-            IO.puts("Checkout session created successfully: #{session.id}")
-            IO.puts("Redirecting to: #{session.url}")
-            # Redirect to Stripe checkout
-            {:noreply, redirect(socket, external: session.url)}
-          
-          {:error, reason} ->
-            IO.puts("ERROR: Failed to create checkout session: #{inspect(reason)}")
-            error_message = case reason do
-              :no_stripe_product ->
-                "This product is not available for online purchase. Please contact the store owner."
-              _ ->
-                "Failed to create checkout session. Please try again or contact support."
-            end
-            
-            {:noreply, 
-             socket
-             |> put_flash(:error, error_message)}
-        end
+        # Navigate to our custom Stripe Elements checkout with referrer
+        {:noreply, push_navigate(socket, to: ~p"/checkout/single/#{cart_item.product.id}?donate=#{donate}&from=cart")}
     end
   end
 
@@ -230,6 +215,15 @@ defmodule ShompWeb.CartLive.Show do
 
   def render(assigns) do
     ~H"""
+    <script>
+      function updateDonateValue(button) {
+        const checkboxId = button.getAttribute('data-donate-checkbox');
+        const checkbox = document.getElementById(checkboxId);
+        const donateValue = checkbox ? checkbox.checked : false;
+        button.setAttribute('phx-value-donate', donateValue.toString());
+      }
+    </script>
+    
     <div class="min-h-screen bg-base-100 py-12" id="cart-container" phx-hook="CartDonationHook">
       <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <!-- Header -->
@@ -279,11 +273,25 @@ defmodule ShompWeb.CartLive.Show do
                       <div class="flex items-center justify-between">
                         <div class="flex items-center space-x-4">
                           <div class="flex-shrink-0">
-                            <div class="w-16 h-16 bg-base-300 rounded-lg flex items-center justify-center">
-                              <svg class="w-8 h-8 text-base-content/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                              </svg>
-                            </div>
+                            <%= if cart_item.product.image_thumb do %>
+                              <img 
+                                src={cart_item.product.image_thumb}
+                                alt={cart_item.product.title}
+                                class="w-16 h-16 object-cover rounded-lg"
+                                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                              />
+                              <div class="w-16 h-16 bg-base-300 rounded-lg flex items-center justify-center" style="display: none;">
+                                <svg class="w-8 h-8 text-base-content/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                              </div>
+                            <% else %>
+                              <div class="w-16 h-16 bg-base-300 rounded-lg flex items-center justify-center">
+                                <svg class="w-8 h-8 text-base-content/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                              </div>
+                            <% end %>
                           </div>
                           
                           <div class="flex-1 min-w-0">
@@ -335,7 +343,8 @@ defmodule ShompWeb.CartLive.Show do
                                   phx-value-donate="true"
                                   phx-disable-with="Creating checkout..."
                                   class="btn btn-sm btn-primary"
-                                  data-donate-checkbox="donate_#{cart_item.id}">
+                                  data-donate-checkbox="donate_#{cart_item.id}"
+                                  onclick="updateDonateValue(this)">
                             Buy Now
                           </button>
                           
