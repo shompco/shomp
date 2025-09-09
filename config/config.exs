@@ -22,7 +22,8 @@ config :shomp, :scopes,
 
 config :shomp,
   ecto_repos: [Shomp.Repo],
-  generators: [timestamp_type: :utc_datetime]
+  generators: [timestamp_type: :utc_datetime],
+  stripe_publishable_key: System.get_env("STRIPE_PUBLISHABLE_KEY")
 
 # Configures the endpoint
 config :shomp, ShompWeb.Endpoint,

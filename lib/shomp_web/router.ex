@@ -82,11 +82,24 @@ defmodule ShompWeb.Router do
     post "/webhook", PaymentController, :webhook
   end
 
+  # API routes
+  scope "/api", ShompWeb do
+    pipe_through :browser
+
+    post "/create-payment-intent", PaymentIntentController, :create
+  end
+
   # Checkout routes
   scope "/checkout", ShompWeb do
-    pipe_through [:browser, :require_authenticated_user]
+    pipe_through :browser
 
-    live "/:product_id", CheckoutLive.Show, :show
+    live_session :checkout,
+      on_mount: [{ShompWeb.UserAuth, :mount_current_scope}, {ShompWeb.CartHook, :default}, {ShompWeb.NotificationHook, :default}] do
+      live "/success", CheckoutLive.Success, :show
+      live "/single/:product_id", CheckoutLive.SingleProduct, :show
+      live "/processing/:payment_intent_id", CheckoutLive.Processing, :show
+      live "/:product_id", CheckoutLive.Show, :show
+    end
   end
 
   # User authentication routes (public)
@@ -154,6 +167,13 @@ defmodule ShompWeb.Router do
       # Admin support routes
       live "/admin/support", AdminLive.SupportDashboard, :index
       live "/admin/support/:ticket_number", SupportLive.Show, :show
+      
+      # Universal orders and payment splits
+      live "/admin/universal-orders", AdminLive.UniversalOrders, :index
+      live "/admin/payment-splits/:universal_order_id", AdminLive.PaymentSplits, :show
+        live "/admin/escrow", AdminLive.EscrowDashboard, :index
+        live "/admin/merchant-escrow", AdminLive.MerchantEscrow, :index
+      live "/admin/refunds", AdminLive.Refunds, :index
       
       # Admin order routes
       get "/admin/orders", OrderController, :index

@@ -407,26 +407,12 @@ defmodule ShompWeb.ProductLive.Show do
   end
 
   def handle_event("buy_now", _params, socket) do
-    # Create individual item checkout session with donation
+    # Redirect to custom Stripe Elements checkout
     product = socket.assigns.product
     donate = socket.assigns.donate
     
-    case Shomp.Payments.create_individual_item_checkout_session(product, 1, donate, socket.assigns.current_scope.user.id) do
-      {:ok, session} ->
-        {:noreply, redirect(socket, external: session.url)}
-      
-      {:error, reason} ->
-        error_message = case reason do
-          :no_stripe_product ->
-            "This product is not available for online purchase. Please contact the store owner."
-          _ ->
-            "Failed to create checkout session. Please try again or contact support."
-        end
-        
-        {:noreply, 
-         socket
-         |> put_flash(:error, error_message)}
-    end
+    # Pass donation preference as URL parameter
+    {:noreply, push_navigate(socket, to: ~p"/checkout/single/#{product.id}?donate=#{donate}")}
   end
 
   def handle_event("switch_image", %{"size" => size}, socket) do

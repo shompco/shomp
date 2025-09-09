@@ -9,6 +9,9 @@ defmodule Shomp.Stores.Store do
     field :slug, :string
     field :description, :string
     field :store_id, :string  # Immutable store identifier
+    field :merchant_status, :string, default: "pending_verification"
+    field :pending_balance, :decimal, default: 0
+    field :available_balance, :decimal, default: 0
     belongs_to :user, User
     has_many :products, Shomp.Products.Product, foreign_key: :store_id, references: :store_id
     has_many :carts, Shomp.Carts.Cart, foreign_key: :store_id, references: :store_id
@@ -23,11 +26,14 @@ defmodule Shomp.Stores.Store do
   """
   def changeset(store, attrs) do
     store
-    |> cast(attrs, [:name, :slug, :description, :user_id])
+    |> cast(attrs, [:name, :slug, :description, :user_id, :merchant_status, :pending_balance, :available_balance])
     |> validate_required([:name, :user_id])
     |> validate_length(:name, min: 2, max: 100)
     |> validate_length(:slug, min: 3, max: 50)
     |> validate_format(:slug, ~r/^[a-z0-9-]+$/, message: "must contain only lowercase letters, numbers, and hyphens")
+    |> validate_inclusion(:merchant_status, ["pending_verification", "verified", "rejected"])
+    |> validate_number(:pending_balance, greater_than_or_equal_to: 0)
+    |> validate_number(:available_balance, greater_than_or_equal_to: 0)
     |> validate_length(:description, max: 1000)
     |> validate_store_username_conflict()
     |> unique_constraint(:slug)

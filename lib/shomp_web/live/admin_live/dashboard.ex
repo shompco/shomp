@@ -659,13 +659,37 @@ defmodule ShompWeb.AdminLive.Dashboard do
             title="KYC Verification" 
             description="Review and verify store KYC submissions" />
           
-          <.action_button 
-            href={~p"/admin/support"} 
-            icon="🎫" 
-            title="Support Dashboard" 
-            description="Manage support tickets and customer issues" />
-        </div>
+        <.action_button 
+          href={~p"/admin/support"} 
+          icon="🎫" 
+          title="Support Dashboard" 
+          description="Manage support tickets and customer issues" />
+          
+        <.action_button 
+          href={~p"/admin/universal-orders"} 
+          icon="🛒" 
+          title="Universal Orders" 
+          description="Track multi-store orders and payment splits" />
+          
+        <.action_button
+          href={~p"/admin/escrow"}
+          icon="🔒"
+          title="Escrow Dashboard"
+          description="Track funds held in escrow vs direct transfers" />
+        
+        <.action_button
+          href={~p"/admin/merchant-escrow"}
+          icon="💰"
+          title="Merchant Escrow"
+          description="Manage merchant balances and release escrow funds" />
+          
+        <.action_button 
+          href={~p"/admin/refunds"} 
+          icon="💰" 
+          title="Refund Management" 
+          description="Process refunds with store attribution" />
       </div>
+    </div>
 
       <!-- System Health -->
       <div class="bg-base-100 rounded-lg shadow p-6 mt-8">

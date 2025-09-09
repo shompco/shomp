@@ -154,9 +154,9 @@ defmodule ShompWeb.AdminLive.OrderShow do
                   <%= for order_item <- @order.order_items do %>
                     <div class="flex items-center space-x-4 p-4 border border-base-300 rounded-lg">
                       <div class="flex-shrink-0">
-                        <%= if order_item.product.images && length(order_item.product.images) > 0 do %>
+                        <%= if order_item.product.image_thumb do %>
                           <img 
-                            src={"/uploads/products/#{order_item.product.id}/#{List.first(order_item.product.images)}"} 
+                            src={"/uploads/products/#{order_item.product.id}/#{order_item.product.image_thumb}"} 
                             alt={order_item.product.title}
                             class="w-16 h-16 object-cover rounded"
                           />
