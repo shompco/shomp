@@ -65,6 +65,7 @@ defmodule ShompWeb.AdminLive.Stores do
         id: s.id,
         name: s.name,
         slug: s.slug,
+        store_id: s.store_id,
         description: s.description,
         user_id: s.user_id,
         user_email: u.email,
@@ -85,7 +86,7 @@ defmodule ShompWeb.AdminLive.Stores do
     Enum.map(stores, fn store ->
       product_count = Shomp.Repo.one(
         from p in Shomp.Products.Product,
-        where: p.store_id == ^store.slug,
+        where: p.store_id == ^store.store_id,
         select: count(p.id)
       ) || 0
 
@@ -122,6 +123,7 @@ defmodule ShompWeb.AdminLive.Stores do
         id: s.id,
         name: s.name,
         slug: s.slug,
+        store_id: s.store_id,
         description: s.description,
         user_id: s.user_id,
         user_email: u.email,
@@ -142,7 +144,7 @@ defmodule ShompWeb.AdminLive.Stores do
     Enum.map(stores, fn store ->
       product_count = Shomp.Repo.one(
         from p in Shomp.Products.Product,
-        where: p.store_id == ^store.slug,
+        where: p.store_id == ^store.store_id,
         select: count(p.id)
       ) || 0
 
