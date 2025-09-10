@@ -138,6 +138,8 @@ defmodule ShompWeb.Router do
       live "/dashboard/store", StoreLive.Edit, :edit
       live "/dashboard/store/balance", StoreLive.Balance, :show
       live "/dashboard/orders", StoreLive.Orders, :index
+      live "/dashboard/orders/:universal_order_id", UniversalOrderLive.Show, :show
+      live "/dashboard/purchases", DownloadLive.Purchases, :index
       live "/dashboard/products/new", ProductLive.New, :new
       live "/dashboard/products/:id/edit", ProductLive.Edit, :edit
       live "/cart", CartLive.Show, :show

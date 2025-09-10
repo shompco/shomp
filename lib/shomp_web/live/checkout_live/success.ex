@@ -152,7 +152,7 @@ defmodule ShompWeb.CheckoutLive.Success do
             <!-- Actions -->
             <div class="space-y-3">
               <.link
-                navigate={~p"/purchases"}
+                navigate={~p"/dashboard/purchases"}
                 class="w-full bg-primary hover:bg-primary-focus text-primary-content font-semibold py-3 px-6 rounded-lg text-center block transition-colors"
               >
                 View All Purchases

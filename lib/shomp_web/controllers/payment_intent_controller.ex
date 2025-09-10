@@ -84,25 +84,35 @@ defmodule ShompWeb.PaymentIntentController do
         # Create universal order record
         case create_universal_order(product, user_id, payment_intent.id, total_amount, platform_fee_amount, universal_order_id, customer_email, customer_name, params) do
           {:ok, universal_order} ->
-            # Create payment split record
-            case create_payment_split(universal_order, product, payment_intent.id, store_amount_cents, platform_fee_cents) do
-              {:ok, payment_split} ->
-                # Update store balance if this is an escrow payment
-                if payment_split.is_escrow do
-                  store_amount_decimal = Decimal.div(Decimal.new(store_amount_cents), Decimal.new(100))
-                  update_store_pending_balance(product.store_id, store_amount_decimal)
-                end
+            # Create universal order item
+            case create_universal_order_item(universal_order, product, store_amount_cents, platform_fee_cents) do
+              {:ok, _order_item} ->
+                # Create payment split record
+                case create_payment_split(universal_order, product, payment_intent.id, store_amount_cents, platform_fee_cents) do
+                  {:ok, payment_split} ->
+                    # Update store balance if this is an escrow payment
+                    if payment_split.is_escrow do
+                      store_amount_decimal = Decimal.div(Decimal.new(store_amount_cents), Decimal.new(100))
+                      update_store_pending_balance(product.store_id, store_amount_decimal)
+                    end
 
-                json(conn, %{
-                  client_secret: payment_intent.client_secret,
-                  payment_intent_id: payment_intent.id
-                })
+                    json(conn, %{
+                      client_secret: payment_intent.client_secret,
+                      payment_intent_id: payment_intent.id
+                    })
+
+                  {:error, changeset} ->
+                    error_message = format_changeset_errors(changeset)
+                    conn
+                    |> put_status(:unprocessable_entity)
+                    |> json(%{error: "Failed to create payment split: #{error_message}"})
+                end
 
               {:error, changeset} ->
                 error_message = format_changeset_errors(changeset)
                 conn
                 |> put_status(:unprocessable_entity)
-                |> json(%{error: "Failed to create payment split: #{error_message}"})
+                |> json(%{error: "Failed to create order item: #{error_message}"})
             end
 
           {:error, changeset} ->
@@ -192,6 +202,7 @@ defmodule ShompWeb.PaymentIntentController do
       stripe_payment_intent_id: payment_intent_id,
       total_amount: total_amount,
       platform_fee_amount: platform_fee_amount,
+      store_id: product.store_id,
       status: "pending",
       payment_status: "pending",
       customer_email: customer_email,
@@ -214,6 +225,24 @@ defmodule ShompWeb.PaymentIntentController do
     end
 
     UniversalOrders.create_universal_order(order_data)
+  end
+
+  defp create_universal_order_item(universal_order, product, store_amount_cents, platform_fee_cents) do
+    store_amount = Decimal.div(Decimal.new(store_amount_cents), Decimal.new(100))
+    platform_fee_amount = Decimal.div(Decimal.new(platform_fee_cents), Decimal.new(100))
+
+    order_item_data = %{
+      universal_order_id: universal_order.universal_order_id,
+      product_id: product.id,
+      store_id: product.store_id,
+      quantity: 1,
+      unit_price: product.price,
+      total_price: product.price,
+      store_amount: store_amount,
+      platform_fee_amount: platform_fee_amount
+    }
+
+    UniversalOrders.create_universal_order_item(order_item_data)
   end
 
   defp create_payment_split(universal_order, product, payment_intent_id, store_amount_cents, platform_fee_cents) do

@@ -90,9 +90,9 @@
                     $<%= Decimal.to_string(order.total_amount) %>
                   </p>
                   <div class="flex flex-col gap-1 items-end">
-                    <%= if order.payment_status == "succeeded" do %>
+                    <%= if order.payment_status == "paid" do %>
                       <span class="badge badge-success">
-                        Completed
+                        Complete
                       </span>
                     <% else %>
                       <span class="badge badge-warning">
@@ -156,7 +156,7 @@
                 <div class="text-sm text-base-content/70">
                   <%= length(order.universal_order_items) %> item<%= if length(order.universal_order_items) != 1, do: "s", else: "" %>
                 </div>
-                <a href={~p"/orders/#{order.universal_order_id}"} class="btn btn-primary btn-sm">
+                <a href={~p"/dashboard/orders/#{order.id}"} class="btn btn-primary btn-sm">
                   View Order Details
                 </a>
               </div>

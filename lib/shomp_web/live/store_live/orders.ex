@@ -1,7 +1,7 @@
 defmodule ShompWeb.StoreLive.Orders do
   use ShompWeb, :live_view
 
-  alias Shomp.Orders
+  alias Shomp.UniversalOrders
   alias Shomp.Stores
 
   on_mount {ShompWeb.UserAuth, :require_authenticated}
@@ -12,16 +12,97 @@ defmodule ShompWeb.StoreLive.Orders do
     updated_orders = Enum.map(socket.assigns.orders, fn order ->
       if order.id == updated_order.id do
         # Get the full order with all preloads for proper display
-        Orders.get_order!(updated_order.id)
+        UniversalOrders.get_universal_order!(updated_order.id)
       else
         order
       end
     end)
-    
+
     {:noreply, assign(socket, :orders, updated_orders)}
   end
 
   @impl true
+  def render(%{universal_order: universal_order} = assigns) do
+    # Render individual order details
+    ~H"""
+    <Layouts.app flash={@flash} current_scope={@current_scope}>
+      <div class="mx-auto max-w-4xl">
+        <div class="mb-8">
+          <.header>
+            Order Details
+            <:subtitle>
+              Order <%= @universal_order.universal_order_id %> from <%= @store.name %>
+            </:subtitle>
+          </.header>
+        </div>
+
+        <!-- Order Information -->
+        <div class="bg-base-100 shadow rounded-lg p-6 mb-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h3 class="text-lg font-semibold text-base-content mb-4">Order Information</h3>
+              <div class="space-y-2">
+                <div class="flex justify-between">
+                  <span class="text-base-content/70">Order ID:</span>
+                  <span class="font-mono text-sm"><%= @universal_order.universal_order_id %></span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-base-content/70">Date:</span>
+                  <span><%= Calendar.strftime(@universal_order.inserted_at, "%B %d, %Y at %I:%M %p") %></span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-base-content/70">Customer:</span>
+                  <span><%= @universal_order.customer_name %></span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-base-content/70">Email:</span>
+                  <span><%= @universal_order.customer_email %></span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-base-content/70">Total Amount:</span>
+                  <span class="font-semibold">$<%= Decimal.to_string(@universal_order.total_amount) %></span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-base-content/70">Status:</span>
+                  <span class={get_status_badge_class(@universal_order.payment_status)}>
+                    <%= String.capitalize(@universal_order.payment_status) %>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h3 class="text-lg font-semibold text-base-content mb-4">Order Items</h3>
+              <div class="space-y-3">
+                <%= for order_item <- @universal_order.universal_order_items do %>
+                  <div class="flex items-center justify-between py-2 px-3 bg-base-200 rounded">
+                    <div>
+                      <p class="font-medium text-base-content"><%= order_item.product.title %></p>
+                      <p class="text-sm text-base-content/70">
+                        Store: <%= order_item.product.store.name %> • $<%= Decimal.to_string(order_item.price) %>
+                      </p>
+                    </div>
+                    <div class="text-right">
+                      <p class="font-semibold">$<%= Decimal.to_string(order_item.price) %></p>
+                    </div>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Order Actions -->
+        <div class="flex justify-between items-center">
+          <a href={~p"/dashboard/orders"} class="btn btn-outline">
+            ← Back to Orders
+          </a>
+        </div>
+      </div>
+    </Layouts.app>
+    """
+  end
+
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope}>
@@ -46,7 +127,7 @@ defmodule ShompWeb.StoreLive.Orders do
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <%= for store <- @stores do %>
                 <div class="border border-base-300 rounded-lg p-4 hover:bg-base-200 transition-colors cursor-pointer"
-                     phx-click="select_store" 
+                     phx-click="select_store"
                      phx-value-store_id={store.id}>
                   <h3 class="font-medium text-base-content"><%= store.name %></h3>
                   <p class="text-sm text-base-content/70"><%= store.description %></p>
@@ -75,7 +156,7 @@ defmodule ShompWeb.StoreLive.Orders do
                 <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
                   <%= for store <- @stores do %>
                     <li>
-                      <a href={~p"/dashboard/orders?store_id=#{store.id}"} 
+                      <a href={~p"/dashboard/orders?store_id=#{store.id}"}
                          class={if store.id == @store.id, do: "active", else: ""}>
                         <%= store.name %>
                         <%= if store.id == @store.id do %>
@@ -164,7 +245,7 @@ defmodule ShompWeb.StoreLive.Orders do
             <div class="px-6 py-4 border-b border-base-300">
               <h2 class="text-lg font-medium text-base-content">Recent Orders</h2>
             </div>
-            
+
             <ul class="divide-y divide-base-300">
               <%= for order <- @orders do %>
                 <li class="px-6 py-6">
@@ -189,34 +270,34 @@ defmodule ShompWeb.StoreLive.Orders do
                         <span class={get_status_badge_class(order.status)}>
                           <%= String.capitalize(order.status) %>
                         </span>
-                        
+
                         <!-- Additional status badges (only show if meaningful) -->
                         <%= if should_show_fulfillment_status?(order) do %>
                           <span class="badge badge-info badge-sm">
                             Fulfillment: <%= String.capitalize(order.fulfillment_status) %>
                           </span>
                         <% end %>
-                        
+
                         <%= if should_show_payment_status?(order) do %>
                           <span class="badge badge-warning badge-sm">
                             Payment: <%= String.capitalize(order.payment_status) %>
                           </span>
                         <% end %>
-                        
+
                         <!-- Shipping Status -->
                         <%= if should_show_shipping_status?(order) do %>
                           <span class={get_shipping_badge_class(order.shipping_status)}>
                             <%= format_shipping_status(order.shipping_status) %>
                           </span>
                         <% end %>
-                        
+
                         <!-- Tracking Information -->
                         <%= if order.tracking_number do %>
                           <span class="badge badge-outline badge-sm">
                             📦 <%= order.carrier || "Tracking" %>: <%= order.tracking_number %>
                           </span>
                         <% end %>
-                        
+
                         <!-- Delivery Information -->
                         <%= if order.delivered_at do %>
                           <span class="badge badge-success badge-sm">
@@ -232,7 +313,7 @@ defmodule ShompWeb.StoreLive.Orders do
                       </div>
                     </div>
                   </div>
-                  
+
                   <!-- Order Items -->
                   <div class="space-y-3 mb-4">
                     <%= for order_item <- order.order_items do %>
@@ -260,7 +341,7 @@ defmodule ShompWeb.StoreLive.Orders do
                       </div>
                     <% end %>
                   </div>
-                  
+
                   <!-- Order Actions -->
                   <div class="flex items-center justify-between pt-4 border-t border-base-300">
                     <div class="text-sm text-base-content/70">
@@ -268,7 +349,7 @@ defmodule ShompWeb.StoreLive.Orders do
                     </div>
                     <div class="flex items-center space-x-2">
                       <%= if order.status == "pending" do %>
-                        <button 
+                        <button
                           phx-click="update_status"
                           phx-value-order_id={order.id}
                           phx-value-status="processing"
@@ -278,7 +359,7 @@ defmodule ShompWeb.StoreLive.Orders do
                         </button>
                       <% end %>
                       <%= if order.status == "processing" do %>
-                        <button 
+                        <button
                           phx-click="update_status"
                           phx-value-order_id={order.id}
                           phx-value-status="completed"
@@ -301,63 +382,93 @@ defmodule ShompWeb.StoreLive.Orders do
   end
 
   @impl true
+  def mount(%{"universal_order_id" => universal_order_id}, _session, socket) do
+    # Handle show action for individual order
+    case UniversalOrders.get_universal_order_by_id(universal_order_id) do
+      nil ->
+        {:ok,
+         socket
+         |> put_flash(:error, "Order not found")
+         |> push_navigate(to: ~p"/dashboard/orders")}
+      
+      universal_order ->
+        # Verify the order belongs to one of the user's stores
+        user = socket.assigns.current_scope.user
+        stores = Stores.get_stores_by_user(user.id)
+        store_ids = Enum.map(stores, & &1.store_id)
+        
+        if universal_order.store_id in store_ids do
+          {:ok, assign(socket,
+            universal_order: universal_order,
+            store: Enum.find(stores, & &1.store_id == universal_order.store_id),
+            page_title: "Order Details - #{universal_order.universal_order_id}"
+          )}
+        else
+          {:ok,
+           socket
+           |> put_flash(:error, "You don't have access to this order")
+           |> push_navigate(to: ~p"/dashboard/orders")}
+        end
+    end
+  end
+
   def mount(params, _session, socket) do
     user = socket.assigns.current_scope.user
     stores = Stores.get_stores_by_user(user.id)
-    
+
     case stores do
       [] ->
         {:ok,
          socket
          |> put_flash(:error, "You don't have a store yet. Create one first!")
          |> push_navigate(to: ~p"/stores/new")}
-      
+
       [single_store] ->
         # User has only one store, use it directly
-        orders = Orders.list_store_orders(single_store.store_id)
-        
+        orders = UniversalOrders.list_universal_orders_by_store(single_store.store_id)
+
         # Subscribe to order updates for this store
         Phoenix.PubSub.subscribe(Shomp.PubSub, "store_orders:#{single_store.store_id}")
-        
-        {:ok, assign(socket, 
+
+        {:ok, assign(socket,
           store: single_store,
           stores: stores,
           orders: orders,
           page_title: "Order Management"
         )}
-      
+
       multiple_stores ->
         # User has multiple stores, check if store_id is specified in params
         case params["store_id"] do
           nil ->
             # No store selected, show store selection
-            {:ok, assign(socket, 
+            {:ok, assign(socket,
               store: nil,
               stores: multiple_stores,
               orders: [],
               page_title: "Order Management - Select Store"
             )}
-          
+
           store_id ->
             # Find the selected store
             case Enum.find(multiple_stores, &(&1.id == String.to_integer(store_id))) do
               nil ->
                 # Invalid store_id, show store selection
-                {:ok, assign(socket, 
+                {:ok, assign(socket,
                   store: nil,
                   stores: multiple_stores,
                   orders: [],
                   page_title: "Order Management - Select Store"
                 )}
-              
+
               selected_store ->
                 # Valid store selected, show its orders
-                orders = Orders.list_store_orders(selected_store.store_id)
-                
+                orders = UniversalOrders.list_universal_orders_by_store(selected_store.store_id)
+
                 # Subscribe to order updates for this store
                 Phoenix.PubSub.subscribe(Shomp.PubSub, "store_orders:#{selected_store.store_id}")
-                
-                {:ok, assign(socket, 
+
+                {:ok, assign(socket,
                   store: selected_store,
                   stores: multiple_stores,
                   orders: orders,
@@ -376,13 +487,13 @@ defmodule ShompWeb.StoreLive.Orders do
 
   @impl true
   def handle_event("update_status", %{"order_id" => order_id, "status" => status}, socket) do
-    order = Orders.get_order!(order_id)
-    
-    case Orders.update_order_status(order, status) do
+    order = UniversalOrders.get_universal_order!(order_id)
+
+    case UniversalOrders.update_universal_order_status(order, status) do
       {:ok, _updated_order} ->
         # Don't manually update the list here - the PubSub broadcast will handle it
         {:noreply, put_flash(socket, :info, "Order status updated to #{status}")}
-      
+
       {:error, _reason} ->
         {:noreply, put_flash(socket, :error, "Failed to update order status")}
     end
@@ -394,10 +505,11 @@ defmodule ShompWeb.StoreLive.Orders do
 
   defp get_status_badge_class(status) do
     case status do
-      "completed" -> "badge badge-success"
-      "processing" -> "badge badge-info"
+      "paid" -> "badge badge-success"
       "pending" -> "badge badge-warning"
-      "cancelled" -> "badge badge-error"
+      "failed" -> "badge badge-error"
+      "refunded" -> "badge badge-neutral"
+      "partially_refunded" -> "badge badge-info"
       _ -> "badge badge-neutral"
     end
   end

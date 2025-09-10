@@ -696,7 +696,7 @@ defmodule Shomp.Payments do
         # Update universal order status
         UniversalOrders.update_universal_order(universal_order, %{
           status: "completed",
-          payment_status: "succeeded"
+          payment_status: "paid"
         })
 
         {:ok, :payment_processed}
@@ -1263,5 +1263,21 @@ defmodule Shomp.Payments do
     update_store_available_balance(store_id, total_store_amount)
 
     IO.puts("Payout completed successfully for store #{store_id}")
+  end
+
+  @doc """
+  Gets the total lifetime earnings for a store.
+  """
+  def get_store_total_earnings(store_id) do
+    # Get all successful payments for products from this store
+    query = from p in Payment,
+      join: pr in Shomp.Products.Product, on: p.product_id == pr.id,
+      where: pr.store_id == ^store_id and p.status == "succeeded",
+      select: sum(p.amount)
+
+    case Repo.one(query) do
+      nil -> {:ok, Decimal.new(0)}
+      total -> {:ok, total}
+    end
   end
 end

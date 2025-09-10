@@ -92,6 +92,27 @@ defmodule ShompWeb.StoreLive.Balance do
           <p class="text-lg text-gray-600">Go to Stripe to see your earnings</p>
         </div>
 
+        <!-- Stripe Connect Status Info Box -->
+        <%= if has_verified_stripe_account?(@stores_with_data) do %>
+          <div class="mb-8 bg-green-50 border border-green-200 rounded-lg p-4">
+            <div class="flex items-center">
+              <div class="flex-shrink-0">
+                <svg class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                </svg>
+              </div>
+              <div class="ml-3">
+                <h3 class="text-sm font-medium text-green-800">
+                  Stripe Connect Verified
+                </h3>
+                <div class="mt-1 text-sm text-green-700">
+                  <p>Your account is ready to receive payouts and process payments.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        <% end %>
+
         <!-- Stripe Connect Dashboard Links -->
         <%= if @stripe_dashboard_url do %>
           <div class="mb-8 bg-white shadow rounded-lg">
@@ -141,7 +162,15 @@ defmodule ShompWeb.StoreLive.Balance do
               </div>
 
               <div class="px-6 py-6 space-y-4">
-                <!-- Stripe Connect Status -->
+                <!-- Lifetime Earnings -->
+                <div class="text-center py-4 border-t border-gray-200">
+                  <div class="text-2xl font-bold text-blue-600">
+                    $<%= Decimal.to_string(get_store_lifetime_earnings(store_data.store.store_id)) %>
+                  </div>
+                  <div class="text-sm text-gray-500 mt-1">Lifetime Earnings</div>
+                </div>
+
+                <!-- Stripe Connect Actions -->
                 <div class="pt-4 border-t border-gray-200">
                   <%= if store_data.kyc_record == nil do %>
                     <!-- No Stripe account yet -->
@@ -158,9 +187,9 @@ defmodule ShompWeb.StoreLive.Balance do
                     <%= if not is_nil(store_data.kyc_record.stripe_account_id) && store_data.kyc_record.charges_enabled && store_data.kyc_record.payouts_enabled && store_data.kyc_record.onboarding_completed do %>
                       <!-- Stripe Connect Fully Verified -->
                       <div class="text-center py-2">
-                        <div class="text-sm text-green-600 font-medium mb-2">✅ Stripe Connect Verified</div>
+                        <div class="text-sm text-green-600 font-medium mb-2">✅ Ready for Payouts</div>
                         <div class="text-xs text-gray-500">
-                          Ready to receive payouts
+                          Stripe Connect verified
                         </div>
                       </div>
                     <% else %>
@@ -395,6 +424,26 @@ defmodule ShompWeb.StoreLive.Balance do
       end
     else
       nil
+    end
+  end
+
+  defp has_verified_stripe_account?(stores_with_data) do
+    Enum.any?(stores_with_data, fn store_data ->
+      store_data.kyc_record &&
+      store_data.kyc_record.stripe_account_id &&
+      store_data.kyc_record.charges_enabled &&
+      store_data.kyc_record.payouts_enabled &&
+      store_data.kyc_record.onboarding_completed
+    end)
+  end
+
+  defp get_store_lifetime_earnings(store_id) do
+    # Get total earnings for this store from payments
+    alias Shomp.Payments
+
+    case Payments.get_store_total_earnings(store_id) do
+      {:ok, total} -> total
+      {:error, _} -> Decimal.new(0)
     end
   end
 end

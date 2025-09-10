@@ -27,6 +27,43 @@ defmodule Shomp.UniversalOrders do
   end
 
   @doc """
+  Gets a universal order by ID.
+  """
+  def get_universal_order!(id) do
+    Repo.get!(UniversalOrder, id)
+    |> Repo.preload([:universal_order_items, :payment_splits, :refunds, :user, :billing_address, :shipping_address])
+  end
+
+  @doc """
+  Lists universal orders by store ID.
+  """
+  def list_universal_orders_by_store(store_id) do
+    UniversalOrder
+    |> where([u], u.store_id == ^store_id)
+    |> order_by([u], [desc: u.inserted_at])
+    |> Repo.all()
+    |> Repo.preload([:universal_order_items, :payment_splits, :user])
+  end
+
+  @doc """
+  Updates universal order status.
+  """
+  def update_universal_order_status(universal_order, status) do
+    universal_order
+    |> UniversalOrder.changeset(%{status: status})
+    |> Repo.update()
+  end
+
+  @doc """
+  Creates a universal order item.
+  """
+  def create_universal_order_item(attrs \\ %{}) do
+    %UniversalOrderItem{}
+    |> UniversalOrderItem.create_changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc """
   Gets a universal order by Stripe payment intent ID.
   """
   def get_universal_order_by_payment_intent(payment_intent_id) do
@@ -74,15 +111,6 @@ defmodule Shomp.UniversalOrders do
 
       Map.merge(order, merchant_info)
     end)
-  end
-
-  @doc """
-  Creates a universal order item.
-  """
-  def create_universal_order_item(attrs \\ %{}) do
-    %UniversalOrderItem{}
-    |> UniversalOrderItem.create_changeset(attrs)
-    |> Repo.insert()
   end
 
   @doc """
