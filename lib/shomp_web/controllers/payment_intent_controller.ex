@@ -118,6 +118,7 @@ defmodule ShompWeb.PaymentIntentController do
       })
     else
       # Store hasn't completed KYC - create payment intent for escrow
+      # For escrow, we collect the full amount and handle splitting in webhook
       Stripe.PaymentIntent.create(%{
         amount: total_amount_cents,
         currency: "usd",
@@ -125,7 +126,9 @@ defmodule ShompWeb.PaymentIntentController do
           universal_order_id: universal_order_id,
           product_id: product.id,
           store_id: product.store_id,
-          payment_type: "escrow"
+          payment_type: "escrow",
+          platform_fee_cents: platform_fee_cents,
+          store_amount_cents: total_amount_cents - platform_fee_cents
         }
       })
     end

@@ -30,12 +30,16 @@ defmodule ShompWeb.AdminLive.EscrowDashboard do
     direct_total = calculate_direct_total(direct_splits)
     platform_total = calculate_platform_total(escrow_splits ++ direct_splits)
     
+    # Calculate pre-KYC donation hold (platform fees from escrow payments)
+    pre_kyc_donation_total = calculate_pre_kyc_donation_total(escrow_splits)
+    
     escrow_data = %{
       escrow_splits: escrow_splits,
       direct_splits: direct_splits,
       escrow_total: escrow_total,
       direct_total: direct_total,
       platform_total: platform_total,
+      pre_kyc_donation_total: pre_kyc_donation_total,
       total_escrow_stores: length(Enum.uniq_by(escrow_splits, & &1.store_id)),
       total_direct_stores: length(Enum.uniq_by(direct_splits, & &1.store_id))
     }
@@ -79,7 +83,24 @@ defmodule ShompWeb.AdminLive.EscrowDashboard do
 
   defp calculate_platform_total(splits) do
     result = splits
-    |> Enum.map(fn split -> 
+    |> Enum.map(fn split ->
+      case split.platform_fee_amount do
+        nil -> 0.0
+        amount -> Decimal.to_float(amount)
+      end
+    end)
+    |> Enum.sum()
+    
+    # Ensure we always return a float
+    case result do
+      0 -> 0.0
+      other -> other
+    end
+  end
+
+  defp calculate_pre_kyc_donation_total(escrow_splits) do
+    result = escrow_splits
+    |> Enum.map(fn split ->
       case split.platform_fee_amount do
         nil -> 0.0
         amount -> Decimal.to_float(amount)
@@ -110,7 +131,7 @@ defmodule ShompWeb.AdminLive.EscrowDashboard do
         </div>
       <% else %>
 
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <!-- Shomp Holdings (Platform Revenue) -->
         <div class="bg-green-50 border border-green-200 rounded-lg p-6">
           <div class="flex items-center">
@@ -125,6 +146,24 @@ defmodule ShompWeb.AdminLive.EscrowDashboard do
               <h3 class="text-lg font-medium text-gray-900">Shomp Holdings</h3>
               <p class="text-sm text-gray-600">Pure platform returns</p>
               <p class="text-2xl font-bold text-green-600">$<%= :erlang.float_to_binary(@escrow_data.platform_total, decimals: 2) %></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Shomp Pre-KYC Donation Hold -->
+        <div class="bg-purple-50 border border-purple-200 rounded-lg p-6">
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <div class="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
+                </svg>
+              </div>
+            </div>
+            <div class="ml-4">
+              <h3 class="text-lg font-medium text-gray-900">Pre-KYC Donation Hold</h3>
+              <p class="text-sm text-gray-600">Platform fees from escrow</p>
+              <p class="text-2xl font-bold text-purple-600">$<%= :erlang.float_to_binary(@escrow_data.pre_kyc_donation_total, decimals: 2) %></p>
             </div>
           </div>
         </div>

@@ -29,39 +29,79 @@ defmodule ShompWeb.AdminLive.MerchantEscrow do
   end
 
   defp load_merchant_data do
-    merchants_with_escrow = EscrowTransfers.list_stores_with_escrow()
+    # Get all stores with their user association preloaded
+    stores = Stores.list_stores_with_user()
     
-    # Get detailed info for each merchant
-    merchants_with_details = Enum.map(merchants_with_escrow, fn merchant ->
-      store = Stores.get_store!(merchant.store_id)
-      kyc = StoreKYCContext.get_kyc_by_store_id(merchant.store_id)
+    # Get detailed info for each store
+    merchants_with_details = Enum.map(stores, fn store ->
+      kyc = StoreKYCContext.get_kyc_by_store_id(store.store_id)
+      
+      # Get escrow data for this store
+      escrow_data = get_escrow_data_for_store(store.store_id)
       
       %{
         store: store,
         kyc: kyc,
-        total_escrow: merchant.total_escrow,
-        split_count: merchant.split_count,
-        latest_split: merchant.latest_split,
+        total_escrow: escrow_data.total_escrow,
+        shomp_donation_balance: escrow_data.shomp_donation_balance,
+        split_count: escrow_data.split_count,
+        latest_split: escrow_data.latest_split,
         kyc_status: get_kyc_status(kyc),
-        can_transfer: can_transfer_funds?(kyc)
+        can_transfer: can_transfer_funds?(kyc, escrow_data.total_escrow)
       }
     end)
+    |> Enum.filter(fn merchant -> merchant.total_escrow > 0 end)  # Only show stores with escrow
     
     %{merchants: merchants_with_details}
+  end
+
+  defp get_escrow_data_for_store(store_id) do
+    # Get escrow payment splits for this store
+    escrow_splits = Shomp.PaymentSplits.list_escrow_payment_splits_for_store(store_id)
+    
+    total_escrow = escrow_splits
+    |> Enum.map(fn split -> 
+      case split.store_amount do
+        nil -> Decimal.new(0)
+        amount -> amount
+      end
+    end)
+    |> Enum.reduce(Decimal.new(0), &Decimal.add/2)
+    
+    # Calculate total Shomp donation balance from platform fees
+    shomp_donation_balance = escrow_splits
+    |> Enum.map(fn split -> 
+      case split.platform_fee_amount do
+        nil -> Decimal.new(0)
+        amount -> amount
+      end
+    end)
+    |> Enum.reduce(Decimal.new(0), &Decimal.add/2)
+    
+    latest_split = escrow_splits
+    |> Enum.max_by(fn split -> split.inserted_at end, fn -> nil end)
+    
+    %{
+      total_escrow: total_escrow,
+      shomp_donation_balance: shomp_donation_balance,
+      split_count: length(escrow_splits),
+      latest_split: latest_split
+    }
   end
 
   defp get_kyc_status(nil), do: "not_started"
   defp get_kyc_status(kyc) do
     case kyc.status do
-      "approved" -> "completed"
+      "verified" -> "completed"
       "pending" -> "pending"
       "rejected" -> "rejected"
       _ -> "pending"
     end
   end
 
-  defp can_transfer_funds?(nil), do: false
-  defp can_transfer_funds?(kyc), do: kyc.status == "approved" && !is_nil(kyc.stripe_account_id)
+  defp can_transfer_funds?(kyc, total_escrow) do
+    kyc && kyc.status == "verified" && !is_nil(kyc.stripe_account_id) && Decimal.compare(total_escrow, Decimal.new(0)) == :gt
+  end
 
   def render(assigns) do
     ~H"""
@@ -80,7 +120,8 @@ defmodule ShompWeb.AdminLive.MerchantEscrow do
                 <tr>
                   <th>Store Name</th>
                   <th>Owner</th>
-                  <th>Balance</th>
+                  <th>Escrow Balance</th>
+                  <th>Shomp Donation</th>
                   <th>KYC Status</th>
                   <th>Payment Splits</th>
                   <th>Latest Sale</th>
@@ -100,8 +141,14 @@ defmodule ShompWeb.AdminLive.MerchantEscrow do
                     </td>
                     <td>
                       <div class="text-lg font-bold text-green-600">
-                        $<%= :erlang.float_to_binary(merchant.total_escrow, decimals: 2) %>
+                        $<%= Decimal.to_string(merchant.total_escrow) %>
                       </div>
+                    </td>
+                    <td>
+                      <div class="text-lg font-bold text-blue-600">
+                        $<%= Decimal.to_string(merchant.shomp_donation_balance) %>
+                      </div>
+                      <div class="text-xs text-gray-500">to Shomp on KYC</div>
                     </td>
                     <td>
                       <.kyc_badge status={merchant.kyc_status} />
@@ -128,25 +175,28 @@ defmodule ShompWeb.AdminLive.MerchantEscrow do
                       <%= if merchant.can_transfer do %>
                         <button
                           phx-click="release_escrow"
-                          phx-value-store_id={merchant.store.id}
+                          phx-value-store_id={merchant.store.store_id}
                           class="btn btn-primary btn-sm"
-                          data-confirm={"Transfer $#{:erlang.float_to_binary(merchant.total_escrow, decimals: 2)} to this merchant?"}
+                          data-confirm={"Transfer $#{Decimal.to_string(merchant.total_escrow)} to this merchant?"}
                         >
-                          Transfer $<%= :erlang.float_to_binary(merchant.total_escrow, decimals: 2) %>
+                          Transfer $<%= Decimal.to_string(merchant.total_escrow) %>
                         </button>
                       <% else %>
-                        <div class="text-sm text-gray-500">
+                        <button
+                          class="btn btn-disabled btn-sm opacity-50"
+                          disabled
+                        >
                           <%= case merchant.kyc_status do %>
                             <% "not_started" -> %>
-                              KYC not started
+                              KYC Not Started
                             <% "pending" -> %>
-                              KYC pending
+                              KYC Pending
                             <% "rejected" -> %>
-                              KYC rejected
+                              KYC Rejected
                             <% _ -> %>
-                              Cannot transfer
+                              Cannot Transfer
                           <% end %>
-                        </div>
+                        </button>
                       <% end %>
                     </td>
                   </tr>

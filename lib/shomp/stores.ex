@@ -24,6 +24,15 @@ defmodule Shomp.Stores do
   end
 
   @doc """
+  Returns the list of stores with user association loaded (singular).
+  """
+  def list_stores_with_user do
+    Store
+    |> preload(:user)
+    |> Repo.all()
+  end
+
+  @doc """
   Returns the list of stores with user and products associations loaded.
   """
   def list_stores_with_users_and_products do

@@ -92,6 +92,13 @@ defmodule Shomp.PaymentSplits do
   end
 
   @doc """
+  Lists escrow payment splits for a specific store.
+  """
+  def list_escrow_payment_splits_for_store(store_id) do
+    Repo.all(from ps in PaymentSplit, where: ps.is_escrow == true and ps.store_id == ^store_id)
+  end
+
+  @doc """
   Updates a payment split.
   """
   def update_payment_split(%PaymentSplit{} = payment_split, attrs) do
