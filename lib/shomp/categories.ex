@@ -226,4 +226,22 @@ defmodule Shomp.Categories do
     |> order_by([c], c.name)
     |> Repo.all()
   end
+
+  @doc """
+  Returns categories with their products for the categories index page.
+  Each category includes up to 8 products for thumbnail display.
+  """
+  def get_categories_with_products_and_thumbnails do
+    Category
+    |> join(:inner, [c], p in "products", on: c.id == p.category_id)
+    |> where([c], c.level == 1 and c.active == true)
+    |> group_by([c], c.id)
+    |> select([c], c)
+    |> order_by([c], c.name)
+    |> Repo.all()
+    |> Enum.map(fn category ->
+      products = Shomp.Products.get_products_by_category(category.id, 8)
+      Map.put(category, :products, products)
+    end)
+  end
 end
