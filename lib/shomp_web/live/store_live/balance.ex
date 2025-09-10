@@ -9,12 +9,12 @@ defmodule ShompWeb.StoreLive.Balance do
 
   def mount(params, _session, socket) do
     user_id = socket.assigns.current_scope.user.id
-    
+
     # Subscribe to KYC updates for real-time status changes
     if connected?(socket) do
       Phoenix.PubSub.subscribe(Shomp.PubSub, "kyc_updates")
     end
-    
+
     # Get the user's store
     case get_user_store(user_id) do
       nil ->
@@ -26,34 +26,43 @@ defmodule ShompWeb.StoreLive.Balance do
       store ->
         # Get or create store balance
         {:ok, store_balance} = StoreBalances.get_or_create_store_balance_by_store_id(store.store_id)
-        
+
         # Get KYC status
         kyc_record = StoreKYCContext.get_kyc_by_store_id(store.store_id)
-        
+
+        # Get available balance from store
+        available_balance = store.available_balance || Decimal.new(0)
+
         # Check if we're returning from Stripe onboarding
         if params["refresh"] == "true" && kyc_record && kyc_record.stripe_account_id do
           # Sync the account status from Stripe
           case StripeConnect.sync_account_status(kyc_record.stripe_account_id) do
             {:ok, updated_kyc} ->
               # Update the socket with the new KYC record
-              kyc_record = updated_kyc
-              socket = socket
-                       |> put_flash(:info, "Stripe Connect status updated!")
-            
-            {:error, _reason} ->
-              socket = socket
-                       |> put_flash(:error, "Failed to sync Stripe status. Please try refreshing manually.")
+              _kyc_record = updated_kyc
+              _socket = socket
+                       |> put_flash(:info, "Stripe Connect status updated! Charges: #{updated_kyc.charges_enabled}, Payouts: #{updated_kyc.payouts_enabled}")
+
+            {:error, reason} ->
+              error_message = case reason do
+                %Stripe.Error{message: message} -> "Stripe API error: #{message}"
+                :kyc_not_found -> "KYC record not found for this Stripe account"
+                _ -> "Failed to sync Stripe status: #{inspect(reason)}"
+              end
+              _socket = socket
+                       |> put_flash(:error, error_message)
           end
         end
-        
 
-        
+
+
         socket = socket
                  |> assign(:store, store)
                  |> assign(:store_balance, store_balance)
                  |> assign(:kyc_record, kyc_record)
+                 |> assign(:available_balance, available_balance)
                  |> assign(:page_title, "Store Balance")
-        
+
         {:ok, socket}
     end
   end
@@ -74,46 +83,67 @@ defmodule ShompWeb.StoreLive.Balance do
             <div class="px-6 py-4 border-b border-gray-200">
               <h2 class="text-lg font-medium text-gray-900">Earnings Overview</h2>
             </div>
-            
+
             <div class="px-6 py-6 space-y-4">
               <div class="flex justify-between items-center">
                 <span class="text-gray-600">Total Earnings</span>
                 <span class="text-2xl font-bold text-green-600">
-                  $<%= @store_balance.total_earnings %>
+                  $<%= Decimal.to_string(@available_balance) %>
                 </span>
               </div>
-              
+
               <div class="flex justify-between items-center">
-                <span class="text-gray-600">Pending Balance</span>
+                <span class="text-gray-600">Available Balance</span>
                 <span class="text-xl font-semibold text-blue-600">
-                  $<%= @store_balance.pending_balance %>
+                  $<%= Decimal.to_string(@available_balance) %>
                 </span>
               </div>
-              
+
               <div class="flex justify-between items-center">
                 <span class="text-gray-600">Paid Out</span>
                 <span class="text-lg text-gray-900">
                   $<%= @store_balance.paid_out_balance %>
                 </span>
               </div>
-              
+
               <%= if @store_balance.last_payout_date do %>
-                <div class="flex justify-between items-center">
-                  <span class="text-gray-600">Last Payout</span>
-                  <span class="text-sm text-gray-500">
-                    <%= Calendar.strftime(@store_balance.last_payout_date, "%B %d, %Y") %>
-                  </span>
+              <div class="flex justify-between items-center">
+                <span class="text-gray-600">Last Payout</span>
+                <span class="text-sm text-gray-500">
+                  <%= Calendar.strftime(@store_balance.last_payout_date, "%B %d, %Y") %>
+                </span>
+              </div>
+            <% end %>
+
+            <!-- Balance Summary -->
+            <div class="mt-6 pt-4 border-t border-gray-200">
+              <div class="text-center">
+                <div class="p-4 bg-green-50 rounded-lg">
+                  <p class="text-sm text-green-600 font-medium mb-1">Your Earnings</p>
+                  <p class="text-2xl font-bold text-green-800">$<%= Decimal.to_string(@available_balance) %></p>
+                  <p class="text-xs text-green-600 mt-1">
+                    Funds are automatically sent to your Stripe account and paid out to your bank account
+                  </p>
                 </div>
-              <% end %>
+              </div>
+            </div>
+
+            <!-- Status Information -->
+            <div class="mt-4 p-3 bg-blue-50 rounded-lg">
+              <p class="text-sm text-blue-800">
+                💡 <strong>How it works:</strong> When customers buy your products, money goes directly to your Stripe account.
+                Stripe automatically pays out to your bank account (2-7 days or instant for a small fee).
+              </p>
             </div>
           </div>
+        </div>
 
           <!-- KYC Status -->
           <div class="bg-white shadow rounded-lg">
             <div class="px-6 py-4 border-b border-gray-200">
               <h2 class="text-lg font-medium text-gray-900">KYC Status</h2>
             </div>
-            
+
             <div class="px-6 py-6">
               <%= if @kyc_record == nil do %>
                 <!-- No KYC submitted yet -->
@@ -127,8 +157,8 @@ defmodule ShompWeb.StoreLive.Balance do
                   <p class="text-sm text-gray-500 mb-4">
                     You need to complete KYC verification to receive payouts.
                   </p>
-                  <button 
-                    phx-click="start_stripe_onboarding" 
+                  <button
+                    phx-click="start_stripe_onboarding"
                     class="btn btn-primary btn-sm">
                     Start Stripe Onboarding
                   </button>
@@ -155,15 +185,15 @@ defmodule ShompWeb.StoreLive.Balance do
                           <div>✅ Onboarding completed: <%= @kyc_record.onboarding_completed %></div>
                         </div>
                       </div>
-                      
+
                       <!-- Shomp KYC Status -->
                       <%= if @kyc_record.status == "pending" do %>
                         <div class="mt-4 p-3 bg-yellow-50 rounded-lg">
                           <p class="text-sm text-yellow-800 mb-2">
                             ⚠️ Shomp KYC still pending - Complete ID verification to enable full functionality
                           </p>
-                          <button 
-                            phx-click="start_shomp_kyc" 
+                          <button
+                            phx-click="start_shomp_kyc"
                             class="btn btn-warning btn-sm">
                             Complete Shomp KYC
                           </button>
@@ -184,20 +214,20 @@ defmodule ShompWeb.StoreLive.Balance do
                       </p>
                       <div class="flex flex-col gap-2">
                         <%= if is_nil(@kyc_record.stripe_account_id) do %>
-                          <button 
-                            phx-click="start_stripe_onboarding" 
+                          <button
+                            phx-click="start_stripe_onboarding"
                             class="btn btn-primary btn-sm">
                             Start Stripe Onboarding
                           </button>
                         <% else %>
-                          <button 
-                            phx-click="refresh_stripe_status" 
+                          <button
+                            phx-click="refresh_stripe_status"
                             class="btn btn-primary btn-sm">
                             Check Stripe Status
                           </button>
                         <% end %>
-                        <button 
-                          phx-click="reset_kyc" 
+                        <button
+                          phx-click="reset_kyc"
                           class="btn btn-outline btn-sm">
                           Reset KYC
                         </button>
@@ -231,7 +261,7 @@ defmodule ShompWeb.StoreLive.Balance do
                         <p class="text-sm text-gray-500">
                           Verified on <%= Calendar.strftime(@kyc_record.verified_at, "%B %d, %Y") %>
                         </p>
-                        
+
                         <!-- Stripe Connect Status -->
                         <%= if not is_nil(@kyc_record.stripe_account_id) do %>
                           <div class="mt-4 flex flex-col gap-2">
@@ -240,21 +270,24 @@ defmodule ShompWeb.StoreLive.Balance do
                                 <p class="text-sm text-green-800">
                                   ✅ Stripe Connect verified - You can receive payouts!
                                 </p>
+                                <div class="mt-2 text-xs text-green-700">
+                                  💡 To view your Stripe dashboard, go to <a href="https://dashboard.stripe.com" target="_blank" class="underline">dashboard.stripe.com</a> and log in with your Stripe account
+                                </div>
                               </div>
                             <% else %>
                               <div class="p-3 bg-yellow-50 rounded-lg">
                                 <p class="text-sm text-yellow-800 mb-2">
                                   ⚠️ Stripe Connect needs attention
                                 </p>
-                                <div class="flex gap-2">
-                                  <button 
-                                    phx-click="refresh_stripe_status" 
-                                    class="btn btn-outline btn-xs">
-                                    Check Status
-                                  </button>
+                        <div class="flex gap-2">
+                          <button
+                            phx-click="refresh_stripe_status"
+                            class="btn btn-outline btn-xs">
+                            Check Status
+                          </button>
                                   <%= if not @kyc_record.onboarding_completed do %>
-                                    <button 
-                                      phx-click="start_stripe_onboarding" 
+                                    <button
+                                      phx-click="start_stripe_onboarding"
                                       class="btn btn-primary btn-xs">
                                       Continue Onboarding
                                     </button>
@@ -268,8 +301,8 @@ defmodule ShompWeb.StoreLive.Balance do
                             <p class="text-sm text-blue-800 mb-2">
                               Complete Stripe Connect setup to receive payouts
                             </p>
-                            <button 
-                              phx-click="start_stripe_onboarding" 
+                            <button
+                              phx-click="start_stripe_onboarding"
                               class="btn btn-primary btn-xs">
                               Setup Stripe Connect
                             </button>
@@ -295,14 +328,14 @@ defmodule ShompWeb.StoreLive.Balance do
                             </p>
                           <% end %>
                           <div class="flex flex-col gap-2">
-                            <button 
+                            <button
                               phx-click="resubmit_kyc"
                               class="btn btn-outline btn-sm">
                               Resubmit KYC
                             </button>
                             <%= if is_nil(@kyc_record.stripe_account_id) do %>
-                              <button 
-                                phx-click="start_stripe_onboarding" 
+                              <button
+                                phx-click="start_stripe_onboarding"
                                 class="btn btn-primary btn-sm">
                                 Start Stripe Onboarding
                               </button>
@@ -323,7 +356,7 @@ defmodule ShompWeb.StoreLive.Balance do
           <div class="px-6 py-4 border-b border-gray-200">
             <h2 class="text-lg font-medium text-gray-900">Payout Information</h2>
           </div>
-          
+
           <div class="px-6 py-6">
             <div class="prose prose-sm text-gray-600">
               <h3>How Payouts Work</h3>
@@ -334,7 +367,7 @@ defmodule ShompWeb.StoreLive.Balance do
                 <li>Minimum payout amount: $50.00</li>
                 <li>Payouts are processed within 2-7 business days</li>
               </ul>
-              
+
               <h3>Stripe Connect Onboarding</h3>
               <ul>
                 <li>Secure, Stripe-hosted onboarding process</li>
@@ -342,7 +375,7 @@ defmodule ShompWeb.StoreLive.Balance do
                 <li>Automatically handles compliance and verification</li>
                 <li>Required for receiving payouts</li>
               </ul>
-              
+
               <h3>KYC Requirements</h3>
               <ul>
                 <li>Valid government-issued photo ID</li>
@@ -361,11 +394,11 @@ defmodule ShompWeb.StoreLive.Balance do
   def handle_event("start_stripe_onboarding", _params, socket) do
     store = socket.assigns.store
     return_url = ShompWeb.Endpoint.url() <> "/dashboard/store/balance"
-    
+
     case StripeConnect.get_onboarding_url(store.id, return_url) do
       {:ok, onboarding_url} ->
         {:noreply, redirect(socket, external: onboarding_url)}
-      
+
       {:error, reason} ->
         error_message = case reason do
           %Stripe.Error{message: message} -> message
@@ -378,59 +411,64 @@ defmodule ShompWeb.StoreLive.Balance do
   end
 
   def handle_event("refresh_stripe_status", _params, socket) do
-    store = socket.assigns.store
+    _store = socket.assigns.store
     kyc_record = socket.assigns.kyc_record
-    
+
     if kyc_record && kyc_record.stripe_account_id do
+      # Add loading state
+      socket = socket |> put_flash(:info, "Checking Stripe status...")
+
       case StripeConnect.sync_account_status(kyc_record.stripe_account_id) do
         {:ok, updated_kyc} ->
           # Update the socket with the new KYC record and show success message
-          {:noreply, 
-           socket
-           |> assign(:kyc_record, updated_kyc)
-           |> put_flash(:info, "Stripe status updated successfully!")}
-        
-        {:error, reason} ->
           {:noreply,
            socket
-           |> put_flash(:error, "Failed to refresh Stripe status: #{inspect(reason)}")}
+           |> assign(:kyc_record, updated_kyc)
+           |> put_flash(:info, "Stripe status updated successfully! Charges: #{updated_kyc.charges_enabled}, Payouts: #{updated_kyc.payouts_enabled}")}
+
+        {:error, reason} ->
+          error_message = case reason do
+            %Stripe.Error{message: message} -> "Stripe API error: #{message}"
+            :kyc_not_found -> "KYC record not found for this Stripe account"
+            _ -> "Failed to refresh Stripe status: #{inspect(reason)}"
+          end
+
+          {:noreply,
+           socket
+           |> put_flash(:error, error_message)}
       end
     else
-      {:noreply, 
+      {:noreply,
        socket
        |> put_flash(:error, "No Stripe account found. Please start onboarding first.")}
     end
   end
 
-  def handle_event("test_button", _params, socket) do
-    {:noreply, 
-     socket
-     |> put_flash(:info, "Test button works!")}
-  end
+
 
   def handle_event("start_shomp_kyc", _params, socket) do
     # Navigate to the KYC page
-    {:noreply, 
+    {:noreply,
      socket
      |> push_navigate(to: ~p"/dashboard/store/kyc")}
   end
 
   def handle_event("resubmit_kyc", _params, socket) do
     # Navigate to the KYC page to resubmit
-    {:noreply, 
+    {:noreply,
      socket
      |> push_navigate(to: ~p"/dashboard/store/kyc")}
   end
 
   def handle_event("reset_kyc", _params, socket) do
-    store = socket.assigns.store
+    _store = socket.assigns.store
     kyc_record = socket.assigns.kyc_record
-    
+
     if kyc_record do
       # Delete the KYC record so we can start fresh
       alias Shomp.Repo
       Repo.delete(kyc_record)
-      
+
       # Reload the page to show the reset state
       {:noreply,
        socket
@@ -441,12 +479,14 @@ defmodule ShompWeb.StoreLive.Balance do
     end
   end
 
-  def handle_info(%{event: "kyc_updated", payload: %{kyc_id: kyc_id, store_id: store_id}}, socket) do
+
+
+  def handle_info(%{event: "kyc_updated", payload: %{kyc_id: _kyc_id, store_id: store_id}}, socket) do
     # Check if this update is for the current store
     if socket.assigns.store.store_id == store_id do
       # Reload the KYC record
       updated_kyc = StoreKYCContext.get_kyc_by_store_id(store_id)
-      
+
       {:noreply, assign(socket, kyc_record: updated_kyc)}
     else
       {:noreply, socket}

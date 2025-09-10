@@ -16,9 +16,9 @@ defmodule ShompWeb.AdminLive.Dashboard do
   @admin_email "v1nc3ntpull1ng@gmail.com"
 
   def mount(_params, _session, socket) do
-    if socket.assigns.current_scope && 
+    if socket.assigns.current_scope &&
        socket.assigns.current_scope.user.email == @admin_email do
-      
+
       # Subscribe to PubSub channels for real-time updates
       if connected?(socket) do
         PubSub.subscribe(Shomp.PubSub, "admin:stores")
@@ -28,13 +28,13 @@ defmodule ShompWeb.AdminLive.Dashboard do
         PubSub.subscribe(Shomp.PubSub, "admin:support_tickets")
       end
 
-      {:ok, 
-       socket 
+      {:ok,
+       socket
        |> assign(:page_title, @page_title)
        |> load_admin_stats()}
     else
-      {:ok, 
-       socket 
+      {:ok,
+       socket
        |> put_flash(:error, "Access denied. Admin privileges required.")
        |> redirect(to: ~p"/")}
     end
@@ -42,54 +42,54 @@ defmodule ShompWeb.AdminLive.Dashboard do
 
   def handle_info(%{event: "store_created", payload: store}, socket) do
     # Add flash message for real-time feedback
-    socket = socket 
+    socket = socket
     |> put_flash(:info, "New store created: #{store.name}")
     |> load_admin_stats()
-    
+
     {:noreply, socket}
   end
 
   def handle_info(%{event: "product_created", payload: product}, socket) do
     # Add flash message for real-time feedback
-    socket = socket 
+    socket = socket
     |> put_flash(:info, "New product created: #{product.title}")
     |> load_admin_stats()
-    
+
     {:noreply, socket}
   end
 
   def handle_info(%{event: "user_registered", payload: user}, socket) do
     # Add flash message for real-time feedback
-    socket = socket 
+    socket = socket
     |> put_flash(:info, "New user registered: #{user.username || user.email}")
     |> load_admin_stats()
-    
+
     {:noreply, socket}
   end
 
   def handle_info(%{event: "image_uploaded", payload: image}, socket) do
     # Add flash message for real-time feedback
-    socket = socket 
+    socket = socket
     |> put_flash(:info, "New image uploaded for product #{image.product_id}")
     |> load_admin_stats()
-    
+
     {:noreply, socket}
   end
 
   def handle_info(%{event: "support_ticket_created", payload: _ticket}, socket) do
     # Update support ticket count in real-time
-    socket = socket 
+    socket = socket
     |> put_flash(:info, "New support ticket created")
     |> load_admin_stats()
-    
+
     {:noreply, socket}
   end
 
   def handle_info(%{event: "support_ticket_updated", payload: _ticket}, socket) do
     # Update support ticket count in real-time
-    socket = socket 
+    socket = socket
     |> load_admin_stats()
-    
+
     {:noreply, socket}
   end
 
@@ -226,7 +226,7 @@ defmodule ShompWeb.AdminLive.Dashboard do
     # This is a simplified approach - in production you might want to track this in the database
     upload_dir = Application.get_env(:shomp, :upload)[:local][:upload_dir]
     products_dir = Path.join(upload_dir, "products")
-    
+
     try do
       if File.dir?(products_dir) do
         # Get recent product directories and their images
@@ -240,7 +240,7 @@ defmodule ShompWeb.AdminLive.Dashboard do
               images = File.ls!(product_images_dir)
               |> Enum.filter(&String.ends_with?(&1, [".png", ".jpg", ".jpeg", ".webp"]))
               |> Enum.take(3)
-              
+
               if Enum.empty?(images) do
                 %{
                   product_id: product_id,
@@ -258,7 +258,7 @@ defmodule ShompWeb.AdminLive.Dashboard do
                 rescue
                   _ -> nil
                 end
-                
+
                 %{
                   product_id: product_id,
                   images: images,
@@ -267,7 +267,7 @@ defmodule ShompWeb.AdminLive.Dashboard do
                 }
               end
             rescue
-              _ -> 
+              _ ->
                 %{
                   product_id: product_id,
                   images: [],
@@ -290,7 +290,7 @@ defmodule ShompWeb.AdminLive.Dashboard do
   defp is_recent?(inserted_at) do
     case inserted_at do
       nil -> false
-      timestamp -> 
+      timestamp ->
         five_minutes_ago = DateTime.utc_now() |> DateTime.add(-300, :second)
         DateTime.compare(timestamp, five_minutes_ago) == :gt
     end
@@ -319,43 +319,43 @@ defmodule ShompWeb.AdminLive.Dashboard do
 
       <!-- Stats Overview -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mb-8">
-        <.stat_card 
-          title="Total Users" 
-          value={@total_users} 
-          icon="👥" 
+        <.stat_card
+          title="Total Users"
+          value={@total_users}
+          icon="👥"
           color="primary" />
-        
-        <.stat_card 
-          title="Total Stores" 
-          value={@total_stores} 
-          icon="🏪" 
+
+        <.stat_card
+          title="Total Stores"
+          value={@total_stores}
+          icon="🏪"
           color="secondary" />
-        
-        <.stat_card 
-          title="Total Products" 
-          value={@total_products} 
-          icon="📦" 
+
+        <.stat_card
+          title="Total Products"
+          value={@total_products}
+          icon="📦"
           color="accent" />
-        
-        <.stat_card 
-          title="Open Support Tickets" 
-          value={@open_support_tickets} 
-          icon="🎫" 
-          color="error" 
+
+        <.stat_card
+          title="Open Support Tickets"
+          value={@open_support_tickets}
+          icon="🎫"
+          color="error"
           link={~p"/admin/support"} />
-        
-        <.stat_card 
-          title="Email Subscriptions" 
-          value={@total_subscriptions} 
-          icon="📧" 
-          color="success" 
+
+        <.stat_card
+          title="Email Subscriptions"
+          value={@total_subscriptions}
+          icon="📧"
+          color="success"
           link={~p"/admin/email-subscriptions"} />
-        
-        <.stat_card 
-          title="Pending KYC" 
-          value={@kyc_stats.pending} 
-          icon="🆔" 
-          color="warning" 
+
+        <.stat_card
+          title="Pending KYC"
+          value={@kyc_stats.pending}
+          icon="🆔"
+          color="warning"
           link={~p"/admin/kyc-verification"} />
       </div>
 
@@ -416,7 +416,7 @@ defmodule ShompWeb.AdminLive.Dashboard do
                     </div>
                     <p class="text-sm text-base-content/70">$<%= product.price %></p>
                     <p class="text-xs text-base-content/50">
-                      Store: <%= product.store_name %> • 
+                      Store: <%= product.store_name %> •
                       <%= Calendar.strftime(product.inserted_at, "%b %d, %Y at %I:%M %p") %>
                     </p>
                   </div>
@@ -430,7 +430,7 @@ defmodule ShompWeb.AdminLive.Dashboard do
                     <% else %>
                       <span class="btn btn-xs btn-outline btn-disabled">View</span>
                     <% end %>
-                    
+
                     <a href={~p"/admin/products/#{product.id}/edit"} class="btn btn-xs btn-primary">Edit</a>
                   </div>
                 </div>
@@ -475,7 +475,7 @@ defmodule ShompWeb.AdminLive.Dashboard do
                       </span>
                     </div>
                     <p class="text-xs text-base-content/50">
-                      Customer: <%= order.user_username || order.user_email %> • 
+                      Customer: <%= order.user_username || order.user_email %> •
                       <%= Calendar.strftime(order.inserted_at, "%b %d, %Y at %I:%M %p") %>
                     </p>
                   </div>
@@ -510,7 +510,7 @@ defmodule ShompWeb.AdminLive.Dashboard do
                     </div>
                     <p class="text-sm text-base-content/70"><%= user.name %></p>
                     <p class="text-xs text-base-content/50">
-                      Role: <%= user.role %> • 
+                      Role: <%= user.role %> •
                       <%= Calendar.strftime(user.inserted_at, "%b %d, %Y at %I:%M %p") %>
                     </p>
                   </div>
@@ -572,9 +572,9 @@ defmodule ShompWeb.AdminLive.Dashboard do
                     <span class="text-sm font-medium"><%= log.entity_type %></span>
                     <span class="text-xs text-base-content/50">#<%= log.entity_id %></span>
                   </div>
-                  
+
                   <p class="text-sm text-base-content/70 mb-2"><%= log.details %></p>
-                  
+
                   <%= if log.metadata && log.metadata["changes"] do %>
                     <div class="text-xs text-base-content/60 bg-base-200 p-2 rounded mt-2">
                       <div class="font-medium mb-1">Changes:</div>
@@ -596,7 +596,7 @@ defmodule ShompWeb.AdminLive.Dashboard do
                       <% end %>
                     </div>
                   <% end %>
-                  
+
                   <div class="flex items-center gap-4 text-xs text-base-content/50">
                     <span>
                       <%= Calendar.strftime(log.inserted_at, "%b %d, %Y at %I:%M %p") %>
@@ -610,7 +610,7 @@ defmodule ShompWeb.AdminLive.Dashboard do
                     </span>
                   </div>
                 </div>
-                
+
                 <div class="text-right">
                   <span class="badge badge-sm badge-outline">
                     <%= String.capitalize(log.action) %>
@@ -629,64 +629,58 @@ defmodule ShompWeb.AdminLive.Dashboard do
       <div class="bg-base-100 rounded-lg shadow p-6 mb-8">
         <h2 class="text-xl font-bold mb-4">Quick Actions</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <.action_button 
-            href={~p"/admin/email-subscriptions"} 
-            icon="📧" 
-            title="Email Subscriptions" 
+          <.action_button
+            href={~p"/admin/email-subscriptions"}
+            icon="📧"
+            title="Email Subscriptions"
             description="Manage landing page signups" />
-          
-          <.action_button 
-            href={~p"/admin/users"} 
-            icon="👥" 
-            title="User Management" 
+
+          <.action_button
+            href={~p"/admin/merchant-dashboard"}
+            icon="🏪"
+            title="Merchant Dashboard"
+            description="Comprehensive view of merchants, stores, and earnings" />
+
+          <.action_button
+            href={~p"/admin/users"}
+            icon="👥"
+            title="User Management"
             description="View and manage user accounts" />
-          
-          <.action_button 
-            href={~p"/admin/stores"} 
-            icon="🏪" 
-            title="Store Management" 
+
+          <.action_button
+            href={~p"/admin/stores"}
+            icon="🏪"
+            title="Store Management"
             description="Monitor and manage stores" />
-          
-          <.action_button 
-            href={~p"/admin/products"} 
-            icon="📦" 
-            title="Product Management" 
+
+          <.action_button
+            href={~p"/admin/products"}
+            icon="📦"
+            title="Product Management"
             description="Review and manage products" />
-          
-          <.action_button 
-            href={~p"/admin/kyc-verification"} 
-            icon="🆔" 
-            title="KYC Verification" 
+
+          <.action_button
+            href={~p"/admin/kyc-verification"}
+            icon="🆔"
+            title="KYC Verification"
             description="Review and verify store KYC submissions" />
-          
-        <.action_button 
-          href={~p"/admin/support"} 
-          icon="🎫" 
-          title="Support Dashboard" 
+
+        <.action_button
+          href={~p"/admin/support"}
+          icon="🎫"
+          title="Support Dashboard"
           description="Manage support tickets and customer issues" />
-          
-        <.action_button 
-          href={~p"/admin/universal-orders"} 
-          icon="🛒" 
-          title="Universal Orders" 
+
+        <.action_button
+          href={~p"/admin/universal-orders"}
+          icon="🛒"
+          title="Universal Orders"
           description="Track multi-store orders and payment splits" />
-          
+
         <.action_button
-          href={~p"/admin/escrow"}
-          icon="🔒"
-          title="Escrow Dashboard"
-          description="Track funds held in escrow vs direct transfers" />
-        
-        <.action_button
-          href={~p"/admin/merchant-escrow"}
+          href={~p"/admin/refunds"}
           icon="💰"
-          title="Merchant Escrow"
-          description="Manage merchant balances and release escrow funds" />
-          
-        <.action_button 
-          href={~p"/admin/refunds"} 
-          icon="💰" 
-          title="Refund Management" 
+          title="Refund Management"
           description="Process refunds with store attribution" />
       </div>
     </div>
@@ -695,22 +689,22 @@ defmodule ShompWeb.AdminLive.Dashboard do
       <div class="bg-base-100 rounded-lg shadow p-6 mt-8">
         <h2 class="text-xl font-bold mb-4">System Health</h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <.health_card 
-            title="Database" 
-            status="healthy" 
-            icon="🗄️" 
+          <.health_card
+            title="Database"
+            status="healthy"
+            icon="🗄️"
             description="All systems operational" />
-          
-          <.health_card 
-            title="Email Service" 
-            status="healthy" 
-            icon="📧" 
+
+          <.health_card
+            title="Email Service"
+            status="healthy"
+            icon="📧"
             description="Subscriptions working" />
-          
-          <.health_card 
-            title="Payment Processing" 
-            status="healthy" 
-            icon="💳" 
+
+          <.health_card
+            title="Payment Processing"
+            status="healthy"
+            icon="💳"
             description="Stripe integration active" />
         </div>
       </div>

@@ -45,6 +45,19 @@ defmodule Shomp.Stores.StoreKYCContext do
   end
 
   @doc """
+  Gets KYC by user ID (finds any KYC record for any store owned by this user).
+  """
+  def get_kyc_by_user_id(user_id) do
+    StoreKYC
+    |> join(:inner, [kyc], store in assoc(kyc, :store))
+    |> where([kyc, store], store.user_id == ^user_id)
+    |> where([kyc], not is_nil(kyc.stripe_account_id))
+    |> order_by([kyc], desc: kyc.inserted_at)
+    |> limit(1)
+    |> Repo.one()
+  end
+
+  @doc """
   Gets KYC by store ID using integer ID.
   """
   def get_kyc(store_id) do
@@ -92,7 +105,7 @@ defmodule Shomp.Stores.StoreKYCContext do
         kyc
         |> StoreKYC.submit_changeset(attrs)
         |> Repo.update()
-      
+
       {:error, changeset} ->
         {:error, changeset}
     end
@@ -114,7 +127,7 @@ defmodule Shomp.Stores.StoreKYCContext do
     case Repo.get(StoreKYC, kyc_id) do
       nil ->
         {:error, :not_found}
-      
+
       kyc ->
         kyc
         |> StoreKYC.changeset(attrs)
@@ -129,7 +142,7 @@ defmodule Shomp.Stores.StoreKYCContext do
     case Repo.get(StoreKYC, kyc_id) do
       nil ->
         {:error, :not_found}
-      
+
       kyc ->
         kyc
         |> StoreKYC.changeset(attrs)
@@ -144,7 +157,7 @@ defmodule Shomp.Stores.StoreKYCContext do
     case Repo.get(StoreKYC, kyc_id) do
       nil ->
         {:error, :not_found}
-      
+
       kyc ->
         kyc
         |> StoreKYC.changeset(attrs)
@@ -171,7 +184,7 @@ defmodule Shomp.Stores.StoreKYCContext do
     case get_kyc(store_id) do
       nil ->
         {:error, :kyc_not_found}
-      
+
       kyc ->
         kyc
         |> StoreKYC.verify_changeset()
@@ -186,7 +199,7 @@ defmodule Shomp.Stores.StoreKYCContext do
     case Repo.get(StoreKYC, kyc_id) do
       nil ->
         {:error, :not_found}
-      
+
       kyc ->
         kyc
         |> StoreKYC.verify_changeset()
@@ -213,7 +226,7 @@ defmodule Shomp.Stores.StoreKYCContext do
     case get_kyc(store_id) do
       nil ->
         {:error, :kyc_not_found}
-      
+
       kyc ->
         kyc
         |> StoreKYC.reject_changeset(reason)
@@ -228,7 +241,7 @@ defmodule Shomp.Stores.StoreKYCContext do
     case Repo.get(StoreKYC, kyc_id) do
       nil ->
         {:error, :not_found}
-      
+
       kyc ->
         kyc
         |> StoreKYC.reject_changeset(reason)
@@ -372,7 +385,7 @@ defmodule Shomp.Stores.StoreKYCContext do
     case get_kyc(store_id) do
       nil ->
         {:error, :kyc_not_found}
-      
+
       kyc ->
         kyc
         |> StoreKYC.changeset(%{admin_notes: notes})
@@ -387,7 +400,7 @@ defmodule Shomp.Stores.StoreKYCContext do
     case Repo.get(StoreKYC, kyc_id) do
       nil ->
         {:error, :not_found}
-      
+
       kyc ->
         kyc
         |> StoreKYC.changeset(%{admin_notes: notes})

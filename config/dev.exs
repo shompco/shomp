@@ -93,8 +93,8 @@ config :swoosh, :api_client, false
 # Stripe Configuration for Development
 config :stripity_stripe,
   api_key: System.get_env("STRIPE_SECRET_KEY"),
-  signing_secret: System.get_env("STRIPE_WEBHOOK_SECRET")
+  signing_secret: System.get_env("STRIPE_WH_SECRET_KEY")
 
 config :shomp,
-  stripe_webhook_secret: System.get_env("STRIPE_WEBHOOK_SECRET"),
+  stripe_webhook_secret: System.get_env("STRIPE_WH_SECRET_KEY"),
   stripe_publishable_key: System.get_env("STRIPE_PUBLISHABLE_KEY")

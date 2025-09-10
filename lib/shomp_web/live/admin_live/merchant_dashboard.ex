@@ -1,9 +1,9 @@
-defmodule ShompWeb.AdminLive.Users do
+defmodule ShompWeb.AdminLive.MerchantDashboard do
   use ShompWeb, :live_view
   import Ecto.Query, warn: false
   alias Phoenix.PubSub
 
-  @page_title "User Management - Admin Dashboard"
+  @page_title "Merchant Dashboard - Admin"
   @admin_email "v1nc3ntpull1ng@gmail.com"
 
   def mount(_params, _session, socket) do
@@ -13,17 +13,13 @@ defmodule ShompWeb.AdminLive.Users do
       # Subscribe to PubSub channels for real-time updates
       if connected?(socket) do
         PubSub.subscribe(Shomp.PubSub, "admin:users")
+        PubSub.subscribe(Shomp.PubSub, "admin:stores")
       end
 
       {:ok,
        socket
        |> assign(:page_title, @page_title)
-       |> assign(:users, list_users())
-       |> assign(:total_users, count_users())
-       |> assign(:search_term, "")
-       |> assign(:filter_role, "all")
-       |> assign(:selected_user_id, nil)
-       |> assign(:user_stores, [])}
+       |> load_merchant_data()}
     else
       {:ok,
        socket
@@ -33,21 +29,11 @@ defmodule ShompWeb.AdminLive.Users do
   end
 
   def handle_info(%{event: "user_registered", payload: _user}, socket) do
-    {:noreply, socket |> assign(:users, list_users()) |> assign(:total_users, count_users())}
+    {:noreply, socket |> load_merchant_data()}
   end
 
-  def handle_event("search", %{"search" => search_term}, socket) do
-    {:noreply,
-     socket
-     |> assign(:search_term, search_term)
-     |> assign(:users, search_users(search_term, socket.assigns.filter_role))}
-  end
-
-  def handle_event("filter_role", %{"role" => role}, socket) do
-    {:noreply,
-     socket
-     |> assign(:filter_role, role)
-     |> assign(:users, search_users(socket.assigns.search_term, role))}
+  def handle_info(%{event: "store_created", payload: _store}, socket) do
+    {:noreply, socket |> load_merchant_data()}
   end
 
   def handle_event("show_user_details", %{"user_id" => user_id}, socket) do
@@ -78,14 +64,23 @@ defmodule ShompWeb.AdminLive.Users do
      |> assign(:user_stores, [])}
   end
 
-  defp count_users do
-    Shomp.Repo.aggregate(Shomp.Accounts.User, :count, :id)
+  defp load_merchant_data(socket) do
+    merchants = get_merchants_with_data()
+
+    socket
+    |> assign(:merchants, merchants)
+    |> assign(:total_merchants, length(merchants))
+    |> assign(:selected_user_id, nil)
+    |> assign(:user_stores, [])
   end
 
-  defp list_users do
-    # First get all users
+  defp get_merchants_with_data do
+    # Get all users who have stores
     users = Shomp.Repo.all(
       from u in Shomp.Accounts.User,
+      join: s in Shomp.Stores.Store,
+      on: s.user_id == u.id,
+      group_by: [u.id, u.email, u.username, u.name, u.role, u.verified, u.confirmed_at, u.inserted_at, u.updated_at],
       order_by: [desc: u.inserted_at],
       select: %{
         id: u.id,
@@ -100,13 +95,13 @@ defmodule ShompWeb.AdminLive.Users do
       }
     )
 
-    # Then enrich each user with store and Stripe data
+    # Enrich each user with store and Stripe data
     Enum.map(users, fn user ->
       # Get user's stores with both id and store_id
       stores = Shomp.Repo.all(
         from s in Shomp.Stores.Store,
         where: s.user_id == ^user.id,
-        select: %{id: s.id, store_id: s.store_id}
+        select: %{id: s.id, store_id: s.store_id, name: s.name, slug: s.slug}
       )
 
       # Get Stripe account ID from any of their stores (using integer id)
@@ -135,10 +130,39 @@ defmodule ShompWeb.AdminLive.Users do
         0
       end
 
+      # Get total earnings across all stores
+      total_earnings = if length(stores) > 0 do
+        store_string_ids = Enum.map(stores, & &1.store_id)
+        result = Shomp.Repo.one(
+          from ps in Shomp.PaymentSplits.PaymentSplit,
+          where: ps.store_id in ^store_string_ids and ps.transfer_status == "succeeded",
+          select: sum(ps.store_amount)
+        )
+        result || Decimal.new(0)
+      else
+        Decimal.new(0)
+      end
+
+      # Get total platform fees across all stores
+      total_platform_fees = if length(stores) > 0 do
+        store_string_ids = Enum.map(stores, & &1.store_id)
+        result = Shomp.Repo.one(
+          from ps in Shomp.PaymentSplits.PaymentSplit,
+          where: ps.store_id in ^store_string_ids and ps.transfer_status == "succeeded",
+          select: sum(ps.platform_fee_amount)
+        )
+        result || Decimal.new(0)
+      else
+        Decimal.new(0)
+      end
+
       Map.merge(user, %{
         stripe_account_id: stripe_account_id,
+        stores: stores,
         store_count: length(stores),
-        product_count: product_count
+        product_count: product_count,
+        total_earnings: total_earnings,
+        total_platform_fees: total_platform_fees
       })
     end)
   end
@@ -192,96 +216,17 @@ defmodule ShompWeb.AdminLive.Users do
     )
   end
 
-  defp search_users(search_term, filter_role) do
-    base_query = from u in Shomp.Accounts.User
-
-    base_query = if search_term != "" do
-      base_query
-      |> where([u], ilike(u.username, ^"%#{search_term}%") or
-                       ilike(u.name, ^"%#{search_term}%") or
-                       ilike(u.email, ^"%#{search_term}%"))
-    else
-      base_query
-    end
-
-    base_query = if filter_role != "all" do
-      base_query
-      |> where([u], u.role == ^filter_role)
-    else
-      base_query
-    end
-
-    # Get filtered users
-    users = Shomp.Repo.all(
-      base_query
-      |> order_by([u], [desc: u.inserted_at])
-      |> select([u], %{
-        id: u.id,
-        email: u.email,
-        username: u.username,
-        name: u.name,
-        role: u.role,
-        verified: u.verified,
-        confirmed_at: u.confirmed_at,
-        inserted_at: u.inserted_at,
-        updated_at: u.updated_at
-      })
-    )
-
-    # Enrich with store and Stripe data (same as list_users)
-    Enum.map(users, fn user ->
-      # Get user's stores with both id and store_id
-      stores = Shomp.Repo.all(
-        from s in Shomp.Stores.Store,
-        where: s.user_id == ^user.id,
-        select: %{id: s.id, store_id: s.store_id}
-      )
-
-      # Get Stripe account ID from any of their stores (using integer id)
-      stripe_account_id = if length(stores) > 0 do
-        store_ids = Enum.map(stores, & &1.id)
-        kyc = Shomp.Repo.one(
-          from kyc in Shomp.Stores.StoreKYC,
-          where: kyc.store_id in ^store_ids,
-          select: kyc.stripe_account_id,
-          limit: 1
-        )
-        kyc
-      else
-        nil
-      end
-
-      # Get product count across all stores (using string store_id)
-      product_count = if length(stores) > 0 do
-        store_string_ids = Enum.map(stores, & &1.store_id)
-        Shomp.Repo.one(
-          from p in Shomp.Products.Product,
-          where: p.store_id in ^store_string_ids,
-          select: count(p.id)
-        ) || 0
-      else
-        0
-      end
-
-      Map.merge(user, %{
-        stripe_account_id: stripe_account_id,
-        store_count: length(stores),
-        product_count: product_count
-      })
-    end)
-  end
-
   def render(assigns) do
     ~H"""
     <div class="container mx-auto px-4 py-8">
       <div class="mb-8">
         <div class="flex justify-between items-center mb-4">
           <div>
-            <h1 class="text-3xl font-bold mb-2">User Management</h1>
-            <p class="text-base-content/70">Manage user accounts and monitor platform activity</p>
+            <h1 class="text-3xl font-bold mb-2">Merchant Dashboard</h1>
+            <p class="text-base-content/70">Comprehensive view of merchants, stores, and earnings</p>
           </div>
           <a href={~p"/admin"} class="btn btn-outline">
-            ← Back to Dashboard
+            ← Back to Admin Dashboard
           </a>
         </div>
 
@@ -289,81 +234,53 @@ defmodule ShompWeb.AdminLive.Users do
         <div class="stats shadow">
           <div class="stat">
             <div class="stat-figure text-primary">👥</div>
-            <div class="stat-title">Total Users</div>
-            <div class="stat-value text-primary"><%= @total_users %></div>
+            <div class="stat-title">Total Merchants</div>
+            <div class="stat-value text-primary"><%= @total_merchants %></div>
           </div>
         </div>
       </div>
 
-      <!-- Search and Filters -->
-      <div class="bg-base-100 rounded-lg shadow p-6 mb-8">
-        <div class="flex flex-col md:flex-row gap-4">
-          <div class="flex-1">
-            <form phx-change="search" class="flex gap-2">
-              <input
-                type="text"
-                name="search"
-                value={@search_term}
-                placeholder="Search by username, name, or email..."
-                class="input input-bordered flex-1" />
-              <button type="submit" class="btn btn-primary">Search</button>
-            </form>
-          </div>
-
-          <div class="flex gap-2">
-            <select
-              phx-change="filter_role"
-              name="role"
-              class="select select-bordered">
-              <option value="all" selected={@filter_role == "all"}>All Roles</option>
-              <option value="user" selected={@filter_role == "user"}>User</option>
-              <option value="admin" selected={@filter_role == "admin"}>Admin</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      <!-- Users Table -->
+      <!-- Merchants Table -->
       <div class="bg-base-100 rounded-lg shadow overflow-hidden">
         <div class="overflow-x-auto">
           <table class="table table-zebra w-full">
             <thead>
               <tr>
-                <th>User</th>
+                <th>Merchant</th>
                 <th>Email</th>
                 <th>Stripe ID</th>
                 <th>Stores</th>
-                <th>Role</th>
-                <th>Status</th>
-                <th>Joined</th>
+                <th>Products</th>
+                <th>Total Earnings</th>
+                <th>Shomp Donations</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              <%= for user <- @users do %>
+              <%= for merchant <- @merchants do %>
                 <tr>
                   <td>
                     <div class="flex items-center space-x-3">
                       <div class="avatar placeholder">
                         <div class="bg-neutral text-neutral-content rounded-full w-12">
-                          <span class="text-lg"><%= String.first(user.username) %></span>
+                          <span class="text-lg"><%= String.first(merchant.username) %></span>
                         </div>
                       </div>
                       <div>
-                        <div class="font-bold"><%= user.username %></div>
-                        <div class="text-sm opacity-50"><%= user.name %></div>
+                        <div class="font-bold"><%= merchant.username %></div>
+                        <div class="text-sm opacity-50"><%= merchant.name %></div>
                       </div>
                     </div>
                   </td>
                   <td>
                     <div class="text-sm">
-                      <div class="font-medium"><%= user.email %></div>
+                      <div class="font-medium"><%= merchant.email %></div>
                     </div>
                   </td>
                   <td>
-                    <%= if user.stripe_account_id do %>
+                    <%= if merchant.stripe_account_id do %>
                       <div class="text-xs font-mono bg-white text-black border border-gray-300 px-2 py-1 rounded">
-                        <%= String.slice(user.stripe_account_id, 0, 20) %>...
+                        <%= String.slice(merchant.stripe_account_id, 0, 20) %>...
                       </div>
                     <% else %>
                       <span class="text-gray-400 text-sm">No Stripe ID</span>
@@ -371,45 +288,36 @@ defmodule ShompWeb.AdminLive.Users do
                   </td>
                   <td>
                     <div class="text-sm">
-                      <div class="font-medium"><%= user.store_count %> stores</div>
-                      <div class="text-gray-500"><%= user.product_count %> products</div>
+                      <div class="font-medium"><%= merchant.store_count %> stores</div>
+                      <%= for store <- Enum.take(merchant.stores, 2) do %>
+                        <div class="text-xs text-gray-500">• <%= store.name %></div>
+                      <% end %>
+                      <%= if merchant.store_count > 2 do %>
+                        <div class="text-xs text-gray-500">• +<%= merchant.store_count - 2 %> more</div>
+                      <% end %>
                     </div>
                   </td>
                   <td>
-                    <span class={[
-                      "badge",
-                      if(user.role == "admin", do: "badge-error", else: "badge-outline")
-                    ]}>
-                      <%= user.role %>
-                    </span>
+                    <div class="text-sm font-medium"><%= merchant.product_count %></div>
                   </td>
                   <td>
-                    <%= cond do %>
-                      <% user.verified && user.confirmed_at -> %>
-                        <span class="badge badge-success badge-sm">Active</span>
-                      <% user.verified && !user.confirmed_at -> %>
-                        <span class="badge badge-warning badge-sm">Verified (Unconfirmed)</span>
-                      <% !user.verified && user.confirmed_at -> %>
-                        <span class="badge badge-warning badge-sm">Confirmed (Unverified)</span>
-                      <% true -> %>
-                        <span class="badge badge-error badge-sm">Inactive</span>
-                    <% end %>
+                    <div class="text-sm font-bold text-green-600">
+                      $<%= Decimal.to_string(merchant.total_earnings) %>
+                    </div>
                   </td>
                   <td>
-                    <div class="text-sm">
-                      <div><%= Calendar.strftime(user.inserted_at, "%b %d, %Y") %></div>
-                      <div class="opacity-50"><%= Calendar.strftime(user.inserted_at, "%I:%M %p") %></div>
+                    <div class="text-sm font-bold text-blue-600">
+                      $<%= Decimal.to_string(merchant.total_platform_fees) %>
                     </div>
                   </td>
                   <td>
                     <div class="flex gap-2">
                       <button
                         phx-click="show_user_details"
-                        phx-value-user_id={user.id}
+                        phx-value-user_id={merchant.id}
                         class="btn btn-xs btn-primary">
                         View Details
                       </button>
-                      <button class="btn btn-xs btn-outline">Edit</button>
                     </div>
                   </td>
                 </tr>
@@ -418,26 +326,20 @@ defmodule ShompWeb.AdminLive.Users do
           </table>
         </div>
 
-        <%= if Enum.empty?(@users) do %>
+        <%= if Enum.empty?(@merchants) do %>
           <div class="text-center py-12">
             <div class="text-6xl mb-4">👥</div>
-            <h3 class="text-lg font-semibold mb-2">No users found</h3>
-            <p class="text-base-content/70">
-              <%= if @search_term != "" or @filter_role != "all" do %>
-                Try adjusting your search criteria or filters.
-              <% else %>
-                No users have registered yet.
-              <% end %>
-            </p>
+            <h3 class="text-lg font-semibold mb-2">No merchants found</h3>
+            <p class="text-base-content/70">No users have created stores yet.</p>
           </div>
         <% end %>
       </div>
 
-      <!-- User Details Modal/Section -->
+      <!-- Merchant Details Modal/Section -->
       <%= if @selected_user_id do %>
         <div class="mt-8 bg-base-100 rounded-lg shadow p-6">
           <div class="flex justify-between items-center mb-6">
-            <h2 class="text-2xl font-bold">User Store Details</h2>
+            <h2 class="text-2xl font-bold">Merchant Store Details</h2>
             <button
               phx-click="hide_user_details"
               class="btn btn-sm btn-outline">
@@ -449,7 +351,7 @@ defmodule ShompWeb.AdminLive.Users do
             <div class="text-center py-8">
               <div class="text-4xl mb-4">🏪</div>
               <h3 class="text-lg font-semibold mb-2">No stores found</h3>
-              <p class="text-base-content/70">This user hasn't created any stores yet.</p>
+              <p class="text-base-content/70">This merchant hasn't created any stores yet.</p>
             </div>
           <% else %>
             <div class="space-y-6">

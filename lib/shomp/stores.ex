@@ -6,6 +6,7 @@ defmodule Shomp.Stores do
   import Ecto.Query, warn: false
   alias Shomp.Repo
   alias Shomp.Stores.Store
+  alias Shomp.Stores.StoreKYCContext
 
   @doc """
   Returns the list of stores.
@@ -181,6 +182,17 @@ defmodule Shomp.Stores do
          |> Store.create_changeset(attrs)
          |> Repo.insert() do
       {:ok, store} = result ->
+        # Create Stripe Connected Account immediately when store is created
+        # This is more conservative - only create accounts for users who actually want to sell
+        case create_stripe_connected_account(store) do
+          {:ok, stripe_account_id} ->
+            IO.puts("Created Stripe Connected Account: #{stripe_account_id} for store: #{store.store_id}")
+          {:error, reason} ->
+            IO.puts("Failed to create Stripe Connected Account for store #{store.store_id}: #{inspect(reason)}")
+            # Don't fail store creation if Stripe account creation fails
+            # The store can still be created and Stripe account created later
+        end
+
         # Broadcast to admin dashboard
         Phoenix.PubSub.broadcast(Shomp.PubSub, "admin:stores", %{
           event: "store_created",
@@ -286,5 +298,106 @@ defmodule Shomp.Stores do
     Store
     |> where([s], s.user_id == ^user_id)
     |> Repo.all()
+  end
+
+  # Public functions
+
+  @doc """
+  Ensures a Stripe Connected Account exists for a store.
+  Creates one if it doesn't exist.
+  """
+  def ensure_stripe_connected_account(store_id) do
+    store = get_store_by_store_id(store_id)
+    if store do
+      create_stripe_connected_account(store)
+    else
+      {:error, :store_not_found}
+    end
+  end
+
+  @doc """
+  Cleans up Stripe account if user has no more stores.
+  This prevents orphaned Stripe accounts.
+  """
+  def cleanup_orphaned_stripe_account(user_id) do
+    # Check if user has any remaining stores
+    user_stores = get_stores_by_user(user_id)
+
+    if Enum.empty?(user_stores) do
+      # User has no stores, check if they have a Stripe account
+      kyc_record = StoreKYCContext.get_kyc_by_user_id(user_id)
+
+      if kyc_record && kyc_record.stripe_account_id do
+        # TODO: In the future, we could delete the Stripe account here
+        # For now, we'll just log it
+        IO.puts("User #{user_id} has no stores but has Stripe account #{kyc_record.stripe_account_id}")
+        IO.puts("Consider implementing Stripe account deletion for cleanup")
+      end
+    end
+  end
+
+  # Private functions
+
+  defp create_stripe_connected_account(store) do
+    # Check if user already has a Stripe account (across all their stores)
+    existing_kyc = StoreKYCContext.get_kyc_by_user_id(store.user_id)
+
+    if existing_kyc && existing_kyc.stripe_account_id do
+      # User already has a Stripe account, just link this store to it
+      case StoreKYCContext.create_kyc(%{
+        store_id: store.store_id,
+        stripe_account_id: existing_kyc.stripe_account_id,
+        status: existing_kyc.status,
+        charges_enabled: existing_kyc.charges_enabled,
+        payouts_enabled: existing_kyc.payouts_enabled,
+        onboarding_completed: existing_kyc.onboarding_completed
+      }) do
+        {:ok, _kyc} ->
+          {:ok, existing_kyc.stripe_account_id}
+        {:error, reason} ->
+          IO.puts("Failed to link store to existing Stripe account: #{inspect(reason)}")
+          {:error, reason}
+      end
+    else
+      # Create a new Stripe Express account for this user
+      case Stripe.Account.create(%{
+        type: "express",
+        country: "US",  # Default to US, can be made configurable later
+        email: store.user.email,
+        business_type: "individual",
+        capabilities: %{
+          card_payments: %{requested: true},
+          transfers: %{requested: true}
+        },
+        settings: %{
+          payouts: %{
+            schedule: %{
+              interval: "daily"
+            }
+          }
+        }
+      }) do
+        {:ok, stripe_account} ->
+          # Create KYC record for this store with the new Stripe account ID
+          case StoreKYCContext.create_kyc(%{
+            store_id: store.store_id,
+            stripe_account_id: stripe_account.id,
+            status: "pending",
+            charges_enabled: false,
+            payouts_enabled: false,
+            onboarding_completed: false
+          }) do
+            {:ok, _kyc} ->
+              {:ok, stripe_account.id}
+            {:error, reason} ->
+              IO.puts("Failed to create KYC record: #{inspect(reason)}")
+              {:error, reason}
+          end
+
+        {:error, reason} ->
+          IO.puts("Failed to create Stripe account: #{inspect(reason)}")
+          {:error, reason}
+      end
+    end
   end
 end

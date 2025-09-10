@@ -9,24 +9,24 @@ defmodule ShompWeb.AdminLive.Stores do
   @admin_email "v1nc3ntpull1ng@gmail.com"
 
   def mount(_params, _session, socket) do
-    if socket.assigns.current_scope && 
+    if socket.assigns.current_scope &&
        socket.assigns.current_scope.user.email == @admin_email do
-      
+
       # Subscribe to PubSub channels for real-time updates
       if connected?(socket) do
         PubSub.subscribe(Shomp.PubSub, "admin:stores")
       end
 
-      {:ok, 
-       socket 
+      {:ok,
+       socket
        |> assign(:page_title, @page_title)
        |> assign(:stores, list_stores())
        |> assign(:total_stores, count_stores())
        |> assign(:search_term, "")
        |> assign(:filter_status, "all")}
     else
-      {:ok, 
-       socket 
+      {:ok,
+       socket
        |> put_flash(:error, "Access denied. Admin privileges required.")
        |> redirect(to: ~p"/")}
     end
@@ -37,40 +37,26 @@ defmodule ShompWeb.AdminLive.Stores do
   end
 
   def handle_event("search", %{"search" => search_term}, socket) do
-    {:noreply, 
-     socket 
+    {:noreply,
+     socket
      |> assign(:search_term, search_term)
      |> assign(:stores, search_stores(search_term, socket.assigns.filter_status))}
   end
 
   def handle_event("filter_status", %{"status" => status}, socket) do
-    {:noreply, 
-     socket 
+    {:noreply,
+     socket
      |> assign(:filter_status, status)
      |> assign(:stores, search_stores(socket.assigns.search_term, status))}
   end
 
-  def handle_event("view_kyc_image", %{"store_id" => store_id}, socket) do
-    # Find the store with KYC data
-    store = Enum.find(socket.assigns.stores, &(&1.id == String.to_integer(store_id)))
-    
-    if store && store.kyc_id_document_path do
-      # Open the KYC image in a new tab using secure route
-      secure_url = "/kyc-images/#{store.kyc_id_document_path}"
-      {:noreply, 
-       socket 
-       |> push_event("open_kyc_image", %{image_url: secure_url, store_name: store.name})}
-    else
-      {:noreply, socket |> put_flash(:error, "KYC document not found")}
-    end
-  end
 
   defp count_stores do
     Shomp.Repo.aggregate(Shomp.Stores.Store, :count, :id)
   end
 
   defp list_stores do
-    Shomp.Repo.all(
+    stores = Shomp.Repo.all(
       from s in Shomp.Stores.Store,
       join: u in Shomp.Accounts.User, on: s.user_id == u.id,
       left_join: k in Shomp.Stores.StoreKYC, on: s.id == k.store_id,
@@ -90,9 +76,21 @@ defmodule ShompWeb.AdminLive.Stores do
         kyc_id_document_path: k.id_document_path,
         kyc_stripe_individual_info: k.stripe_individual_info,
         kyc_charges_enabled: k.charges_enabled,
-        kyc_payouts_enabled: k.payouts_enabled
+        kyc_payouts_enabled: k.payouts_enabled,
+        stripe_account_id: k.stripe_account_id
       }
     )
+
+    # Enrich with product count
+    Enum.map(stores, fn store ->
+      product_count = Shomp.Repo.one(
+        from p in Shomp.Products.Product,
+        where: p.store_id == ^store.slug,
+        select: count(p.id)
+      ) || 0
+
+      Map.put(store, :product_count, product_count)
+    end)
   end
 
   defp search_stores(search_term, filter_status) do
@@ -102,8 +100,8 @@ defmodule ShompWeb.AdminLive.Stores do
 
     base_query = if search_term != "" do
       base_query
-      |> where([s, u, k], ilike(s.name, ^"%#{search_term}%") or 
-                       ilike(s.slug, ^"%#{search_term}%") or 
+      |> where([s, u, k], ilike(s.name, ^"%#{search_term}%") or
+                       ilike(s.slug, ^"%#{search_term}%") or
                        ilike(u.username, ^"%#{search_term}%"))
     else
       base_query
@@ -117,7 +115,7 @@ defmodule ShompWeb.AdminLive.Stores do
     #   base_query
     # end
 
-    Shomp.Repo.all(
+    stores = Shomp.Repo.all(
       base_query
       |> order_by([s], [desc: s.inserted_at])
       |> select([s, u, k], %{
@@ -135,9 +133,21 @@ defmodule ShompWeb.AdminLive.Stores do
         kyc_id_document_path: k.id_document_path,
         kyc_stripe_individual_info: k.stripe_individual_info,
         kyc_charges_enabled: k.charges_enabled,
-        kyc_payouts_enabled: k.payouts_enabled
+        kyc_payouts_enabled: k.payouts_enabled,
+        stripe_account_id: k.stripe_account_id
       })
     )
+
+    # Enrich with product count
+    Enum.map(stores, fn store ->
+      product_count = Shomp.Repo.one(
+        from p in Shomp.Products.Product,
+        where: p.store_id == ^store.slug,
+        select: count(p.id)
+      ) || 0
+
+      Map.put(store, :product_count, product_count)
+    end)
   end
 
   def render(assigns) do
@@ -169,20 +179,20 @@ defmodule ShompWeb.AdminLive.Stores do
         <div class="flex flex-col md:flex-row gap-4">
           <div class="flex-1">
             <form phx-change="search" class="flex gap-2">
-              <input 
-                type="text" 
-                name="search" 
+              <input
+                type="text"
+                name="search"
                 value={@search_term}
-                placeholder="Search by store name, slug, or owner..." 
+                placeholder="Search by store name, slug, or owner..."
                 class="input input-bordered flex-1" />
               <button type="submit" class="btn btn-primary">Search</button>
             </form>
           </div>
-          
+
           <div class="flex gap-2">
-            <select 
-              phx-change="filter_status" 
-              name="status" 
+            <select
+              phx-change="filter_status"
+              name="status"
               class="select select-bordered">
               <option value="all" selected={@filter_status == "all"}>All Stores</option>
               <!-- Future: Add status options when implemented -->
@@ -200,7 +210,7 @@ defmodule ShompWeb.AdminLive.Stores do
                 <h2 class="card-title text-lg"><%= store.name %></h2>
                 <div class="badge badge-outline">@<%= store.user_username %></div>
               </div>
-              
+
               <p class="text-base-content/70 text-sm mb-4">
                 <%= if store.description && String.length(store.description) > 100 do %>
                   <%= String.slice(store.description, 0, 100) %>...
@@ -208,7 +218,7 @@ defmodule ShompWeb.AdminLive.Stores do
                   <%= store.description || "No description" %>
                 <% end %>
               </p>
-              
+
               <div class="space-y-2 mb-4">
                 <div class="flex justify-between text-sm">
                   <span class="text-base-content/70">Owner:</span>
@@ -219,12 +229,28 @@ defmodule ShompWeb.AdminLive.Stores do
                   <span class="font-medium"><%= store.user_email %></span>
                 </div>
                 <div class="flex justify-between text-sm">
+                  <span class="text-base-content/70">Products:</span>
+                  <span class="font-medium"><%= store.product_count %></span>
+                </div>
+                <div class="flex justify-between text-sm">
+                  <span class="text-base-content/70">Stripe ID:</span>
+                  <span class="font-medium">
+                    <%= if store.stripe_account_id do %>
+                      <div class="text-xs font-mono bg-white text-black border border-gray-300 px-2 py-1 rounded">
+                        <%= String.slice(store.stripe_account_id, 0, 20) %>...
+                      </div>
+                    <% else %>
+                      <span class="text-gray-400 text-xs">No Stripe ID</span>
+                    <% end %>
+                  </span>
+                </div>
+                <div class="flex justify-between text-sm">
                   <span class="text-base-content/70">Created:</span>
                   <span class="font-medium">
                     <%= Calendar.strftime(store.inserted_at, "%b %d, %Y") %>
                   </span>
                 </div>
-                
+
                 <!-- KYC Status -->
                 <div class="flex justify-between text-sm">
                   <span class="text-base-content/70">KYC Status:</span>
@@ -253,7 +279,7 @@ defmodule ShompWeb.AdminLive.Stores do
                     <% end %>
                   </span>
                 </div>
-                
+
                 <!-- Stripe Connect Status -->
                 <%= if store.kyc_charges_enabled && store.kyc_payouts_enabled do %>
                   <div class="flex justify-between text-sm">
@@ -261,7 +287,7 @@ defmodule ShompWeb.AdminLive.Stores do
                     <span class="badge badge-sm badge-success">Verified</span>
                   </div>
                 <% end %>
-                
+
                 <!-- Stripe Individual Info -->
                 <%= if store.kyc_stripe_individual_info && not Enum.empty?(store.kyc_stripe_individual_info) do %>
                   <%= if store.kyc_stripe_individual_info["first_name"] do %>
@@ -274,24 +300,17 @@ defmodule ShompWeb.AdminLive.Stores do
                   <% end %>
                 <% end %>
               </div>
-              
+
               <div class="card-actions justify-end">
                 <a href={~p"/stores/#{store.slug}"} class="btn btn-primary btn-sm">View Store</a>
-                <%= if store.kyc_id_document_path do %>
-                  <button 
-                    phx-click="view_kyc_image" 
-                    phx-value-store_id={store.id}
-                    class="btn btn-outline btn-sm">
-                    View KYC
-                  </button>
-                <% end %>
+                <a href={~p"/dashboard/store/kyc"} class="btn btn-outline btn-sm">View KYC</a>
                 <button class="btn btn-outline btn-sm">Manage</button>
               </div>
             </div>
           </div>
         <% end %>
       </div>
-      
+
       <%= if Enum.empty?(@stores) do %>
         <div class="text-center py-12">
           <div class="text-6xl mb-4">🏪</div>

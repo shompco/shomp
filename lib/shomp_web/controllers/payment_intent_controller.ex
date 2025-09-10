@@ -27,7 +27,7 @@ defmodule ShompWeb.PaymentIntentController do
   defp process_payment_intent(conn, product_id, universal_order_id, donate, customer_email, customer_name, params) do
     user_id = conn.assigns.current_scope.user.id
     product = Products.get_product_with_store!(product_id)
-    
+
     # Calculate amounts
     platform_fee_rate = Decimal.new("0.05")
     platform_fee_amount = if donate do
@@ -35,26 +35,26 @@ defmodule ShompWeb.PaymentIntentController do
     else
       Decimal.new("0")
     end
-    
+
     total_amount = if donate do
       Decimal.add(product.price, platform_fee_amount)
     else
       product.price
     end
-    
+
     # Convert to cents for Stripe
     total_amount_cents = total_amount
     |> Decimal.mult(100)
     |> Decimal.round(0)
     |> Decimal.to_integer()
-    
+
     platform_fee_cents = platform_fee_amount
     |> Decimal.mult(100)
     |> Decimal.round(0)
     |> Decimal.to_integer()
-    
+
     store_amount_cents = total_amount_cents - platform_fee_cents
-    
+
     # Create Stripe Payment Intent
     case create_stripe_payment_intent(product, total_amount_cents, platform_fee_cents, universal_order_id) do
       {:ok, payment_intent} ->
@@ -69,26 +69,26 @@ defmodule ShompWeb.PaymentIntentController do
                   store_amount_decimal = Decimal.div(Decimal.new(store_amount_cents), Decimal.new(100))
                   update_store_pending_balance(product.store_id, store_amount_decimal)
                 end
-                
+
                 json(conn, %{
                   client_secret: payment_intent.client_secret,
                   payment_intent_id: payment_intent.id
                 })
-              
+
               {:error, changeset} ->
                 error_message = format_changeset_errors(changeset)
                 conn
                 |> put_status(:unprocessable_entity)
                 |> json(%{error: "Failed to create payment split: #{error_message}"})
             end
-          
+
           {:error, changeset} ->
             error_message = format_changeset_errors(changeset)
             conn
             |> put_status(:unprocessable_entity)
             |> json(%{error: "Failed to create universal order: #{error_message}"})
         end
-      
+
       {:error, reason} ->
         conn
         |> put_status(:unprocessable_entity)
@@ -99,26 +99,47 @@ defmodule ShompWeb.PaymentIntentController do
   defp create_stripe_payment_intent(product, total_amount_cents, platform_fee_cents, universal_order_id) do
     # Get store's Stripe account ID
     store_kyc = Shomp.Stores.StoreKYCContext.get_kyc_by_store_id(product.store_id)
-    
+
+    # Now that we create Stripe accounts immediately, we should always have a stripe_account_id
     if store_kyc && store_kyc.stripe_account_id do
-      # Store has completed KYC - create payment intent with direct transfer and application fee
-      Stripe.PaymentIntent.create(%{
-        amount: total_amount_cents,
-        currency: "usd",
-        application_fee_amount: platform_fee_cents,
-        transfer_data: %{
-          destination: store_kyc.stripe_account_id
-        },
-        metadata: %{
-          universal_order_id: universal_order_id,
-          product_id: product.id,
-          store_id: product.store_id,
-          payment_type: "direct_transfer"
-        }
-      })
+      # Check if store is fully verified (KYC + Stripe ready)
+      is_fully_verified = store_kyc.status == "verified" &&
+                         store_kyc.charges_enabled &&
+                         store_kyc.payouts_enabled
+
+      if is_fully_verified do
+        # Store is fully verified - create payment intent with direct transfer and application fee
+        Stripe.PaymentIntent.create(%{
+          amount: total_amount_cents,
+          currency: "usd",
+          application_fee_amount: platform_fee_cents,
+          transfer_data: %{
+            destination: store_kyc.stripe_account_id
+          },
+          metadata: %{
+            universal_order_id: universal_order_id,
+            product_id: product.id,
+            store_id: product.store_id,
+            payment_type: "direct_transfer"
+          }
+        })
+      else
+        # Store has Stripe account but isn't fully verified - use escrow
+        Stripe.PaymentIntent.create(%{
+          amount: total_amount_cents,
+          currency: "usd",
+          metadata: %{
+            universal_order_id: universal_order_id,
+            product_id: product.id,
+            store_id: product.store_id,
+            payment_type: "escrow",
+            platform_fee_cents: platform_fee_cents,
+            store_amount_cents: total_amount_cents - platform_fee_cents
+          }
+        })
+      end
     else
-      # Store hasn't completed KYC - create payment intent for escrow
-      # For escrow, we collect the full amount and handle splitting in webhook
+      # Fallback - this shouldn't happen now that we create accounts immediately
       Stripe.PaymentIntent.create(%{
         amount: total_amount_cents,
         currency: "usd",
@@ -147,7 +168,7 @@ defmodule ShompWeb.PaymentIntentController do
       customer_email: customer_email,
       customer_name: customer_name
     }
-    
+
     # Add shipping address for physical products
     order_data = if product.type == "physical" && params["shipping_address"] do
       shipping = params["shipping_address"]
@@ -162,24 +183,37 @@ defmodule ShompWeb.PaymentIntentController do
     else
       order_data
     end
-    
+
     UniversalOrders.create_universal_order(order_data)
   end
 
   defp create_payment_split(universal_order, product, payment_intent_id, store_amount_cents, platform_fee_cents) do
+    # Ensure Stripe account exists for this store
+    case Shomp.Stores.ensure_stripe_connected_account(product.store_id) do
+      {:ok, _stripe_account_id} ->
+        # Stripe account exists, proceed with payment split creation
+        create_payment_split_with_kyc(universal_order, product, payment_intent_id, store_amount_cents, platform_fee_cents)
+      {:error, reason} ->
+        IO.puts("Failed to ensure Stripe account for store #{product.store_id}: #{inspect(reason)}")
+        # Fallback to escrow payment if Stripe account creation fails
+        create_payment_split_with_kyc(universal_order, product, payment_intent_id, store_amount_cents, platform_fee_cents, true)
+    end
+  end
+
+  defp create_payment_split_with_kyc(universal_order, product, payment_intent_id, store_amount_cents, platform_fee_cents, force_escrow \\ false) do
     store_kyc = Shomp.Stores.StoreKYCContext.get_kyc_by_store_id(product.store_id)
-    
+
     # Convert cents back to decimal for storage
     store_amount = Decimal.from_float(store_amount_cents / 100) |> Decimal.round(2)
     platform_fee_amount = Decimal.from_float(platform_fee_cents / 100) |> Decimal.round(2)
     total_amount = Decimal.add(store_amount, platform_fee_amount)
-    
+
     # Generate payment split ID
     payment_split_id = generate_payment_split_id()
-    
+
     # Determine if this is an escrow payment
-    is_escrow = !store_kyc || !store_kyc.stripe_account_id
-    
+    is_escrow = force_escrow || !store_kyc || store_kyc.status != "verified" || !store_kyc.charges_enabled || !store_kyc.payouts_enabled
+
     PaymentSplits.create_payment_split(%{
       payment_split_id: payment_split_id,
       universal_order_id: universal_order.id,

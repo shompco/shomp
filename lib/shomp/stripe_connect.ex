@@ -16,7 +16,7 @@ defmodule Shomp.StripeConnect do
         else
           create_stripe_account(kyc, store_id)
         end
-      
+
       {:error, changeset} ->
         {:error, changeset}
     end
@@ -54,7 +54,7 @@ defmodule Shomp.StripeConnect do
         IO.puts("Individual: #{inspect(account.individual)}")
         IO.puts("Company: #{inspect(account.company)}")
         IO.puts("Requirements: #{inspect(account.requirements)}")
-        
+
         # Extract individual information if available
         individual_info = if account.individual do
           %{
@@ -69,9 +69,9 @@ defmodule Shomp.StripeConnect do
         end
         IO.puts("Individual Info: #{inspect(individual_info)}")
         IO.puts("=====================================")
-        
+
         update_kyc_from_stripe_account(account)
-      
+
       {:error, reason} ->
         {:error, reason}
     end
@@ -85,7 +85,7 @@ defmodule Shomp.StripeConnect do
     case StoreKYCContext.get_kyc_by_stripe_account_id(account.id) do
       nil ->
         {:error, :kyc_not_found}
-      
+
       kyc ->
         # Extract individual information if available
         individual_info = if account.individual do
@@ -97,7 +97,7 @@ defmodule Shomp.StripeConnect do
           IO.puts("Phone: #{account.individual.phone}")
           IO.puts("DOB: #{inspect(account.individual.dob)}")
           IO.puts("=============================")
-          
+
           %{
             first_name: account.individual.first_name,
             last_name: account.individual.last_name,
@@ -111,7 +111,7 @@ defmodule Shomp.StripeConnect do
           IO.puts("=====================================")
           nil
         end
-        
+
         attrs = %{
           charges_enabled: account.charges_enabled,
           payouts_enabled: account.payouts_enabled,
@@ -119,7 +119,7 @@ defmodule Shomp.StripeConnect do
           onboarding_completed: account.details_submitted,
           stripe_individual_info: individual_info
         }
-        
+
         StoreKYCContext.update_kyc_stripe_status(kyc.id, attrs)
     end
   end
@@ -138,23 +138,23 @@ defmodule Shomp.StripeConnect do
     IO.puts("=== GET_ONBOARDING_URL CALLED ===")
     IO.puts("Store ID: #{store_id}")
     IO.puts("Return URL: #{return_url}")
-    
+
     case create_connect_account(store_id) do
       {:ok, kyc} ->
         IO.puts("KYC record found/created: #{kyc.id}")
         IO.puts("Stripe Account ID: #{kyc.stripe_account_id}")
         refresh_url = "#{return_url}?refresh=true"
-        
+
         case create_onboarding_link(kyc.stripe_account_id, refresh_url, return_url) do
           {:ok, account_link} ->
             IO.puts("Account link created successfully: #{account_link.url}")
             {:ok, account_link.url}
-          
+
           {:error, reason} ->
             IO.puts("Error creating account link: #{inspect(reason)}")
             {:error, reason}
         end
-      
+
       {:error, reason} ->
         IO.puts("Error creating connect account: #{inspect(reason)}")
         {:error, reason}
@@ -168,6 +168,16 @@ defmodule Shomp.StripeConnect do
     sync_account_status(account_id)
   end
 
+  @doc """
+  Gets the Stripe dashboard URL for a connected account.
+  """
+  def get_dashboard_url(stripe_account_id) do
+    # Use the correct Stripe Connect dashboard URL format
+    # This is the standard URL format for Stripe Connect accounts
+    dashboard_url = "https://dashboard.stripe.com/connect/accounts/#{stripe_account_id}"
+    {:ok, dashboard_url}
+  end
+
   # Private functions
 
   defp create_stripe_account(kyc, store_id) do
@@ -175,11 +185,11 @@ defmodule Shomp.StripeConnect do
     IO.puts("KYC ID: #{kyc.id}")
     IO.puts("KYC Email: #{kyc.email}")
     IO.puts("KYC Business Type: #{kyc.business_type}")
-    
+
     # Get the user's email from the store
     user_email = get_user_email_from_store(store_id)
     IO.puts("User Email from Store: #{user_email}")
-    
+
     # Create a minimal Stripe account - Stripe will collect the details during onboarding
     account_params = %{
       type: "express",
@@ -189,7 +199,7 @@ defmodule Shomp.StripeConnect do
         transfers: %{requested: true}
       }
     }
-    
+
     # Use user email if KYC email is not available
     email_to_use = kyc.email || user_email
     account_params = if email_to_use do
@@ -197,13 +207,13 @@ defmodule Shomp.StripeConnect do
     else
       account_params
     end
-    
+
     account_params = if kyc.business_type do
       Map.put(account_params, :business_type, map_business_type(kyc.business_type))
     else
       account_params
     end
-    
+
     IO.puts("Account params: #{inspect(account_params)}")
 
     case Stripe.Account.create(account_params) do
@@ -217,17 +227,17 @@ defmodule Shomp.StripeConnect do
           requirements: account.requirements,
           onboarding_completed: account.details_submitted
         }
-        
+
         case StoreKYCContext.update_kyc_stripe_status(kyc.id, attrs) do
           {:ok, updated_kyc} ->
             IO.puts("KYC record updated successfully")
             {:ok, updated_kyc}
-          
+
           {:error, changeset} ->
             IO.puts("Error updating KYC record: #{inspect(changeset)}")
             {:error, changeset}
         end
-      
+
       {:error, reason} ->
         IO.puts("Error creating Stripe account: #{inspect(reason)}")
         {:error, reason}
@@ -236,10 +246,10 @@ defmodule Shomp.StripeConnect do
 
   defp get_user_email_from_store(store_id) do
     alias Shomp.Stores
-    
+
     case Stores.get_store_with_user!(store_id) do
       nil -> nil
-      store -> 
+      store ->
         if store.user do
           store.user.email
         else

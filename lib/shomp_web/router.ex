@@ -41,7 +41,7 @@ defmodule ShompWeb.Router do
 
     # Root route - must be first to avoid catch-all interception
     get "/", PageController, :home
-    
+
     live_session :public_with_cart,
       on_mount: [{ShompWeb.UserAuth, :mount_current_scope}, {ShompWeb.CartHook, :default}, {ShompWeb.NotificationHook, :default}] do
       live "/about", AboutLive.Show, :show
@@ -130,7 +130,7 @@ defmodule ShompWeb.Router do
       live "/users/tier-selection", UserLive.TierSelection, :new
       live "/users/profile", ProfileLive.Edit, :edit
       live "/my/stores", StoreLive.MyStores, :index
-      
+
       # Address management
       live "/dashboard/addresses", AddressLive.Index, :index
       live "/dashboard/addresses/new", AddressLive.New, :new
@@ -143,54 +143,53 @@ defmodule ShompWeb.Router do
       live "/dashboard/products/:id/edit", ProductLive.Edit, :edit
       live "/cart", CartLive.Show, :show
       live "/checkout/cart/:cart_id", CheckoutLive.Cart, :show
-      
+
       # Support system routes
       live "/support", SupportLive.Index, :index
       live "/support/:ticket_number", SupportLive.Show, :show
-      
+
       # Email preferences
       live "/email-preferences", UserLive.EmailPreferences, :index
-      
+
       # Notification preferences and inbox
       live "/notification-preferences", UserLive.NotificationPreferences, :index
       live "/notifications", UserLive.Notifications, :index
-      
+
       # Admin routes
       live "/admin", AdminLive.Dashboard, :show
+      live "/admin/merchant-dashboard", AdminLive.MerchantDashboard, :show
       live "/admin/email-subscriptions", AdminLive.EmailSubscriptions, :show
       live "/admin/users", AdminLive.Users, :show
       live "/admin/stores", AdminLive.Stores, :show
       live "/admin/products", AdminLive.Products, :show
       live "/admin/products/:id/edit", AdminLive.ProductEdit, :edit
       live "/admin/kyc-verification", AdminLive.KYCVerification, :show
-      
+
       # Admin support routes
       live "/admin/support", AdminLive.SupportDashboard, :index
       live "/admin/support/:ticket_number", SupportLive.Show, :show
-      
+
       # Universal orders and payment splits
       live "/admin/universal-orders", AdminLive.UniversalOrders, :index
       live "/admin/payment-splits/:universal_order_id", AdminLive.PaymentSplits, :show
-        live "/admin/escrow", AdminLive.EscrowDashboard, :index
-        live "/admin/merchant-escrow", AdminLive.MerchantEscrow, :index
       live "/admin/refunds", AdminLive.Refunds, :index
-      
+
       # Admin order routes
       get "/admin/orders", OrderController, :index
       live "/admin/orders/:immutable_id", AdminLive.OrderShow, :show
     end
 
     post "/users/update-password", UserSessionController, :update_password
-    
+
     # Download routes
     get "/downloads/:token", DownloadController, :show
     get "/downloads/:token/download", DownloadController, :download
     get "/purchases", DownloadController, :purchases
-    
+
     # Order routes
     get "/orders", OrderController, :index
     get "/orders/:id", OrderController, :show
-    
+
     # Review routes
     get "/reviews", ReviewController, :index
     get "/reviews/new", ReviewController, :new
@@ -199,7 +198,7 @@ defmodule ShompWeb.Router do
     put "/reviews/:id", ReviewController, :update
     delete "/reviews/:id", ReviewController, :delete
     post "/reviews/:review_id/vote", ReviewController, :vote
-    
+
     # Secure KYC image access
     get "/kyc-images/:filename", KYCImageController, :show
   end
@@ -239,10 +238,10 @@ defmodule ShompWeb.Router do
       on_mount: [{ShompWeb.UserAuth, :mount_current_scope}, {ShompWeb.CartHook, :default}, {ShompWeb.NotificationHook, :default}] do
       # Product routes - new structure with /stores/ prefix
       live "/stores/:store_slug/products/:product_slug", ProductLive.Show, :show_by_store_product_slug
-      
+
       # Custom category product routes
       live "/stores/:store_slug/:category_slug/:product_slug", ProductLive.Show, :show_by_slug
-      
+
       # Store category route
       live "/stores/:store_slug/:category_slug", StoreLive.Show, :show_category
     end
