@@ -26,9 +26,9 @@ defmodule Shomp.Products do
       # Load store data
       case Shomp.Stores.get_store_by_store_id(product.store_id) do
         nil -> product
-        store -> 
+        store ->
           product = Map.put(product, :store, store)
-          
+
           # Load platform category if it exists
           if product.category_id do
             case Repo.get(Shomp.Categories.Category, product.category_id) do
@@ -85,15 +85,15 @@ defmodule Shomp.Products do
   """
   def get_product_with_store!(id) do
     product = Repo.get!(Product, id)
-    
+
     # Manually fetch the store data using the store_id
     case Shomp.Stores.get_store_by_store_id(product.store_id) do
-      nil -> 
+      nil ->
         raise Ecto.NoResultsError, message: "Store not found for product"
-      store -> 
+      store ->
         # Add the store data to the product struct using the virtual field
         product = Map.put(product, :store, store)
-        
+
         # Load platform category if it exists
         if product.category_id do
           case Repo.get(Shomp.Categories.Category, product.category_id) do
@@ -123,19 +123,19 @@ defmodule Shomp.Products do
   def create_product(attrs \\ %{}) do
     IO.puts("=== CREATING PRODUCT ===")
     IO.puts("Attributes: #{inspect(attrs)}")
-    
+
     %Product{}
     |> Product.create_changeset(attrs)
     |> Repo.insert()
     |> case do
       {:ok, product} ->
         IO.puts("Product created in DB with ID: #{product.id}")
-        
+
         # Create Stripe product
         case create_stripe_product(product) do
           {:ok, stripe_product} ->
             IO.puts("Stripe product created: #{stripe_product.id}")
-            
+
             # Update product with Stripe ID
             IO.puts("Updating product #{product.id} with Stripe ID: #{stripe_product.id}")
                     case product
@@ -143,28 +143,28 @@ defmodule Shomp.Products do
         |> Repo.update() do
           {:ok, updated_product} ->
             IO.puts("Product updated successfully with Stripe ID: #{updated_product.stripe_product_id}")
-            
+
             # Broadcast to admin dashboard
             Phoenix.PubSub.broadcast(Shomp.PubSub, "admin:products", %{
               event: "product_created",
               payload: updated_product
             })
-            
+
             {:ok, updated_product}
-          
+
           {:error, changeset} ->
             IO.puts("Failed to update product with Stripe ID: #{inspect(changeset.errors)}")
             {:ok, product} # Return original product if update fails
         end
-          
+
           {:error, reason} ->
             # Log the error but still return success
             # In production, you might want to handle this differently
             IO.puts("Warning: Failed to create Stripe product: #{inspect(reason)}")
             {:ok, product}
         end
-      
-      error -> 
+
+      error ->
         IO.puts("Failed to create product: #{inspect(error)}")
         error
     end
@@ -182,7 +182,7 @@ defmodule Shomp.Products do
           product
           |> Product.changeset(%{stripe_product_id: stripe_product.id})
           |> Repo.update()
-        
+
         {:error, reason} ->
           {:error, reason}
       end
@@ -206,11 +206,11 @@ defmodule Shomp.Products do
     IO.puts("=== UPDATE PRODUCT ===")
     IO.puts("Product ID: #{product.id}")
     IO.puts("Update attrs: #{inspect(attrs)}")
-    
+
     changeset = product |> Product.changeset(attrs)
     IO.puts("Changeset changes: #{inspect(changeset.changes)}")
     IO.puts("Changeset errors: #{inspect(changeset.errors)}")
-    
+
     changeset
     |> Repo.update()
     |> case do
@@ -220,7 +220,7 @@ defmodule Shomp.Products do
           update_stripe_product(updated_product)
         end
         {:ok, updated_product}
-      
+
       error -> error
     end
   end
@@ -233,7 +233,7 @@ defmodule Shomp.Products do
     if product.stripe_product_id do
       delete_stripe_product_and_prices(product.stripe_product_id)
     end
-    
+
     Repo.delete(product)
   end
 
@@ -269,7 +269,7 @@ defmodule Shomp.Products do
   def count_user_products(user_id) do
     # Get all stores for the user
     store_ids = Shomp.Stores.list_stores_by_user(user_id) |> Enum.map(& &1.store_id)
-    
+
     if Enum.empty?(store_ids) do
       0
     else
@@ -338,9 +338,9 @@ defmodule Shomp.Products do
         # Load store data
         case Shomp.Stores.get_store_by_store_id(product.store_id) do
           nil -> product
-          store -> 
+          store ->
             product = Map.put(product, :store, store)
-            
+
             # Load platform category if it exists
             if product.category_id do
               case Repo.get(Shomp.Categories.Category, product.category_id) do
@@ -378,9 +378,9 @@ defmodule Shomp.Products do
         # Load store data
         case Shomp.Stores.get_store_by_store_id(product.store_id) do
           nil -> product
-          store -> 
+          store ->
             product = Map.put(product, :store, store)
-            
+
             # Load platform category if it exists
             if product.category_id do
               case Repo.get(Shomp.Categories.Category, product.category_id) do
@@ -417,9 +417,48 @@ defmodule Shomp.Products do
     |> Enum.map(fn product ->
       case Shomp.Stores.get_store_by_store_id(product.store_id) do
         nil -> product
-        store -> 
+        store ->
           product = Map.put(product, :store, store)
-          
+
+          # Load platform category if it exists
+          if product.category_id do
+            case Repo.get(Shomp.Categories.Category, product.category_id) do
+              nil -> product
+              category -> Map.put(product, :category, category)
+            end
+          else
+            product
+          end
+          |> then(fn product ->
+            # Load custom category if it exists
+            if product.custom_category_id do
+              case Repo.get(Shomp.Categories.Category, product.custom_category_id) do
+                nil -> product
+                custom_category -> Map.put(product, :custom_category, custom_category)
+              end
+            else
+              product
+            end
+          end)
+      end
+    end)
+  end
+
+  @doc """
+  Gets products by platform category with store information.
+  """
+  def get_products_by_category(category_id, limit \\ 20) do
+    Product
+    |> where([p], p.category_id == ^category_id)
+    |> order_by([p], [desc: p.inserted_at])
+    |> limit(^limit)
+    |> Repo.all()
+    |> Enum.map(fn product ->
+      case Shomp.Stores.get_store_by_store_id(product.store_id) do
+        nil -> product
+        store ->
+          product = Map.put(product, :store, store)
+
           # Load platform category if it exists
           if product.category_id do
             case Repo.get(Shomp.Categories.Category, product.category_id) do
@@ -474,7 +513,7 @@ defmodule Shomp.Products do
         Enum.each(prices, fn price ->
           Stripe.Price.update(price.id, %{active: false})
         end)
-      
+
       _ ->
         :ok
     end

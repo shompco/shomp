@@ -2,24 +2,56 @@
 
 <!-- Hero Section -->
 <div class="bg-gradient-to-br from-primary/10 to-secondary/10 py-20">
-  <div class="container mx-auto px-4 text-center">
-    <h1 class="text-5xl md:text-6xl font-bold text-primary mb-6">
-      Welcome to Shomp
-    </h1>
-    <p class="text-xl md:text-2xl text-base-content/70 mb-8 max-w-3xl mx-auto">
-      The platform with zero platform fee. Discover amazing products from independent creators. From digital art to physical goods, 
-      find exactly what you need to enhance your life.
-    </p>
-    <div class="flex flex-col sm:flex-row gap-4 justify-center">
-      <a href="/stores" class="btn btn-primary btn-lg">
-        Browse Stores
-      </a>
-      <a href="/requests" class="btn btn-outline btn-lg">
-        Request Features
-      </a>
+  <div class="container mx-auto px-4">
+    <!-- Header with Category Button and Title -->
+    <div class="flex flex-col lg:flex-row items-center justify-between mb-8">
+      <!-- Category Dropdown -->
+      <%= if !Enum.empty?(@categories_with_products) do %>
+        <div class="dropdown dropdown-hover mb-6 lg:mb-0">
+          <div tabindex="0" role="button" class="btn btn-outline btn-lg text-2xl font-light hover:btn-primary transition-all duration-300">
+            Browse by Category
+            <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+          </div>
+          <ul tabindex="0" class="dropdown-content z-[1] menu p-4 shadow-2xl bg-base-100 rounded-box w-80 max-h-96 overflow-y-auto border border-base-300">
+            <%= for {category_name, category_slug} <- @categories_with_products do %>
+              <li>
+                <a href={"/categories/#{category_slug}"} class="text-lg py-3 px-4 hover:bg-primary/10 rounded-lg transition-colors">
+                  <%= category_name %>
+                </a>
+              </li>
+            <% end %>
+          </ul>
+        </div>
+      <% end %>
+      
+      <!-- Welcome Title -->
+      <div class="text-center lg:text-right">
+        <h1 class="text-5xl md:text-6xl font-bold text-primary">
+          Welcome to Shomp
+        </h1>
+      </div>
+    </div>
+    
+    <!-- Description and CTA Buttons -->
+    <div class="text-center">
+      <p class="text-xl md:text-2xl text-base-content/70 mb-8 max-w-3xl mx-auto">
+        The platform with zero platform fee. Discover amazing products from independent creators. From digital art to physical goods, 
+        find exactly what you need to enhance your life.
+      </p>
+      <div class="flex flex-col sm:flex-row gap-4 justify-center">
+        <a href="/stores" class="btn btn-primary btn-lg">
+          Browse Stores
+        </a>
+        <a href="/requests" class="btn btn-outline btn-lg">
+          Request Features
+        </a>
+      </div>
     </div>
   </div>
 </div>
+
 
 <!-- Featured Mission Statement -->
 <div class="py-16 bg-base-100">

@@ -121,7 +121,7 @@ defmodule Shomp.Categories do
   """
   def get_category_tree do
     main_categories = list_main_categories()
-    
+
     Enum.map(main_categories, fn main ->
       %{main | children: get_sub_categories_recursive(main.id)}
     end)
@@ -129,7 +129,7 @@ defmodule Shomp.Categories do
 
   defp get_sub_categories_recursive(parent_id) do
     children = list_sub_categories_for_main(parent_id)
-    
+
     Enum.map(children, fn child ->
       %{child | children: list_sub_sub_categories_for_sub(child.id)}
     end)
@@ -201,15 +201,29 @@ defmodule Shomp.Categories do
         physical_goods = get_category_by_slug!("physical-goods")
         list_sub_categories_for_main(physical_goods.id)
         |> Enum.map(fn cat -> {cat.name, cat.id} end)
-      
+
       "digital" ->
         # Get categories under Digital Goods (parent_id = digital_goods_id)
         digital_goods = get_category_by_slug!("digital-goods")
         list_sub_categories_for_main(digital_goods.id)
         |> Enum.map(fn cat -> {cat.name, cat.id} end)
-      
+
       _ ->
         []
     end
+  end
+
+  @doc """
+  Returns categories that have products, formatted for select options.
+  Only shows platform categories (level 1) that have at least one product.
+  """
+  def get_categories_with_products do
+    Category
+    |> join(:inner, [c], p in "products", on: c.id == p.category_id)
+    |> where([c], c.level == 1 and c.active == true)
+    |> group_by([c], c.id)
+    |> select([c], {c.name, c.slug})
+    |> order_by([c], c.name)
+    |> Repo.all()
   end
 end

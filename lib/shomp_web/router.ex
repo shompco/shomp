@@ -42,6 +42,10 @@ defmodule ShompWeb.Router do
     # Root route - must be first to avoid catch-all interception
     get "/", PageController, :home
 
+    # SEO routes
+    get "/sitemap.xml", SitemapController, :sitemap
+    get "/robots.txt", SitemapController, :robots
+
     live_session :public_with_cart,
       on_mount: [{ShompWeb.UserAuth, :mount_current_scope}, {ShompWeb.CartHook, :default}, {ShompWeb.NotificationHook, :default}] do
       live "/about", AboutLive.Show, :show
@@ -50,6 +54,8 @@ defmodule ShompWeb.Router do
       live "/donations/quick", DonationLive.Quick, :show
       live "/donations/thank-you", DonationLive.ThankYou, :show
       live "/landing", LandingLive.Show, :show
+      live "/categories", CategoryLive.Index, :index
+      live "/categories/:slug", CategoryLive.Show, :show
     end
   end
 
