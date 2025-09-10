@@ -483,6 +483,15 @@ defmodule Shomp.Products do
     end)
   end
 
+  @doc """
+  Counts the number of products in a specific category.
+  """
+  def count_products_by_category(category_id) do
+    Product
+    |> where([p], p.category_id == ^category_id)
+    |> Repo.aggregate(:count, :id)
+  end
+
   # Private functions
 
   defp create_stripe_product(product) do

@@ -143,21 +143,7 @@ defmodule ShompWeb.CategoryLive.Show do
                       <% end %>
                       <div class="flex justify-between items-center mt-4">
                         <span class="text-2xl font-bold text-primary">$<%= product.price %></span>
-                        <a href={
-                          if product.store do
-                            if product.slug do
-                              if product.custom_category && product.custom_category.slug do
-                                "/stores/#{product.store.slug}/#{product.custom_category.slug}/#{product.slug}"
-                              else
-                                "/stores/#{product.store.slug}/#{product.slug}"
-                              end
-                            else
-                              "/stores/#{product.store.slug}/products/#{product.id}"
-                            end
-                          else
-                            "#"
-                          end
-                        } class="btn btn-primary btn-sm">View Details</a>
+                        <a href={get_product_url(product)} class="btn btn-primary btn-sm">View Details</a>
                       </div>
                     </div>
                   </div>
@@ -176,6 +162,31 @@ defmodule ShompWeb.CategoryLive.Show do
       </div>
     </Layouts.app>
     """
+  end
+
+  defp get_product_url(product) do
+    if product.store do
+      if product.slug do
+        # Check if custom_category is loaded and has a slug
+        custom_category_slug = case product do
+          %{custom_category: %Ecto.Association.NotLoaded{}} -> nil
+          %{custom_category: nil} -> nil
+          %{custom_category: custom_category} when is_map(custom_category) ->
+            Map.get(custom_category, :slug)
+          _ -> nil
+        end
+
+        if custom_category_slug do
+          "/stores/#{product.store.slug}/#{custom_category_slug}/#{product.slug}"
+        else
+          "/stores/#{product.store.slug}/#{product.slug}"
+        end
+      else
+        "/stores/#{product.store.slug}/products/#{product.id}"
+      end
+    else
+      "#"
+    end
   end
 
   defp get_category_icon(category_name) do

@@ -20,6 +20,19 @@ defmodule ShompWeb.CategoryLive.Index do
         <!-- Header without gap -->
         <div class="bg-base-100 border-b border-base-300">
           <div class="w-full px-4 py-8">
+            <!-- Back Button -->
+            <div class="mb-6">
+              <button
+                onclick="history.back()"
+                class="btn btn-ghost btn-sm text-base-content/70 hover:text-base-content hover:bg-base-200 transition-colors duration-200"
+              >
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                </svg>
+                Back
+              </button>
+            </div>
+
             <div class="text-center">
               <h1 class="text-4xl md:text-5xl font-bold text-primary mb-4">Browse Categories</h1>
               <p class="text-xl text-base-content/70">
@@ -161,10 +174,12 @@ defmodule ShompWeb.CategoryLive.Index do
     if product.store do
       if product.slug do
         # Check if custom_category is loaded and has a slug
-        custom_category_slug = case product.custom_category do
-          %Ecto.Association.NotLoaded{} -> nil
-          nil -> nil
-          custom_category when is_map(custom_category) -> custom_category.slug
+        custom_category_slug = case product do
+          %{custom_category: %Ecto.Association.NotLoaded{}} -> nil
+          %{custom_category: nil} -> nil
+          %{custom_category: custom_category} when is_map(custom_category) ->
+            Map.get(custom_category, :slug)
+          _ -> nil
         end
 
         if custom_category_slug do

@@ -37,15 +37,14 @@
     <!-- Description and CTA Buttons -->
     <div class="text-center">
       <p class="text-xl md:text-2xl text-base-content/70 mb-8 max-w-3xl mx-auto">
-        The platform with zero platform fee. Discover amazing products from independent creators. From digital art to physical goods, 
-        find exactly what you need to enhance your life.
+        The platform with zero platform fee. Discover amazing products from independent creators. From handmade goods to digital creations, Shomp is the place where you can sell and buy.
       </p>
       <div class="flex flex-col sm:flex-row gap-4 justify-center">
         <a href="/stores" class="btn btn-primary btn-lg">
-          Browse Stores
+          All Stores
         </a>
-        <a href="/requests" class="btn btn-outline btn-lg">
-          Request Features
+        <a href="/categories" class="btn btn-outline btn-lg">
+          All Categories
         </a>
       </div>
     </div>
@@ -65,71 +64,6 @@
     </div>
   </div>
 </div>
-
-<!-- User Dashboard Section (for authenticated users) -->
-<%= if @current_scope && @current_scope.user do %>
-<div class="py-16 bg-base-100">
-  <div class="container mx-auto px-4">
-    <div class="text-center mb-8">
-      <h2 class="text-3xl font-bold mb-4">Welcome back, <%= @current_scope.user.username || @current_scope.user.email %>!</h2>
-      <p class="text-base-content/70">Manage your account and stay updated</p>
-    </div>
-    
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-4xl mx-auto">
-      <a href={~p"/support"} class="card bg-base-200 shadow hover:shadow-lg transition-shadow">
-        <div class="card-body text-center">
-          <div class="text-4xl mb-4">🎫</div>
-          <h3 class="card-title justify-center">Support Tickets</h3>
-          <p class="text-sm text-base-content/70">Get help with your account or orders</p>
-        </div>
-      </a>
-      
-      <a href={~p"/email-preferences"} class="card bg-base-200 shadow hover:shadow-lg transition-shadow">
-        <div class="card-body text-center">
-          <div class="text-4xl mb-4">📧</div>
-          <h3 class="card-title justify-center">Email Preferences</h3>
-          <p class="text-sm text-base-content/70">Manage your notification settings</p>
-        </div>
-      </a>
-      
-      <a href={~p"/orders"} class="card bg-base-200 shadow hover:shadow-lg transition-shadow">
-        <div class="card-body text-center">
-          <div class="text-4xl mb-4">📦</div>
-          <h3 class="card-title justify-center">My Orders</h3>
-          <p class="text-sm text-base-content/70">Track your purchases and downloads</p>
-        </div>
-      </a>
-      
-      <a href={~p"/my/stores"} class="card bg-base-200 shadow hover:shadow-lg transition-shadow">
-        <div class="card-body text-center">
-          <div class="text-4xl mb-4">🏪</div>
-          <h3 class="card-title justify-center">My Stores</h3>
-          <p class="text-sm text-base-content/70">Manage your store and products</p>
-        </div>
-      </a>
-    </div>
-    
-    <!-- Need Help Section -->
-    <div class="mt-12 text-center">
-      <div class="bg-primary/10 rounded-lg p-8">
-        <h3 class="text-2xl font-bold mb-4">Need Help?</h3>
-        <p class="text-base-content/70 mb-6">We're here to help you with any questions or issues you might have.</p>
-        <div class="flex flex-col sm:flex-row gap-4 justify-center">
-          <a href={~p"/support"} class="btn btn-primary btn-lg">
-            🎫 Create Support Ticket
-          </a>
-          <a href={~p"/email-preferences"} class="btn btn-outline btn-lg">
-            📧 Email Preferences
-          </a>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-<% end %>
-
-
-
 
 
 <!-- Latest Products Section -->
@@ -291,52 +225,53 @@
 </div>
 
 <!-- Explore Categories -->
+<%= if !Enum.empty?(@categories_with_counts) do %>
 <div class="py-16 bg-base-100">
   <div class="container mx-auto px-4">
     <h2 class="text-3xl font-bold text-center mb-12">Explore Categories</h2>
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      <div class="card bg-base-200 hover:bg-base-300 transition-colors cursor-pointer">
-        <div class="card-body text-center">
-          <div class="text-4xl mb-4">🎨</div>
-          <h3 class="card-title justify-center">Digital Art</h3>
-          <p class="text-sm text-base-content/70">Beautiful illustrations, wallpapers, and digital artwork</p>
-        </div>
-      </div>
-      
-      <div class="card bg-base-200 hover:bg-base-300 transition-colors cursor-pointer">
-        <div class="card-body text-center">
-          <div class="text-4xl mb-4">💻</div>
-          <h3 class="card-title justify-center">Software Tools</h3>
-          <p class="text-sm text-base-content/70">Useful applications and productivity tools</p>
-        </div>
-      </div>
-      
-      <div class="card bg-base-200 hover:bg-base-300 transition-colors cursor-pointer">
-        <div class="card-body text-center">
-          <div class="text-4xl mb-4">📚</div>
-          <h3 class="card-title justify-center">Templates</h3>
-          <p class="text-sm text-base-content/70">Design templates and document layouts</p>
-        </div>
-      </div>
-      
-      <div class="card bg-base-200 hover:bg-base-300 transition-colors cursor-pointer">
-        <div class="card-body text-center">
-          <div class="text-4xl mb-4">🎵</div>
-          <h3 class="card-title justify-center">Audio & Music</h3>
-          <p class="text-sm text-base-content/70">Sound effects, music tracks, and audio content</p>
-        </div>
-      </div>
+      <%= for {category_name, category_slug, count} <- @categories_with_counts do %>
+        <a href={"/categories/#{category_slug}"} class="card bg-base-200 hover:bg-base-300 transition-colors cursor-pointer">
+          <div class="card-body text-center">
+            <div class="flex justify-center gap-2 mb-4">
+              <%= for product <- get_category_sample_products(category_slug, 2) do %>
+                <div class="w-16 h-16 rounded-lg overflow-hidden bg-base-300">
+                  <%= if product.image_thumb do %>
+                    <img src={product.image_thumb} 
+                         alt={product.title} 
+                         class="w-full h-full object-cover" />
+                  <% else %>
+                    <div class="w-full h-full flex items-center justify-center text-base-content/40">
+                      <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd" />
+                      </svg>
+                    </div>
+                  <% end %>
+                </div>
+              <% end %>
+            </div>
+            <h3 class="card-title justify-center">
+              <%= category_name %>
+              <span class="text-sm font-normal text-base-content/60">(<%= count %>)</span>
+            </h3>
+            <p class="text-sm text-base-content/70">
+              <%= get_category_description(category_name) %>
+            </p>
+          </div>
+        </a>
+      <% end %>
     </div>
   </div>
 </div>
+<% end %>
 
  <!-- Call to Action -->
  <div class="py-16 bg-primary text-primary-content">
    <div class="container mx-auto px-4 text-center">
      <h2 class="text-3xl font-bold mb-4">Ready to Start Selling?</h2>
-     <p class="text-xl mb-8 opacity-90">
-       Join thousands of creators who are already selling their products on Shomp
-     </p>
+    <p class="text-xl mb-8 opacity-90">
+      Join creators who are ready to take control of their earnings
+    </p>
      <div class="flex flex-col sm:flex-row gap-4 justify-center">
        <a href="/stores/new" class="btn btn-secondary btn-lg">
          Create Your Store
@@ -351,7 +286,7 @@
  <!-- Our Mission Section -->
  <div class="py-16 bg-base-50">
    <div class="container mx-auto px-4">
-     <h2 class="text-3xl font-bold text-center mb-12">Our Mission</h2>
+     <h2 class="text-3xl font-bold text-center mb-12">Our Mission and Vision</h2>
      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
        
        <div class="text-center">
@@ -404,19 +339,91 @@
          </p>
        </div>
        
-       <div class="text-center md:col-span-2 lg:col-span-3">
-         <div class="w-12 h-12 bg-warning/20 rounded-full flex items-center justify-center mx-auto mb-4">
-           <span class="text-xl">🌟</span>
-         </div>
-         <h3 class="font-semibold text-warning mb-2">Join Our Mission</h3>
-         <p class="text-sm text-base-content/70">
-           Support US artists and creatives by using Shomp for your digital product needs, or contribute to our nonprofit mission through donations.
-         </p>
-       </div>
+      <div class="text-center">
+        <div class="w-12 h-12 bg-warning/20 rounded-full flex items-center justify-center mx-auto mb-4">
+          <span class="text-xl">💝</span>
+        </div>
+        <h3 class="font-semibold text-warning mb-2">6. Donation-powered</h3>
+        <p class="text-sm text-base-content/70">
+          Shomp is powered by donations. Your generous contributions make our work of serving creators with a community-centric marketplace possible. Donations are optional, you will be asked at checkout to include a contribution with your purchase. While not required, we really appreciate you helping the platform survive.
+        </p>
+      </div>
+      
+      <div class="text-center md:col-span-2 lg:col-span-3">
+        <div class="w-12 h-12 bg-info/20 rounded-full flex items-center justify-center mx-auto mb-4">
+          <span class="text-xl">🌟</span>
+        </div>
+        <h3 class="font-semibold text-info mb-2">Join Our Mission</h3>
+        <p class="text-sm text-base-content/70">
+          Support US artists and creatives by using Shomp for your digital product needs, or contribute to our nonprofit mission through donations.
+        </p>
+      </div>
        
      </div>
    </div>
  </div>
+
+<!-- User Dashboard Section (for authenticated users) -->
+<%= if @current_scope && @current_scope.user do %>
+<div class="py-16 bg-base-100">
+  <div class="container mx-auto px-4">
+    <div class="text-center mb-8">
+      <h2 class="text-3xl font-bold mb-4">Welcome back, <%= @current_scope.user.username || @current_scope.user.email %>!</h2>
+      <p class="text-base-content/70">Manage your account and stay updated</p>
+    </div>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-4xl mx-auto">
+      <a href={~p"/support"} class="card bg-base-200 shadow hover:shadow-lg transition-shadow">
+        <div class="card-body text-center">
+          <div class="text-4xl mb-4">🎫</div>
+          <h3 class="card-title justify-center">Support Tickets</h3>
+          <p class="text-sm text-base-content/70">Get help with your account or orders</p>
+        </div>
+      </a>
+      
+      <a href={~p"/email-preferences"} class="card bg-base-200 shadow hover:shadow-lg transition-shadow">
+        <div class="card-body text-center">
+          <div class="text-4xl mb-4">📧</div>
+          <h3 class="card-title justify-center">Email Preferences</h3>
+          <p class="text-sm text-base-content/70">Manage your notification settings</p>
+        </div>
+      </a>
+      
+      <a href={~p"/orders"} class="card bg-base-200 shadow hover:shadow-lg transition-shadow">
+        <div class="card-body text-center">
+          <div class="text-4xl mb-4">📦</div>
+          <h3 class="card-title justify-center">My Orders</h3>
+          <p class="text-sm text-base-content/70">Track your purchases and downloads</p>
+        </div>
+      </a>
+      
+      <a href={~p"/my/stores"} class="card bg-base-200 shadow hover:shadow-lg transition-shadow">
+        <div class="card-body text-center">
+          <div class="text-4xl mb-4">🏪</div>
+          <h3 class="card-title justify-center">My Stores</h3>
+          <p class="text-sm text-base-content/70">Manage your store and products</p>
+        </div>
+      </a>
+    </div>
+    
+    <!-- Need Help Section -->
+    <div class="mt-12 text-center">
+      <div class="bg-primary/10 rounded-lg p-8">
+        <h3 class="text-2xl font-bold mb-4">Need Help?</h3>
+        <p class="text-base-content/70 mb-6">We're here to help you with any questions or issues you might have.</p>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+          <a href={~p"/support"} class="btn btn-primary btn-lg">
+            🎫 Create Support Ticket
+          </a>
+          <a href={~p"/email-preferences"} class="btn btn-outline btn-lg">
+            📧 Email Preferences
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<% end %>
 
 <!-- Admin Access Section (only visible to admins) -->
 <%= if assigns[:current_scope] && @current_scope.user && @current_scope.user.role == "admin" do %>
