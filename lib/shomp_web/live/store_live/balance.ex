@@ -1,7 +1,6 @@
 defmodule ShompWeb.StoreLive.Balance do
   use ShompWeb, :live_view
 
-  alias Shomp.Stores.StoreBalances
   alias Shomp.Stores.StoreKYCContext
   alias Shomp.StripeConnect
 
@@ -24,24 +23,19 @@ defmodule ShompWeb.StoreLive.Balance do
        |> put_flash(:error, "You don't have any stores yet")
        |> push_navigate(to: ~p"/new")}
     else
-      # Get store balances and KYC records for all stores
+      # Get store KYC records for all stores
       stores_with_data = Enum.map(user_stores, fn store ->
-        # Get or create store balance
-        {:ok, store_balance} = StoreBalances.get_or_create_store_balance_by_store_id(store.store_id)
-
         # Get Stripe KYC status
         kyc_record = StoreKYCContext.get_kyc_by_store_id(store.store_id)
 
-        # Get available balance from store
-        available_balance = store.available_balance || Decimal.new(0)
-
         %{
           store: store,
-          store_balance: store_balance,
-          kyc_record: kyc_record,
-          available_balance: available_balance
+          kyc_record: kyc_record
         }
       end)
+
+      # Get Stripe balance from the first store with a Stripe account
+      stripe_balance = get_stripe_balance(stores_with_data)
 
       # Check if we're returning from Stripe onboarding
       if params["refresh"] == "true" do
@@ -67,12 +61,16 @@ defmodule ShompWeb.StoreLive.Balance do
         end
       end
 
-      # Get Stripe Connect dashboard URL if user has a Stripe account
+      # Get Stripe Connect dashboard URLs if user has a Stripe account
       stripe_dashboard_url = get_stripe_dashboard_url(user_stores)
+      stripe_test_dashboard_url = get_stripe_test_dashboard_url(user_stores)
+      stripe_balance = get_stripe_balance(stores_with_data)
 
       socket = socket
                |> assign(:stores_with_data, stores_with_data)
                |> assign(:stripe_dashboard_url, stripe_dashboard_url)
+               |> assign(:stripe_test_dashboard_url, stripe_test_dashboard_url)
+               |> assign(:stripe_balance, stripe_balance)
                |> assign(:page_title, "Store Balance")
 
       {:ok, socket}
@@ -85,11 +83,16 @@ defmodule ShompWeb.StoreLive.Balance do
       <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <!-- Header -->
         <div class="mb-8">
-          <h1 class="text-3xl font-bold text-gray-900">Store Balance</h1>
-          <p class="text-lg text-gray-600 mt-2">Manage your stores and earnings</p>
+          <h1 class="text-3xl font-bold text-gray-900">Store Balances</h1>
+          <p class="text-lg text-gray-600 mt-2">Access your Stripe dashboard from here</p>
         </div>
 
-        <!-- Stripe Connect Dashboard Link -->
+        <!-- Balance Message -->
+        <div class="mb-8 text-center">
+          <p class="text-lg text-gray-600">Go to Stripe to see your earnings</p>
+        </div>
+
+        <!-- Stripe Connect Dashboard Links -->
         <%= if @stripe_dashboard_url do %>
           <div class="mb-8 bg-white shadow rounded-lg">
             <div class="px-6 py-4 border-b border-gray-200">
@@ -105,13 +108,24 @@ defmodule ShompWeb.StoreLive.Balance do
                     You can view detailed transaction history, manage bank accounts, and track payouts.
                   </p>
                 </div>
-                <a
-                  href={@stripe_dashboard_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="btn btn-primary">
-                  Open Stripe Dashboard
-                </a>
+                <div class="flex space-x-3">
+                  <a
+                    href={@stripe_dashboard_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="btn btn-primary">
+                    Open Stripe Dashboard
+                  </a>
+                  <%= if @stripe_test_dashboard_url do %>
+                    <a
+                      href={@stripe_test_dashboard_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="btn bg-orange-500 hover:bg-orange-600 text-white border-orange-500 hover:border-orange-600">
+                      Open Test Dashboard
+                    </a>
+                  <% end %>
+                </div>
               </div>
             </div>
           </div>
@@ -127,32 +141,6 @@ defmodule ShompWeb.StoreLive.Balance do
               </div>
 
               <div class="px-6 py-6 space-y-4">
-                <!-- Balance Information -->
-                <div class="space-y-2">
-                  <div class="flex justify-between items-center">
-                    <span class="text-gray-600">Available Balance</span>
-                    <span class="text-xl font-bold text-green-600">
-                      $<%= Decimal.to_string(store_data.available_balance) %>
-                    </span>
-                  </div>
-
-                  <div class="flex justify-between items-center">
-                    <span class="text-gray-600">Paid Out</span>
-                    <span class="text-lg text-gray-900">
-                      $<%= store_data.store_balance.paid_out_balance %>
-                    </span>
-                  </div>
-
-                  <%= if store_data.store_balance.last_payout_date do %>
-                    <div class="flex justify-between items-center">
-                      <span class="text-gray-600">Last Payout</span>
-                      <span class="text-sm text-gray-500">
-                        <%= Calendar.strftime(store_data.store_balance.last_payout_date, "%B %d, %Y") %>
-                      </span>
-                    </div>
-                  <% end %>
-                </div>
-
                 <!-- Stripe Connect Status -->
                 <div class="pt-4 border-t border-gray-200">
                   <%= if store_data.kyc_record == nil do %>
@@ -220,9 +208,7 @@ defmodule ShompWeb.StoreLive.Balance do
               <ul>
                 <li>Payouts are processed automatically via Stripe Connect</li>
                 <li>You must complete Stripe Connect onboarding to receive payouts</li>
-                <li>Payouts are sent directly to your bank account</li>
-                <li>Minimum payout amount: $50.00</li>
-                <li>Payouts are processed within 2-7 business days</li>
+                <li>Once you have onboarded with Stripe you can withdraw funds from the Stripe dashboard</li>
               </ul>
 
               <h3>Stripe Connect Onboarding</h3>
@@ -324,6 +310,54 @@ defmodule ShompWeb.StoreLive.Balance do
     Stores.get_stores_by_user(user_id)
   end
 
+  defp get_stripe_balance(stores_with_data) do
+    # Find the first store with a Stripe account
+    store_with_stripe = Enum.find(stores_with_data, fn store_data ->
+      store_data.kyc_record && not is_nil(store_data.kyc_record.stripe_account_id)
+    end)
+
+    if store_with_stripe do
+      case StripeConnect.get_account_balance(store_with_stripe.kyc_record.stripe_account_id) do
+        {:ok, balance} ->
+          balance
+        {:error, reason} ->
+          IO.puts("Failed to get Stripe balance: #{inspect(reason)}")
+          # Return a default balance structure
+          %{
+            available: Decimal.new(0),
+            pending: Decimal.new(0),
+            total: Decimal.new(0)
+          }
+      end
+    else
+      nil
+    end
+  end
+
+  defp get_stripe_test_balance(stores_with_data) do
+    # Find the first store with a Stripe account
+    store_with_stripe = Enum.find(stores_with_data, fn store_data ->
+      store_data.kyc_record && not is_nil(store_data.kyc_record.stripe_account_id)
+    end)
+
+    if store_with_stripe do
+      case StripeConnect.get_test_account_balance(store_with_stripe.kyc_record.stripe_account_id) do
+        {:ok, balance} ->
+          balance
+        {:error, reason} ->
+          IO.puts("Failed to get Stripe test balance: #{inspect(reason)}")
+          # Return a default balance structure
+          %{
+            available: Decimal.new(0),
+            pending: Decimal.new(0),
+            total: Decimal.new(0)
+          }
+      end
+    else
+      nil
+    end
+  end
+
   defp get_stripe_dashboard_url(user_stores) do
     # Find the first store with a Stripe account
     store_with_stripe = Enum.find(user_stores, fn store ->
@@ -336,6 +370,26 @@ defmodule ShompWeb.StoreLive.Balance do
     if store_with_stripe do
       kyc = StoreKYCContext.get_kyc_by_store_id(store_with_stripe.store_id)
       case StripeConnect.get_dashboard_url(kyc.stripe_account_id) do
+        {:ok, url} -> url
+        {:error, _} -> nil
+      end
+    else
+      nil
+    end
+  end
+
+  defp get_stripe_test_dashboard_url(user_stores) do
+    # Find the first store with a Stripe account
+    store_with_stripe = Enum.find(user_stores, fn store ->
+      case StoreKYCContext.get_kyc_by_store_id(store.store_id) do
+        nil -> false
+        kyc -> not is_nil(kyc.stripe_account_id)
+      end
+    end)
+
+    if store_with_stripe do
+      kyc = StoreKYCContext.get_kyc_by_store_id(store_with_stripe.store_id)
+      case StripeConnect.get_test_dashboard_url(kyc.stripe_account_id) do
         {:ok, url} -> url
         {:error, _} -> nil
       end

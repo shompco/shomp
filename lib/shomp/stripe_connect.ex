@@ -178,6 +178,144 @@ defmodule Shomp.StripeConnect do
     {:ok, dashboard_url}
   end
 
+  @doc """
+  Gets the test Stripe Connect dashboard URL for a connected account.
+  """
+  def get_test_dashboard_url(stripe_account_id) do
+    # Test mode Stripe Connect dashboard URL
+    test_dashboard_url = "https://dashboard.stripe.com/test/connect/accounts/#{stripe_account_id}"
+    {:ok, test_dashboard_url}
+  end
+
+  @doc """
+  Gets the balance for a Stripe Connect account.
+  """
+  def get_account_balance(stripe_account_id) do
+    # For connected accounts, we need to make a direct API call
+    # since the stripity library might not support stripe_account parameter
+    try do
+      # Make a direct HTTP request to Stripe API using Req
+      url = "https://api.stripe.com/v1/balance"
+      stripe_key = Application.get_env(:shomp, :stripe_secret_key)
+      
+      IO.puts("=== BALANCE DEBUG ===")
+      IO.puts("Using Stripe Key: #{String.slice(stripe_key, 0, 10)}...")
+      IO.puts("Account ID: #{stripe_account_id}")
+      IO.puts("====================")
+      
+      headers = [
+        {"Authorization", "Bearer #{stripe_key}"},
+        {"Stripe-Account", stripe_account_id}
+      ]
+      
+      case Req.get(url, headers: headers) do
+        {:ok, %{status: 200, body: balance_data}} ->
+          IO.puts("=== STRIPE BALANCE STRUCTURE ===")
+          IO.puts("Balance: #{inspect(balance_data)}")
+          IO.puts("Available: #{inspect(balance_data["available"])}")
+          IO.puts("Pending: #{inspect(balance_data["pending"])}")
+          IO.puts("=================================")
+
+          # Parse the balance data
+          available_amount = balance_data["available"]
+          |> Enum.map(fn balance_item -> balance_item["amount"] end)
+          |> Enum.sum()
+
+          pending_amount = balance_data["pending"]
+          |> Enum.map(fn balance_item -> balance_item["amount"] end)
+          |> Enum.sum()
+
+          # Convert from cents to dollars
+          available_balance = Decimal.new(available_amount) |> Decimal.div(100)
+          pending_balance = Decimal.new(pending_amount) |> Decimal.div(100)
+
+          IO.puts("Parsed amounts - Available: #{available_amount} cents, Pending: #{pending_amount} cents")
+          IO.puts("Converted - Available: $#{Decimal.to_string(available_balance)}, Pending: $#{Decimal.to_string(pending_balance)}")
+
+          {:ok, %{
+            available: available_balance,
+            pending: pending_balance,
+            total: Decimal.add(available_balance, pending_balance)
+          }}
+
+        {:ok, %{status: status_code, body: body}} ->
+          IO.puts("Stripe API error: #{status_code} - #{inspect(body)}")
+          {:error, :stripe_api_error}
+
+        {:error, reason} ->
+          IO.puts("HTTP request failed: #{inspect(reason)}")
+          {:error, :http_error}
+      end
+    rescue
+      error ->
+        IO.puts("Exception in get_account_balance: #{inspect(error)}")
+        {:error, :exception}
+    end
+  end
+
+  @doc """
+  Gets the test balance for a Stripe Connect account.
+  """
+  def get_test_account_balance(stripe_account_id) do
+    # For test mode, we use the same API endpoint but with test key
+    # The test key should automatically route to test data
+    try do
+      # Make a direct HTTP request to Stripe API using Req
+      url = "https://api.stripe.com/v1/balance"
+      stripe_key = Application.get_env(:shomp, :stripe_secret_key)
+      
+      IO.puts("=== TEST BALANCE DEBUG ===")
+      IO.puts("Using Stripe Key: #{String.slice(stripe_key, 0, 10)}...")
+      IO.puts("Account ID: #{stripe_account_id}")
+      IO.puts("=========================")
+      
+      headers = [
+        {"Authorization", "Bearer #{stripe_key}"},
+        {"Stripe-Account", stripe_account_id}
+      ]
+      
+      case Req.get(url, headers: headers) do
+        {:ok, %{status: 200, body: balance_data}} ->
+          IO.puts("=== TEST STRIPE BALANCE STRUCTURE ===")
+          IO.puts("Balance: #{inspect(balance_data)}")
+          IO.puts("Available: #{inspect(balance_data["available"])}")
+          IO.puts("Pending: #{inspect(balance_data["pending"])}")
+          IO.puts("=====================================")
+
+          # Parse the balance data
+          available_amount = balance_data["available"]
+          |> Enum.map(fn balance_item -> balance_item["amount"] end)
+          |> Enum.sum()
+
+          pending_amount = balance_data["pending"]
+          |> Enum.map(fn balance_item -> balance_item["amount"] end)
+          |> Enum.sum()
+
+          # Convert from cents to dollars
+          available_balance = Decimal.new(available_amount) |> Decimal.div(100)
+          pending_balance = Decimal.new(pending_amount) |> Decimal.div(100)
+
+          {:ok, %{
+            available: available_balance,
+            pending: pending_balance,
+            total: Decimal.add(available_balance, pending_balance)
+          }}
+
+        {:ok, %{status: status_code, body: body}} ->
+          IO.puts("Test Stripe API error: #{status_code} - #{inspect(body)}")
+          {:error, :stripe_api_error}
+
+        {:error, reason} ->
+          IO.puts("Test HTTP request failed: #{inspect(reason)}")
+          {:error, :http_error}
+      end
+    rescue
+      error ->
+        IO.puts("Exception in get_test_account_balance: #{inspect(error)}")
+        {:error, :exception}
+    end
+  end
+
   # Private functions
 
   defp create_stripe_account(kyc, store_id) do
