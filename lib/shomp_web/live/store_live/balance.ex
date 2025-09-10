@@ -10,349 +10,206 @@ defmodule ShompWeb.StoreLive.Balance do
   def mount(params, _session, socket) do
     user_id = socket.assigns.current_scope.user.id
 
-    # Subscribe to KYC updates for real-time status changes
+    # Subscribe to Stripe updates for real-time status changes
     if connected?(socket) do
-      Phoenix.PubSub.subscribe(Shomp.PubSub, "kyc_updates")
+      Phoenix.PubSub.subscribe(Shomp.PubSub, "stripe_updates")
     end
 
-    # Get the user's store
-    case get_user_store(user_id) do
-      nil ->
-        {:ok,
-         socket
-         |> put_flash(:error, "You don't have a store yet")
-         |> push_navigate(to: ~p"/new")}
+    # Get all user's stores
+    user_stores = get_user_stores(user_id)
 
-      store ->
+    if Enum.empty?(user_stores) do
+      {:ok,
+       socket
+       |> put_flash(:error, "You don't have any stores yet")
+       |> push_navigate(to: ~p"/new")}
+    else
+      # Get store balances and KYC records for all stores
+      stores_with_data = Enum.map(user_stores, fn store ->
         # Get or create store balance
         {:ok, store_balance} = StoreBalances.get_or_create_store_balance_by_store_id(store.store_id)
 
-        # Get KYC status
+        # Get Stripe KYC status
         kyc_record = StoreKYCContext.get_kyc_by_store_id(store.store_id)
 
         # Get available balance from store
         available_balance = store.available_balance || Decimal.new(0)
 
-        # Check if we're returning from Stripe onboarding
-        if params["refresh"] == "true" && kyc_record && kyc_record.stripe_account_id do
-          # Sync the account status from Stripe
-          case StripeConnect.sync_account_status(kyc_record.stripe_account_id) do
-            {:ok, updated_kyc} ->
-              # Update the socket with the new KYC record
-              _kyc_record = updated_kyc
-              _socket = socket
-                       |> put_flash(:info, "Stripe Connect status updated! Charges: #{updated_kyc.charges_enabled}, Payouts: #{updated_kyc.payouts_enabled}")
+        %{
+          store: store,
+          store_balance: store_balance,
+          kyc_record: kyc_record,
+          available_balance: available_balance
+        }
+      end)
 
+      # Check if we're returning from Stripe onboarding
+      if params["refresh"] == "true" do
+        # Find the store with a Stripe account and sync it
+        store_with_stripe = Enum.find(stores_with_data, fn store_data ->
+          store_data.kyc_record && store_data.kyc_record.stripe_account_id
+        end)
+
+        if store_with_stripe do
+          case StripeConnect.sync_account_status(store_with_stripe.kyc_record.stripe_account_id) do
+            {:ok, updated_kyc} ->
+              socket = socket
+                       |> put_flash(:info, "Stripe Connect status updated! Charges: #{updated_kyc.charges_enabled}, Payouts: #{updated_kyc.payouts_enabled}")
             {:error, reason} ->
               error_message = case reason do
                 %Stripe.Error{message: message} -> "Stripe API error: #{message}"
                 :kyc_not_found -> "KYC record not found for this Stripe account"
                 _ -> "Failed to sync Stripe status: #{inspect(reason)}"
               end
-              _socket = socket
+              socket = socket
                        |> put_flash(:error, error_message)
           end
         end
+      end
 
+      # Get Stripe Connect dashboard URL if user has a Stripe account
+      stripe_dashboard_url = get_stripe_dashboard_url(user_stores)
 
+      socket = socket
+               |> assign(:stores_with_data, stores_with_data)
+               |> assign(:stripe_dashboard_url, stripe_dashboard_url)
+               |> assign(:page_title, "Store Balance")
 
-        socket = socket
-                 |> assign(:store, store)
-                 |> assign(:store_balance, store_balance)
-                 |> assign(:kyc_record, kyc_record)
-                 |> assign(:available_balance, available_balance)
-                 |> assign(:page_title, "Store Balance")
-
-        {:ok, socket}
+      {:ok, socket}
     end
   end
 
   def render(assigns) do
     ~H"""
     <div class="min-h-screen bg-gray-50 py-12">
-      <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <!-- Header -->
         <div class="mb-8">
           <h1 class="text-3xl font-bold text-gray-900">Store Balance</h1>
-          <p class="text-lg text-gray-600 mt-2"><%= @store.name %></p>
+          <p class="text-lg text-gray-600 mt-2">Manage your stores and earnings</p>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <!-- Balance Overview -->
-          <div class="bg-white shadow rounded-lg">
+        <!-- Stripe Connect Dashboard Link -->
+        <%= if @stripe_dashboard_url do %>
+          <div class="mb-8 bg-white shadow rounded-lg">
             <div class="px-6 py-4 border-b border-gray-200">
-              <h2 class="text-lg font-medium text-gray-900">Earnings Overview</h2>
+              <h2 class="text-lg font-medium text-gray-900">Stripe Connect Dashboard</h2>
             </div>
-
-            <div class="px-6 py-6 space-y-4">
-              <div class="flex justify-between items-center">
-                <span class="text-gray-600">Total Earnings</span>
-                <span class="text-2xl font-bold text-green-600">
-                  $<%= Decimal.to_string(@available_balance) %>
-                </span>
-              </div>
-
-              <div class="flex justify-between items-center">
-                <span class="text-gray-600">Available Balance</span>
-                <span class="text-xl font-semibold text-blue-600">
-                  $<%= Decimal.to_string(@available_balance) %>
-                </span>
-              </div>
-
-              <div class="flex justify-between items-center">
-                <span class="text-gray-600">Paid Out</span>
-                <span class="text-lg text-gray-900">
-                  $<%= @store_balance.paid_out_balance %>
-                </span>
-              </div>
-
-              <%= if @store_balance.last_payout_date do %>
-              <div class="flex justify-between items-center">
-                <span class="text-gray-600">Last Payout</span>
-                <span class="text-sm text-gray-500">
-                  <%= Calendar.strftime(@store_balance.last_payout_date, "%B %d, %Y") %>
-                </span>
-              </div>
-            <% end %>
-
-            <!-- Balance Summary -->
-            <div class="mt-6 pt-4 border-t border-gray-200">
-              <div class="text-center">
-                <div class="p-4 bg-green-50 rounded-lg">
-                  <p class="text-sm text-green-600 font-medium mb-1">Your Earnings</p>
-                  <p class="text-2xl font-bold text-green-800">$<%= Decimal.to_string(@available_balance) %></p>
-                  <p class="text-xs text-green-600 mt-1">
-                    Funds are automatically sent to your Stripe account and paid out to your bank account
+            <div class="px-6 py-6">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-sm text-gray-600 mb-2">
+                    Access your Stripe Connect dashboard to manage payouts, view transactions, and update your account details.
+                  </p>
+                  <p class="text-xs text-gray-500">
+                    You can view detailed transaction history, manage bank accounts, and track payouts.
                   </p>
                 </div>
+                <a
+                  href={@stripe_dashboard_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="btn btn-primary">
+                  Open Stripe Dashboard
+                </a>
               </div>
-            </div>
-
-            <!-- Status Information -->
-            <div class="mt-4 p-3 bg-blue-50 rounded-lg">
-              <p class="text-sm text-blue-800">
-                💡 <strong>How it works:</strong> When customers buy your products, money goes directly to your Stripe account.
-                Stripe automatically pays out to your bank account (2-7 days or instant for a small fee).
-              </p>
             </div>
           </div>
-        </div>
+        <% end %>
 
-          <!-- KYC Status -->
-          <div class="bg-white shadow rounded-lg">
-            <div class="px-6 py-4 border-b border-gray-200">
-              <h2 class="text-lg font-medium text-gray-900">KYC Status</h2>
-            </div>
+        <!-- Stores Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
+          <%= for store_data <- @stores_with_data do %>
+            <div class="bg-white shadow rounded-lg">
+              <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900"><%= store_data.store.name %></h3>
+                <p class="text-sm text-gray-500"><%= store_data.store.store_id %></p>
+              </div>
 
-            <div class="px-6 py-6">
-              <%= if @kyc_record == nil do %>
-                <!-- No KYC submitted yet -->
-                <div class="text-center py-4">
-                  <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100 mb-4">
-                    <svg class="h-6 w-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2z" />
-                    </svg>
+              <div class="px-6 py-6 space-y-4">
+                <!-- Balance Information -->
+                <div class="space-y-2">
+                  <div class="flex justify-between items-center">
+                    <span class="text-gray-600">Available Balance</span>
+                    <span class="text-xl font-bold text-green-600">
+                      $<%= Decimal.to_string(store_data.available_balance) %>
+                    </span>
                   </div>
-                  <h3 class="text-sm font-medium text-gray-900 mb-2">KYC Not Submitted</h3>
-                  <p class="text-sm text-gray-500 mb-4">
-                    You need to complete KYC verification to receive payouts.
-                  </p>
-                  <button
-                    phx-click="start_stripe_onboarding"
-                    class="btn btn-primary btn-sm">
-                    Start Stripe Onboarding
-                  </button>
-                </div>
-              <% else %>
-                <%= if @kyc_record.status == "pending" do %>
-                  <!-- Check if Stripe Connect is verified -->
-                  <%= if not is_nil(@kyc_record.stripe_account_id) && @kyc_record.charges_enabled && @kyc_record.payouts_enabled do %>
-                    <!-- Stripe Connect Verified -->
-                    <div class="text-center py-4">
-                      <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
-                        <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
-                      <h3 class="text-sm font-medium text-gray-900 mb-2">Stripe Connect Verified</h3>
-                      <p class="text-sm text-gray-500 mb-4">
-                        Your Stripe Connect account is fully verified and ready to receive payouts!
-                      </p>
-                      <div class="p-3 bg-green-50 rounded-lg text-left">
-                        <div class="text-sm text-green-800 space-y-1">
-                          <div>✅ Charges enabled: <%= @kyc_record.charges_enabled %></div>
-                          <div>✅ Payouts enabled: <%= @kyc_record.payouts_enabled %></div>
-                          <div>✅ Onboarding completed: <%= @kyc_record.onboarding_completed %></div>
-                        </div>
-                      </div>
 
-                      <!-- Shomp KYC Status -->
-                      <%= if @kyc_record.status == "pending" do %>
-                        <div class="mt-4 p-3 bg-yellow-50 rounded-lg">
-                          <p class="text-sm text-yellow-800 mb-2">
-                            ⚠️ Shomp KYC still pending - Complete ID verification to enable full functionality
-                          </p>
-                          <button
-                            phx-click="start_shomp_kyc"
-                            class="btn btn-warning btn-sm">
-                            Complete Shomp KYC
-                          </button>
-                        </div>
-                      <% end %>
-                    </div>
-                  <% else %>
-                    <!-- KYC Pending -->
-                    <div class="text-center py-4">
-                      <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100 mb-4">
-                        <svg class="h-6 w-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
-                      <h3 class="text-sm font-medium text-gray-900 mb-2">KYC Pending</h3>
-                      <p class="text-sm text-gray-500 mb-4">
-                        Your KYC documents are being reviewed.
-                      </p>
-                      <div class="flex flex-col gap-2">
-                        <%= if is_nil(@kyc_record.stripe_account_id) do %>
-                          <button
-                            phx-click="start_stripe_onboarding"
-                            class="btn btn-primary btn-sm">
-                            Start Stripe Onboarding
-                          </button>
-                        <% else %>
-                          <button
-                            phx-click="refresh_stripe_status"
-                            class="btn btn-primary btn-sm">
-                            Check Stripe Status
-                          </button>
-                        <% end %>
-                        <button
-                          phx-click="reset_kyc"
-                          class="btn btn-outline btn-sm">
-                          Reset KYC
-                        </button>
-                      </div>
+                  <div class="flex justify-between items-center">
+                    <span class="text-gray-600">Paid Out</span>
+                    <span class="text-lg text-gray-900">
+                      $<%= store_data.store_balance.paid_out_balance %>
+                    </span>
+                  </div>
+
+                  <%= if store_data.store_balance.last_payout_date do %>
+                    <div class="flex justify-between items-center">
+                      <span class="text-gray-600">Last Payout</span>
+                      <span class="text-sm text-gray-500">
+                        <%= Calendar.strftime(store_data.store_balance.last_payout_date, "%B %d, %Y") %>
+                      </span>
                     </div>
                   <% end %>
-                <% else %>
-                  <%= if @kyc_record.status == "submitted" do %>
-                    <!-- KYC Submitted -->
-                    <div class="text-center py-4">
-                      <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 mb-4">
-                        <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                      </div>
-                      <h3 class="text-sm font-medium text-gray-900 mb-2">KYC Submitted</h3>
-                      <p class="text-sm text-gray-500">
-                        Submitted on <%= Calendar.strftime(@kyc_record.submitted_at, "%B %d, %Y") %>
-                      </p>
+                </div>
+
+                <!-- Stripe Connect Status -->
+                <div class="pt-4 border-t border-gray-200">
+                  <%= if store_data.kyc_record == nil do %>
+                    <!-- No Stripe account yet -->
+                    <div class="text-center py-2">
+                      <div class="text-sm text-yellow-600 font-medium mb-2">Stripe Connect Not Set Up</div>
+                      <button
+                        phx-click="start_stripe_onboarding"
+                        phx-value-store_id={store_data.store.store_id}
+                        class="btn btn-primary btn-sm">
+                        Start Onboarding
+                      </button>
                     </div>
                   <% else %>
-                    <%= if @kyc_record.status == "verified" do %>
-                      <!-- KYC Verified -->
-                      <div class="text-center py-4">
-                        <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
-                          <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
+                    <%= if not is_nil(store_data.kyc_record.stripe_account_id) && store_data.kyc_record.charges_enabled && store_data.kyc_record.payouts_enabled && store_data.kyc_record.onboarding_completed do %>
+                      <!-- Stripe Connect Fully Verified -->
+                      <div class="text-center py-2">
+                        <div class="text-sm text-green-600 font-medium mb-2">✅ Stripe Connect Verified</div>
+                        <div class="text-xs text-gray-500">
+                          Ready to receive payouts
                         </div>
-                        <h3 class="text-sm font-medium text-gray-900 mb-2">KYC Verified</h3>
-                        <p class="text-sm text-gray-500">
-                          Verified on <%= Calendar.strftime(@kyc_record.verified_at, "%B %d, %Y") %>
-                        </p>
-
-                        <!-- Stripe Connect Status -->
-                        <%= if not is_nil(@kyc_record.stripe_account_id) do %>
-                          <div class="mt-4 flex flex-col gap-2">
-                            <%= if @kyc_record.charges_enabled && @kyc_record.payouts_enabled do %>
-                              <div class="p-3 bg-green-50 rounded-lg">
-                                <p class="text-sm text-green-800">
-                                  ✅ Stripe Connect verified - You can receive payouts!
-                                </p>
-                                <div class="mt-2 text-xs text-green-700">
-                                  💡 To view your Stripe dashboard, go to <a href="https://dashboard.stripe.com" target="_blank" class="underline">dashboard.stripe.com</a> and log in with your Stripe account
-                                </div>
-                              </div>
-                            <% else %>
-                              <div class="p-3 bg-yellow-50 rounded-lg">
-                                <p class="text-sm text-yellow-800 mb-2">
-                                  ⚠️ Stripe Connect needs attention
-                                </p>
-                        <div class="flex gap-2">
-                          <button
-                            phx-click="refresh_stripe_status"
-                            class="btn btn-outline btn-xs">
-                            Check Status
-                          </button>
-                                  <%= if not @kyc_record.onboarding_completed do %>
-                                    <button
-                                      phx-click="start_stripe_onboarding"
-                                      class="btn btn-primary btn-xs">
-                                      Continue Onboarding
-                                    </button>
-                                  <% end %>
-                                </div>
-                              </div>
-                            <% end %>
-                          </div>
-                        <% else %>
-                          <div class="mt-4 p-3 bg-blue-50 rounded-lg">
-                            <p class="text-sm text-blue-800 mb-2">
-                              Complete Stripe Connect setup to receive payouts
-                            </p>
-                            <button
-                              phx-click="start_stripe_onboarding"
-                              class="btn btn-primary btn-xs">
-                              Setup Stripe Connect
-                            </button>
-                          </div>
-                        <% end %>
                       </div>
                     <% else %>
-                      <%= if @kyc_record.status == "rejected" do %>
-                        <!-- KYC Rejected -->
-                        <div class="text-center py-4">
-                          <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
-                            <svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                          </div>
-                          <h3 class="text-sm font-medium text-gray-900 mb-2">KYC Rejected</h3>
-                          <p class="text-sm text-gray-500 mb-2">
-                            Rejected on <%= Calendar.strftime(@kyc_record.rejected_at, "%B %d, %Y") %>
-                          </p>
-                          <%= if @kyc_record.rejection_reason do %>
-                            <p class="text-sm text-red-600 mb-4">
-                              Reason: <%= @kyc_record.rejection_reason %>
-                            </p>
-                          <% end %>
-                          <div class="flex flex-col gap-2">
-                            <button
-                              phx-click="resubmit_kyc"
-                              class="btn btn-outline btn-sm">
-                              Resubmit KYC
-                            </button>
-                            <%= if is_nil(@kyc_record.stripe_account_id) do %>
-                              <button
-                                phx-click="start_stripe_onboarding"
-                                class="btn btn-primary btn-sm">
-                                Start Stripe Onboarding
-                              </button>
-                            <% end %>
-                          </div>
+                      <!-- Stripe Connect Incomplete -->
+                      <div class="text-center py-2">
+                        <div class="text-sm text-yellow-600 font-medium mb-2">Stripe Connect Incomplete</div>
+                        <div class="text-xs text-gray-500 mb-2">
+                          <%= if store_data.kyc_record.stripe_account_id, do: "Account created", else: "No account" %> •
+                          <%= if store_data.kyc_record.charges_enabled, do: "Charges ✓", else: "Charges ✗" %> •
+                          <%= if store_data.kyc_record.payouts_enabled, do: "Payouts ✓", else: "Payouts ✗" %>
                         </div>
-                      <% end %>
+                        <%= if is_nil(store_data.kyc_record.stripe_account_id) do %>
+                          <button
+                            phx-click="start_stripe_onboarding"
+                            phx-value-store_id={store_data.store.store_id}
+                            class="btn btn-primary btn-sm">
+                            Start Onboarding
+                          </button>
+                        <% else %>
+                          <button
+                            phx-click="sync_stripe_status"
+                            phx-value-store_id={store_data.store.store_id}
+                            class="btn btn-secondary btn-sm">
+                            Sync Status
+                          </button>
+                        <% end %>
+                      </div>
                     <% end %>
                   <% end %>
-                <% end %>
-              <% end %>
+                </div>
+              </div>
             </div>
-          </div>
+          <% end %>
         </div>
 
         <!-- Payout Information -->
-        <div class="mt-8 bg-white shadow rounded-lg">
+        <div class="bg-white shadow rounded-lg">
           <div class="px-6 py-4 border-b border-gray-200">
             <h2 class="text-lg font-medium text-gray-900">Payout Information</h2>
           </div>
@@ -362,7 +219,7 @@ defmodule ShompWeb.StoreLive.Balance do
               <h3>How Payouts Work</h3>
               <ul>
                 <li>Payouts are processed automatically via Stripe Connect</li>
-                <li>You must complete both KYC verification and Stripe Connect onboarding</li>
+                <li>You must complete Stripe Connect onboarding to receive payouts</li>
                 <li>Payouts are sent directly to your bank account</li>
                 <li>Minimum payout amount: $50.00</li>
                 <li>Payouts are processed within 2-7 business days</li>
@@ -375,14 +232,6 @@ defmodule ShompWeb.StoreLive.Balance do
                 <li>Automatically handles compliance and verification</li>
                 <li>Required for receiving payouts</li>
               </ul>
-
-              <h3>KYC Requirements</h3>
-              <ul>
-                <li>Valid government-issued photo ID</li>
-                <li>Proof of US residency</li>
-                <li>Tax identification number (SSN or EIN)</li>
-                <li>Business documentation (if applicable)</li>
-              </ul>
             </div>
           </div>
         </div>
@@ -391,46 +240,23 @@ defmodule ShompWeb.StoreLive.Balance do
     """
   end
 
-  def handle_event("start_stripe_onboarding", _params, socket) do
-    store = socket.assigns.store
-    return_url = ShompWeb.Endpoint.url() <> "/dashboard/store/balance"
+  def handle_event("start_stripe_onboarding", %{"store_id" => store_id}, socket) do
+    # Find the store by store_id
+    store_data = Enum.find(socket.assigns.stores_with_data, fn data ->
+      data.store.store_id == store_id
+    end)
 
-    case StripeConnect.get_onboarding_url(store.id, return_url) do
-      {:ok, onboarding_url} ->
-        {:noreply, redirect(socket, external: onboarding_url)}
+    if store_data do
+      return_url = ShompWeb.Endpoint.url() <> "/dashboard/store/balance?refresh=true"
 
-      {:error, reason} ->
-        error_message = case reason do
-          %Stripe.Error{message: message} -> message
-          _ -> "Failed to start Stripe onboarding. Please try again."
-        end
-        {:noreply,
-         socket
-         |> put_flash(:error, error_message)}
-    end
-  end
-
-  def handle_event("refresh_stripe_status", _params, socket) do
-    _store = socket.assigns.store
-    kyc_record = socket.assigns.kyc_record
-
-    if kyc_record && kyc_record.stripe_account_id do
-      # Add loading state
-      socket = socket |> put_flash(:info, "Checking Stripe status...")
-
-      case StripeConnect.sync_account_status(kyc_record.stripe_account_id) do
-        {:ok, updated_kyc} ->
-          # Update the socket with the new KYC record and show success message
-          {:noreply,
-           socket
-           |> assign(:kyc_record, updated_kyc)
-           |> put_flash(:info, "Stripe status updated successfully! Charges: #{updated_kyc.charges_enabled}, Payouts: #{updated_kyc.payouts_enabled}")}
+      case StripeConnect.get_onboarding_url(store_data.store.id, return_url) do
+        {:ok, onboarding_url} ->
+          {:noreply, redirect(socket, external: onboarding_url)}
 
         {:error, reason} ->
           error_message = case reason do
             %Stripe.Error{message: message} -> "Stripe API error: #{message}"
-            :kyc_not_found -> "KYC record not found for this Stripe account"
-            _ -> "Failed to refresh Stripe status: #{inspect(reason)}"
+            _ -> "Failed to create onboarding link: #{inspect(reason)}"
           end
 
           {:noreply,
@@ -440,67 +266,81 @@ defmodule ShompWeb.StoreLive.Balance do
     else
       {:noreply,
        socket
-       |> put_flash(:error, "No Stripe account found. Please start onboarding first.")}
+       |> put_flash(:error, "Store not found")}
     end
   end
 
+  def handle_event("sync_stripe_status", %{"store_id" => store_id}, socket) do
+    # Find the store by store_id
+    store_data = Enum.find(socket.assigns.stores_with_data, fn data ->
+      data.store.store_id == store_id
+    end)
 
+    if store_data && store_data.kyc_record && store_data.kyc_record.stripe_account_id do
+      case StripeConnect.sync_account_status(store_data.kyc_record.stripe_account_id) do
+        {:ok, _updated_kyc} ->
+          {:noreply,
+           socket
+           |> put_flash(:info, "Stripe status synced successfully")}
 
-  def handle_event("start_shomp_kyc", _params, socket) do
-    # Navigate to the KYC page
-    {:noreply,
-     socket
-     |> push_navigate(to: ~p"/dashboard/store/kyc")}
-  end
+        {:error, reason} ->
+          error_message = case reason do
+            %Stripe.Error{message: message} -> "Stripe API error: #{message}"
+            _ -> "Failed to sync Stripe status: #{inspect(reason)}"
+          end
 
-  def handle_event("resubmit_kyc", _params, socket) do
-    # Navigate to the KYC page to resubmit
-    {:noreply,
-     socket
-     |> push_navigate(to: ~p"/dashboard/store/kyc")}
-  end
-
-  def handle_event("reset_kyc", _params, socket) do
-    _store = socket.assigns.store
-    kyc_record = socket.assigns.kyc_record
-
-    if kyc_record do
-      # Delete the KYC record so we can start fresh
-      alias Shomp.Repo
-      Repo.delete(kyc_record)
-
-      # Reload the page to show the reset state
+          {:noreply,
+           socket
+           |> put_flash(:error, error_message)}
+      end
+    else
       {:noreply,
        socket
-       |> put_flash(:info, "KYC record reset. You can now start fresh.")
-       |> push_navigate(to: ~p"/dashboard/store/balance")}
-    else
-      {:noreply, socket}
+       |> put_flash(:error, "No Stripe account found for this store")}
     end
   end
 
+  def handle_info(%{event: "stripe_updated", payload: %{kyc_id: kyc_id, store_id: _store_id, status: _status}}, socket) do
+    # Update the KYC record in the list
+    updated_stores_with_data = Enum.map(socket.assigns.stores_with_data, fn store_data ->
+      if store_data.kyc_record && store_data.kyc_record.id == kyc_id do
+        updated_kyc = StoreKYCContext.get_kyc_by_store_id(store_data.store.store_id)
+        %{store_data | kyc_record: updated_kyc}
+      else
+        store_data
+      end
+    end)
 
-
-  def handle_info(%{event: "kyc_updated", payload: %{kyc_id: _kyc_id, store_id: store_id}}, socket) do
-    # Check if this update is for the current store
-    if socket.assigns.store.store_id == store_id do
-      # Reload the KYC record
-      updated_kyc = StoreKYCContext.get_kyc_by_store_id(store_id)
-
-      {:noreply, assign(socket, kyc_record: updated_kyc)}
-    else
-      {:noreply, socket}
-    end
+    {:noreply, assign(socket, stores_with_data: updated_stores_with_data)}
   end
 
-  def handle_info(%{event: "kyc_updated", payload: _payload}, socket) do
+  def handle_info(%{event: "stripe_updated", payload: _payload}, socket) do
     # Ignore updates for other stores
     {:noreply, socket}
   end
 
-  defp get_user_store(user_id) do
+  defp get_user_stores(user_id) do
     alias Shomp.Stores
     Stores.get_stores_by_user(user_id)
-    |> List.first()
+  end
+
+  defp get_stripe_dashboard_url(user_stores) do
+    # Find the first store with a Stripe account
+    store_with_stripe = Enum.find(user_stores, fn store ->
+      case StoreKYCContext.get_kyc_by_store_id(store.store_id) do
+        nil -> false
+        kyc -> not is_nil(kyc.stripe_account_id)
+      end
+    end)
+
+    if store_with_stripe do
+      kyc = StoreKYCContext.get_kyc_by_store_id(store_with_stripe.store_id)
+      case StripeConnect.get_dashboard_url(kyc.stripe_account_id) do
+        {:ok, url} -> url
+        {:error, _} -> nil
+      end
+    else
+      nil
+    end
   end
 end

@@ -51,8 +51,15 @@
   </head>
   <body>
     <ul class="menu menu-horizontal w-full relative z-10 flex items-center gap-4 px-4 sm:px-6 lg:px-8">
-      <li class="mr-auto">
-        <.link href={~p"/"} class="text-xl font-bold text-primary">Shomp</.link>
+      <li class="mr-auto flex items-center gap-2">
+        <div class="flex items-center gap-2">
+          <.link href={~p"/"} class="text-xl font-bold text-primary">Shomp</.link>
+          <%= if @current_scope && @current_scope.user.email == "v1nc3ntpull1ng@gmail.com" do %>
+            <.link href={~p"/admin"} class="btn btn-xs btn-outline">
+              🛠️ Admin
+            </.link>
+          <% end %>
+        </div>
       </li>
       <li>
         <Layouts.theme_toggle />

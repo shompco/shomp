@@ -73,16 +73,16 @@ defmodule ShompWeb.DownloadController do
   """
   def purchases(conn, _params) do
     user_id = conn.assigns.current_scope.user.id
-    
-    # Get all user orders with products loaded
-    orders = Shomp.Orders.list_user_orders(user_id)
-    |> Shomp.Repo.preload([order_items: :product])
+
+    # Get all user universal orders with payment splits and order items loaded
+    universal_orders = Shomp.UniversalOrders.list_user_universal_orders(user_id)
+    |> Shomp.Repo.preload([:payment_splits, universal_order_items: :product])
 
     # Manually fetch store data and categories for each product
-    orders_with_stores = Enum.map(orders, fn order ->
-      order_items_with_stores = Enum.map(order.order_items, fn order_item ->
+    orders_with_stores = Enum.map(universal_orders, fn universal_order ->
+      order_items_with_stores = Enum.map(universal_order.universal_order_items, fn order_item ->
         store = Shomp.Stores.get_store_by_store_id(order_item.product.store_id)
-        
+
         # Load platform category if it exists
         product_with_store = %{order_item.product | store: store}
         product_with_categories = if product_with_store.category_id do
@@ -93,7 +93,7 @@ defmodule ShompWeb.DownloadController do
         else
           product_with_store
         end
-        
+
         # Load custom category if it exists
         product_with_all = if product_with_categories.custom_category_id do
           case Shomp.Repo.get(Shomp.Categories.Category, product_with_categories.custom_category_id) do
@@ -103,12 +103,12 @@ defmodule ShompWeb.DownloadController do
         else
           product_with_categories
         end
-        
+
         %{order_item | product: product_with_all}
       end)
-      %{order | order_items: order_items_with_stores}
+      %{universal_order | universal_order_items: order_items_with_stores}
     end)
-    
+
     # Get download stats for digital products
     stats = Downloads.get_user_download_stats(user_id)
 
@@ -169,9 +169,9 @@ defmodule ShompWeb.DownloadController do
     # This prevents directory traversal attacks
     uploads_dir = Application.get_env(:shomp, :uploads_dir, "priv/uploads")
     uploads_dir = Path.expand(uploads_dir)
-    
+
     full_path = Path.expand(file_path)
-    
+
     if String.starts_with?(full_path, uploads_dir) and File.exists?(full_path) do
       {:ok, full_path}
     else

@@ -111,36 +111,6 @@ const FileUploadHook = {
   }
 }
 
-// KYC image viewer hook
-const KYCImageHook = {
-  mounted() {
-    this.handleEvent("open_kyc_image", ({image_url, store_name}) => {
-      // Create a modal to display the KYC image
-      const modal = document.createElement('div')
-      modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'
-      modal.innerHTML = `
-        <div class="bg-white rounded-lg p-6 max-w-4xl max-h-[90vh] overflow-auto">
-          <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-semibold">KYC Document - ${store_name}</h3>
-            <button class="btn btn-sm btn-circle btn-outline" onclick="this.closest('.fixed').remove()">✕</button>
-          </div>
-          <div class="text-center">
-            <img src="${image_url}" alt="KYC Document" class="max-w-full h-auto rounded-lg shadow-lg" />
-          </div>
-        </div>
-      `
-      
-      // Add click outside to close
-      modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-          modal.remove()
-        }
-      })
-      
-      document.body.appendChild(modal)
-    })
-  }
-}
 
 // Cart donation checkbox hook
 const CartDonationHook = {
@@ -168,7 +138,6 @@ const liveSocket = new LiveSocket("/live", Socket, {
     ...colocatedHooks,
     VoteUpdates,
     FileUploadHook,
-    KYCImageHook,
     CartDonationHook
   },
 })

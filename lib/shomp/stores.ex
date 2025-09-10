@@ -178,19 +178,25 @@ defmodule Shomp.Stores do
 
   """
   def create_store(attrs \\ %{}) do
+    IO.puts("=== CREATING STORE ===")
+    IO.puts("Store attributes: #{inspect(attrs)}")
+
     case %Store{}
          |> Store.create_changeset(attrs)
          |> Repo.insert() do
       {:ok, store} = result ->
-        # Create Stripe Connected Account immediately when store is created
-        # This is more conservative - only create accounts for users who actually want to sell
-        case create_stripe_connected_account(store) do
+        IO.puts("✅ Store created successfully: #{store.store_id}")
+        IO.puts("Store user ID: #{store.user_id}")
+
+        # Always create Stripe Connected Account when store is created
+        # This ensures every store has a Stripe account (even if restricted)
+        case create_stripe_connected_account_for_new_store(store) do
           {:ok, stripe_account_id} ->
-            IO.puts("Created Stripe Connected Account: #{stripe_account_id} for store: #{store.store_id}")
+            IO.puts("✅ Successfully created/linked Stripe account #{stripe_account_id} for store #{store.store_id}")
           {:error, reason} ->
-            IO.puts("Failed to create Stripe Connected Account for store #{store.store_id}: #{inspect(reason)}")
-            # Don't fail store creation if Stripe account creation fails
-            # The store can still be created and Stripe account created later
+            IO.puts("❌ CRITICAL: Failed to create Stripe account for store #{store.store_id}: #{inspect(reason)}")
+            # Log this as a critical error since every store needs a Stripe account
+            # The store was created but without Stripe integration
         end
 
         # Broadcast to admin dashboard
@@ -303,13 +309,13 @@ defmodule Shomp.Stores do
   # Public functions
 
   @doc """
-  Ensures a Stripe Connected Account exists for a store.
-  Creates one if it doesn't exist.
+  Gets the Stripe Connected Account for a store.
+  Returns the user's existing Stripe account (created at store creation).
   """
   def ensure_stripe_connected_account(store_id) do
     store = get_store_by_store_id(store_id)
     if store do
-      create_stripe_connected_account(store)
+      get_stripe_connected_account(store)
     else
       {:error, :store_not_found}
     end
@@ -336,16 +342,41 @@ defmodule Shomp.Stores do
     end
   end
 
+
+  @doc """
+  Gets all stores that don't have Stripe accounts.
+  Useful for identifying stores that need Stripe account creation.
+  """
+  def get_stores_without_stripe_accounts do
+    from(s in Store,
+      left_join: k in Shomp.Stores.StoreKYC, on: s.id == k.store_id,
+      where: is_nil(k.stripe_account_id),
+      select: s
+    )
+    |> Repo.all()
+  end
+
   # Private functions
 
-  defp create_stripe_connected_account(store) do
+  defp create_stripe_connected_account_for_new_store(store) do
+    IO.puts("=== CREATING STRIPE CONNECTED ACCOUNT FOR NEW STORE ===")
+    IO.puts("Store ID: #{store.store_id}")
+    IO.puts("User ID: #{store.user_id}")
+
+    # Get user email from the user_id since the user association might not be loaded
+    user = Shomp.Accounts.get_user!(store.user_id)
+    IO.puts("User Email: #{user.email}")
+
     # Check if user already has a Stripe account (across all their stores)
     existing_kyc = StoreKYCContext.get_kyc_by_user_id(store.user_id)
+    IO.puts("Existing KYC: #{inspect(existing_kyc)}")
 
     if existing_kyc && existing_kyc.stripe_account_id do
       # User already has a Stripe account, just link this store to it
+      IO.puts("Linking new store #{store.store_id} to existing Stripe account: #{existing_kyc.stripe_account_id}")
+
       case StoreKYCContext.create_kyc(%{
-        store_id: store.store_id,
+        store_id: store.id,  # Use integer ID for foreign key
         stripe_account_id: existing_kyc.stripe_account_id,
         status: existing_kyc.status,
         charges_enabled: existing_kyc.charges_enabled,
@@ -353,22 +384,22 @@ defmodule Shomp.Stores do
         onboarding_completed: existing_kyc.onboarding_completed
       }) do
         {:ok, _kyc} ->
+          IO.puts("Successfully linked new store #{store.store_id} to existing Stripe account")
           {:ok, existing_kyc.stripe_account_id}
         {:error, reason} ->
-          IO.puts("Failed to link store to existing Stripe account: #{inspect(reason)}")
+          IO.puts("Failed to link new store to existing Stripe account: #{inspect(reason)}")
           {:error, reason}
       end
     else
       # Create a new Stripe Express account for this user
+      IO.puts("Creating new Stripe Express account for user #{user.email}")
+
       case Stripe.Account.create(%{
         type: "express",
         country: "US",  # Default to US, can be made configurable later
-        email: store.user.email,
+        email: user.email,
         business_type: "individual",
-        capabilities: %{
-          card_payments: %{requested: true},
-          transfers: %{requested: true}
-        },
+        requested_capabilities: ["card_payments", "transfers"],
         settings: %{
           payouts: %{
             schedule: %{
@@ -378,9 +409,11 @@ defmodule Shomp.Stores do
         }
       }) do
         {:ok, stripe_account} ->
+          IO.puts("Created Stripe account: #{stripe_account.id}")
+
           # Create KYC record for this store with the new Stripe account ID
           case StoreKYCContext.create_kyc(%{
-            store_id: store.store_id,
+            store_id: store.id,  # Use integer ID for foreign key
             stripe_account_id: stripe_account.id,
             status: "pending",
             charges_enabled: false,
@@ -388,6 +421,7 @@ defmodule Shomp.Stores do
             onboarding_completed: false
           }) do
             {:ok, _kyc} ->
+              IO.puts("Successfully created KYC record for new store #{store.store_id}")
               {:ok, stripe_account.id}
             {:error, reason} ->
               IO.puts("Failed to create KYC record: #{inspect(reason)}")
@@ -398,6 +432,27 @@ defmodule Shomp.Stores do
           IO.puts("Failed to create Stripe account: #{inspect(reason)}")
           {:error, reason}
       end
+    end
+  end
+
+  defp get_stripe_connected_account(store) do
+    IO.puts("=== GETTING STRIPE CONNECTED ACCOUNT ===")
+    IO.puts("Store ID: #{store.store_id}")
+    IO.puts("User ID: #{store.user_id}")
+
+    # Get the user's Stripe account (should already exist from store creation)
+    existing_kyc = StoreKYCContext.get_kyc_by_user_id(store.user_id)
+    IO.puts("Existing KYC for user: #{inspect(existing_kyc)}")
+
+    if existing_kyc && existing_kyc.stripe_account_id do
+      # User has a Stripe account, return it
+      IO.puts("Found existing Stripe account: #{existing_kyc.stripe_account_id}")
+      {:ok, existing_kyc.stripe_account_id}
+    else
+      # This should never happen if stores are created properly
+      IO.puts("ERROR: No Stripe account found for user #{store.user_id}")
+      IO.puts("This indicates a problem with store creation - every store should have a Stripe account")
+      {:error, :no_stripe_account}
     end
   end
 end

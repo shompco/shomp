@@ -44,7 +44,7 @@ defmodule Shomp.UniversalOrders.UniversalOrder do
     universal_order
     |> cast(attrs, [:universal_order_id, :user_id, :stripe_payment_intent_id, :total_amount, :platform_fee_amount, :status, :payment_status, :billing_address_id, :shipping_address_id, :customer_email, :customer_name, :shipping_address_line1, :shipping_address_line2, :shipping_address_city, :shipping_address_state, :shipping_address_postal_code, :shipping_address_country])
     |> validate_required([:universal_order_id, :user_id, :stripe_payment_intent_id, :total_amount, :customer_email, :customer_name])
-    |> validate_format(:customer_email, ~r/^[^\s]+@[^\s]+\.[^\s]+$/, message: "must be a valid email address")
+    |> validate_format(:customer_email, ~r/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/, message: "must be a valid email address")
     |> validate_length(:customer_name, min: 2, max: 100)
     |> validate_inclusion(:status, ["pending", "processing", "completed", "cancelled"])
     |> validate_inclusion(:payment_status, ["pending", "paid", "failed", "refunded", "partially_refunded"])

@@ -4,26 +4,22 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
   on_mount {ShompWeb.UserAuth, :mount_current_scope}
 
   alias Shomp.Products
-  alias Shomp.Stores
-  alias Shomp.UniversalOrders
-  alias Shomp.PaymentSplits
-  alias Shomp.UniversalOrderItems
 
   @impl true
   def mount(%{"product_id" => product_id} = params, _session, socket) do
     product = Products.get_product_with_store!(product_id)
-    
+
     # Get donation preference from URL params or default to true
     donate = case params["donate"] do
       "true" -> true
       "false" -> false
       _ -> true
     end
-    
+
     # Get referrer information
     from = params["from"] || "unknown"
     store_slug = params["store"]
-    
+
     # Calculate amounts
     platform_fee_rate = Decimal.new("0.05")
     platform_fee_amount = if donate do
@@ -36,11 +32,11 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
     else
       product.price
     end
-    
+
     # Generate universal order ID
     universal_order_id = generate_universal_order_id()
-    
-    socket = assign(socket, 
+
+    socket = assign(socket,
       product: product,
       platform_fee_rate: platform_fee_rate,
       platform_fee_amount: platform_fee_amount,
@@ -53,7 +49,7 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
       from: from,
       store_slug: store_slug
     )
-    
+
     {:ok, socket}
   end
 
@@ -67,14 +63,14 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
           <div class="flex items-center justify-between">
             <h1 class="text-2xl font-bold text-base-content">Checkout</h1>
             <%= if @from == "cart" do %>
-              <.link 
+              <.link
                 navigate={~p"/cart"}
                 class="text-primary hover:text-primary-focus transition-colors"
               >
                 ← Back to Cart
               </.link>
             <% else %>
-              <.link 
+              <.link
                 navigate={~p"/stores/#{@product.store.slug}"}
                 class="text-primary hover:text-primary-focus transition-colors"
               >
@@ -91,12 +87,12 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
           <div class="space-y-6">
             <div class="bg-base-200 rounded-2xl p-6">
               <h2 class="text-xl font-semibold text-base-content mb-4">Order Summary</h2>
-              
+
               <!-- Product Info -->
               <div class="flex space-x-4 mb-4">
                 <%= if @product.image_thumb do %>
-                  <img 
-                    src={@product.image_thumb} 
+                  <img
+                    src={@product.image_thumb}
                     alt={@product.title}
                     class="w-16 h-16 object-cover rounded-lg"
                   />
@@ -127,11 +123,11 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
             <!-- Donation Toggle -->
             <div class="bg-base-200 rounded-2xl p-6">
               <div class="flex items-center space-x-3">
-                <input 
-                  type="checkbox" 
-                  id="donate_checkbox" 
+                <input
+                  type="checkbox"
+                  id="donate_checkbox"
                   checked={@donate}
-                  class="checkbox checkbox-primary" 
+                  class="checkbox checkbox-primary"
                 />
                 <label for="donate_checkbox" class="text-base-content/80 cursor-pointer">
                   <span class="font-medium">Support Shomp</span>
@@ -149,7 +145,7 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
               <h2 class="text-xl font-semibold text-base-content mb-4">
                 <%= if @product.type == "physical", do: "Shipping & Payment Details", else: "Payment Details" %>
               </h2>
-              
+
               <!-- Customer Information Form -->
               <div class="space-y-6 mb-6">
                 <!-- Name and Email Section -->
@@ -160,24 +156,26 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
                       <label class="block text-sm font-medium text-base-content mb-2">
                         Full Name *
                       </label>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         id="customer-name"
                         required
                         class="input input-bordered w-full"
                         placeholder="John Doe"
+                        value={@current_scope.user.name || ""}
                       />
                     </div>
                     <div>
                       <label class="block text-sm font-medium text-base-content mb-2">
                         Email Address *
                       </label>
-                      <input 
-                        type="email" 
+                      <input
+                        type="email"
                         id="customer-email"
                         required
                         class="input input-bordered w-full"
                         placeholder="your@email.com"
+                        value={@current_scope.user.email}
                       />
                     </div>
                   </div>
@@ -190,72 +188,72 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
                 <%= if @product.type == "physical" do %>
                   <div>
                     <h3 class="text-lg font-medium text-base-content mb-4">Shipping Address</h3>
-                    
+
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label class="block text-sm font-medium text-base-content mb-2">
                           Address Line 1 *
                         </label>
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           id="address-line1"
                           required
                           class="input input-bordered w-full"
                           placeholder="123 Main Street"
                         />
                       </div>
-                      
+
                       <div>
                         <label class="block text-sm font-medium text-base-content mb-2">
                           Address Line 2
                         </label>
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           id="address-line2"
                           class="input input-bordered w-full"
                           placeholder="Apt 4B"
                         />
                       </div>
-                      
+
                       <div>
                         <label class="block text-sm font-medium text-base-content mb-2">
                           City *
                         </label>
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           id="city"
                           required
                           class="input input-bordered w-full"
                           placeholder="New York"
                         />
                       </div>
-                      
+
                       <div>
                         <label class="block text-sm font-medium text-base-content mb-2">
                           State/Province *
                         </label>
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           id="state"
                           required
                           class="input input-bordered w-full"
                           placeholder="NY"
                         />
                       </div>
-                      
+
                       <div>
                         <label class="block text-sm font-medium text-base-content mb-2">
                           Postal Code *
                         </label>
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           id="postal-code"
                           required
                           class="input input-bordered w-full"
                           placeholder="10001"
                         />
                       </div>
-                      
+
                       <div>
                         <label class="block text-sm font-medium text-base-content mb-2">
                           Country *
@@ -315,12 +313,12 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
                   </div>
                 </div>
               </div>
-              
+
               <!-- Payment Button -->
               <div class="space-y-4">
 
                 <!-- Payment Button -->
-                <button 
+                <button
                   id="submit-payment"
                   type="button"
                   disabled={@payment_status == "processing"}
@@ -363,41 +361,41 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
       <script>
         console.log('=== STRIPE CHECKOUT DEBUG ===');
         console.log('Script loaded at:', new Date().toISOString());
-        
+
         // Global variables for Stripe
         let stripe, cardElement;
-        
+
         // Simple test function
         function testStripe() {
           console.log('Testing Stripe availability...');
           console.log('Stripe available:', typeof Stripe !== 'undefined');
           console.log('Document ready:', document.readyState);
           console.log('Card container exists:', !!document.getElementById('card-element'));
-          
+
           if (typeof Stripe !== 'undefined') {
             console.log('Stripe object:', Stripe);
             const publishableKey = '<%= Application.get_env(:shomp, :stripe_publishable_key) %>';
             console.log('Publishable key:', publishableKey);
-            
+
             if (publishableKey && publishableKey !== '') {
               try {
                 stripe = Stripe(publishableKey);
                 console.log('Stripe instance created successfully');
-                
+
                 const elements = stripe.elements();
                 console.log('Elements created successfully');
-                
+
                 cardElement = elements.create('card');
                 console.log('Card element created successfully');
-                
+
                 const container = document.getElementById('card-element');
                 if (container) {
                   cardElement.mount('#card-element');
                   console.log('Card element mounted successfully!');
-                  
+
                   // Set up payment button
                   setupPaymentButton();
-                  
+
                   // Test if element is visible
                   setTimeout(() => {
                     const mountedElement = document.querySelector('#card-element .StripeElement');
@@ -406,7 +404,7 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
                       console.log('Element dimensions:', mountedElement.getBoundingClientRect());
                     }
                   }, 1000);
-                  
+
                 } else {
                   console.error('Card container not found!');
                 }
@@ -420,7 +418,7 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
             console.error('Stripe library not loaded!');
           }
         }
-        
+
         // Set up payment button event listener
         function setupPaymentButton() {
           const submitButton = document.getElementById('submit-payment');
@@ -431,7 +429,7 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
             console.error('Payment button not found');
           }
         }
-        
+
         // Collect form data
         function collectFormData() {
           const formData = {
@@ -441,9 +439,9 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
             customer_email: document.getElementById('customer-email').value,
             customer_name: document.getElementById('customer-name').value
           };
-          
+
           // Add shipping address for physical products
-          <% if @product.type == "physical" do %>
+          <%= if @product.type == "physical" do %>
           formData.shipping_address = {
             line1: document.getElementById('address-line1').value,
             line2: document.getElementById('address-line2').value,
@@ -453,77 +451,90 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
             country: document.getElementById('country').value
           };
           <% end %>
-          
+
           return formData;
         }
-        
+
         // Validate form data
         function validateFormData(formData) {
           const errors = [];
-          
+
           // Email validation
           if (!formData.customer_email) {
             errors.push('Email address is required');
           } else if (!formData.customer_email.includes('@') || !formData.customer_email.includes('.')) {
             errors.push('Please enter a valid email address (e.g., user@example.com)');
           }
-          
+
           // Name validation
           if (!formData.customer_name) {
             errors.push('Full name is required');
           } else if (formData.customer_name.trim().length < 2) {
             errors.push('Please enter your full name (at least 2 characters)');
           }
-          
-          <% if @product.type == "physical" do %>
+
+          <%= if @product.type == "physical" do %>
           // Shipping address validation
           if (!formData.shipping_address.line1) {
             errors.push('Street address is required');
           } else if (formData.shipping_address.line1.trim().length < 5) {
             errors.push('Please enter a complete street address');
           }
-          
+
           if (!formData.shipping_address.city) {
             errors.push('City is required');
           } else if (formData.shipping_address.city.trim().length < 2) {
             errors.push('Please enter a valid city name');
           }
-          
+
           if (!formData.shipping_address.state) {
             errors.push('State/Province is required');
           } else if (formData.shipping_address.state.trim().length < 2) {
             errors.push('Please enter a valid state or province');
           }
-          
+
           if (!formData.shipping_address.postal_code) {
             errors.push('Postal code is required');
           } else if (formData.shipping_address.postal_code.trim().length < 3) {
             errors.push('Please enter a valid postal code');
           }
-          
+
           if (!formData.shipping_address.country) {
             errors.push('Please select a country');
           }
           <% end %>
-          
+
           return errors;
         }
-        
+
         // Handle payment submission
         async function handlePayment(event) {
           event.preventDefault();
-          
+
+          console.log('=== PAYMENT SUBMISSION STARTED ===');
+          console.log('Event:', event);
+          console.log('Timestamp:', new Date().toISOString());
+
           const submitButton = document.getElementById('submit-payment');
           if (!submitButton || !stripe || !cardElement) {
             console.error('Payment system not ready');
+            console.error('Submit button exists:', !!submitButton);
+            console.error('Stripe exists:', !!stripe);
+            console.error('Card element exists:', !!cardElement);
             return;
           }
-          
+
           // Collect and validate form data
+          console.log('Collecting form data...');
           const formData = collectFormData();
+          console.log('Form data collected:', formData);
+
+          console.log('Validating form data...');
           const validationErrors = validateFormData(formData);
-          
+          console.log('Validation errors:', validationErrors);
+
           if (validationErrors.length > 0) {
+            console.error('Validation failed:', validationErrors);
             const displayError = document.getElementById('card-errors');
             if (displayError) {
               displayError.textContent = 'Please fix the following errors: ' + validationErrors.join(', ');
@@ -531,18 +542,22 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
             }
             return;
           }
-          
+
           // Clear any previous errors
           const displayError = document.getElementById('card-errors');
           if (displayError) {
             displayError.textContent = '';
           }
-          
+
           // Disable button
           submitButton.disabled = true;
           submitButton.textContent = 'Processing...';
-          
+
           try {
+            console.log('Creating payment intent...');
+            console.log('Request URL:', '/api/create-payment-intent');
+            console.log('Request body:', JSON.stringify(formData, null, 2));
+
             // Create payment intent
             const response = await fetch('/api/create-payment-intent', {
               method: 'POST',
@@ -552,21 +567,40 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
               },
               body: JSON.stringify(formData)
             });
-            
+
+            console.log('Response received:', response);
+            console.log('Response status:', response.status);
+            console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
             const data = await response.json();
-            
+            console.log('Response data:', data);
+
             if (data.error) {
+              console.error('Server error:', data.error);
               throw new Error(data.error);
             }
-            
+
+            console.log('Payment intent created successfully');
+            console.log('Client secret:', data.client_secret);
+            console.log('Payment intent ID:', data.payment_intent_id);
+
             // Confirm payment
+            console.log('Confirming payment with Stripe...');
+            console.log('Billing details:', {
+              name: formData.customer_name,
+              email: formData.customer_email,
+              <%= if @product.type == "physical" do %>
+              address: formData.shipping_address
+              <% end %>
+            });
+
             const result = await stripe.confirmCardPayment(data.client_secret, {
               payment_method: {
                 card: cardElement,
                 billing_details: {
                   name: formData.customer_name,
                   email: formData.customer_email,
-                  <% if @product.type == "physical" do %>
+                  <%= if @product.type == "physical" do %>
                   address: {
                     line1: formData.shipping_address.line1,
                     line2: formData.shipping_address.line2,
@@ -579,34 +613,49 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
                 }
               }
             });
-            
+
+            console.log('Stripe confirmation result:', result);
+
             if (result.error) {
+              console.error('Stripe error:', result.error);
+              console.error('Error code:', result.error.code);
+              console.error('Error type:', result.error.type);
+              console.error('Error message:', result.error.message);
+              console.error('Error decline_code:', result.error.decline_code);
+
               const displayError = document.getElementById('card-errors');
               if (displayError) {
                 displayError.textContent = result.error.message;
               }
-              
+
               // Re-enable button
               submitButton.disabled = false;
               updateButtonText();
             } else {
+              console.log('Payment succeeded!');
+              console.log('Payment intent:', result.paymentIntent);
               // Payment succeeded - redirect to processing page
               window.location.href = '/checkout/processing/' + result.paymentIntent.id;
             }
-            
+
           } catch (error) {
-            console.error('Payment error:', error);
+            console.error('=== PAYMENT ERROR ===');
+            console.error('Error name:', error.name);
+            console.error('Error message:', error.message);
+            console.error('Error stack:', error.stack);
+            console.error('Full error object:', error);
+
             const displayError = document.getElementById('card-errors');
             if (displayError) {
               displayError.textContent = error.message;
             }
-            
+
             // Re-enable button
             submitButton.disabled = false;
             updateButtonText();
           }
         }
-        
+
         // Function to update button text based on donation state
         function updateButtonText() {
           const donateCheckbox = document.getElementById('donate_checkbox');
@@ -625,7 +674,7 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
           const totalRow = document.querySelector('.total-row');
           const productPrice = <%= Decimal.to_float(@product.price) %>;
           const donationAmount = productPrice * 0.05;
-          
+
           if (donateCheckbox && donateCheckbox.checked) {
             // Show donation row and update amounts
             if (donationRow) {
@@ -655,7 +704,7 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
               }
             }
           }
-          
+
           updateButtonText();
         }
 
@@ -679,7 +728,7 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
           testStripe();
           setupDonationToggle();
         }
-        
+
         // Fallback test
         setTimeout(function() {
           testStripe();

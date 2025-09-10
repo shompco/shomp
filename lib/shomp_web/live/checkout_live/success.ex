@@ -14,7 +14,7 @@ defmodule ShompWeb.CheckoutLive.Success do
 
   def mount(_params, _session, socket) do
     # Fallback if no payment_intent provided
-    {:ok, 
+    {:ok,
      socket
      |> put_flash(:error, "No payment information found")
      |> push_navigate(to: ~p"/")}
@@ -25,22 +25,22 @@ defmodule ShompWeb.CheckoutLive.Success do
       # Look up the universal order
       case UniversalOrders.get_universal_order_by_payment_intent(payment_intent_id) do
         nil ->
-          {:ok, 
+          {:ok,
            socket
            |> put_flash(:error, "Order not found")
            |> push_navigate(to: ~p"/")}
-        
+
         universal_order ->
           # Get payment splits for this order
           payment_splits = PaymentSplits.list_payment_splits_by_universal_order(universal_order.id)
-          
-          {:ok, assign(socket, 
+
+          {:ok, assign(socket,
             universal_order: universal_order,
             payment_splits: payment_splits
           )}
       end
     else
-      {:ok, 
+      {:ok,
        socket
        |> put_flash(:error, "No payment information found")
        |> push_navigate(to: ~p"/")}
@@ -74,25 +74,25 @@ defmodule ShompWeb.CheckoutLive.Success do
           <div class="space-y-6">
             <div class="bg-base-200 rounded-2xl p-6">
               <h2 class="text-xl font-semibold text-base-content mb-4">Order Details</h2>
-              
+
               <div class="space-y-3">
                 <div class="flex justify-between">
                   <span class="text-base-content/70">Order ID</span>
                   <span class="font-mono text-sm"><%= @universal_order.universal_order_id %></span>
                 </div>
-                
+
                 <div class="flex justify-between">
                   <span class="text-base-content/70">Total Amount</span>
                   <span class="font-semibold">$<%= @universal_order.total_amount %></span>
                 </div>
-                
+
                 <%= if Decimal.gt?(@universal_order.platform_fee_amount, 0) do %>
                   <div class="flex justify-between">
                     <span class="text-base-content/70">Donation to Shomp</span>
                     <span>$<%= @universal_order.platform_fee_amount %></span>
                   </div>
                 <% end %>
-                
+
                 <div class="flex justify-between">
                   <span class="text-base-content/70">Status</span>
                   <span class="badge badge-success">Paid</span>
@@ -124,7 +124,7 @@ defmodule ShompWeb.CheckoutLive.Success do
           <div class="space-y-6">
             <div class="bg-base-200 rounded-2xl p-6">
               <h2 class="text-xl font-semibold text-base-content mb-4">Payment Breakdown</h2>
-              
+
               <div class="space-y-4">
                 <%= for payment_split <- @payment_splits do %>
                   <div class="border border-base-300 rounded-lg p-4">
@@ -132,14 +132,14 @@ defmodule ShompWeb.CheckoutLive.Success do
                       <span class="font-medium text-base-content">Store Payment</span>
                       <span class="font-semibold">$<%= payment_split.store_amount %></span>
                     </div>
-                    
+
                     <%= if Decimal.gt?(payment_split.platform_fee_amount, 0) do %>
                       <div class="flex justify-between items-center text-sm text-base-content/70">
                         <span>Donation to Shomp (5%)</span>
                         <span>$<%= payment_split.platform_fee_amount %></span>
                       </div>
                     <% end %>
-                    
+
                     <div class="flex justify-between items-center text-sm text-base-content/70 mt-2 pt-2 border-t border-base-300">
                       <span>Total to Store</span>
                       <span>$<%= payment_split.total_amount %></span>
@@ -152,12 +152,12 @@ defmodule ShompWeb.CheckoutLive.Success do
             <!-- Actions -->
             <div class="space-y-3">
               <.link
-                navigate={~p"/dashboard/orders"}
+                navigate={~p"/purchases"}
                 class="w-full bg-primary hover:bg-primary-focus text-primary-content font-semibold py-3 px-6 rounded-lg text-center block transition-colors"
               >
-                View All Orders
+                View All Purchases
               </.link>
-              
+
               <.link
                 navigate={~p"/stores"}
                 class="w-full bg-base-300 hover:bg-base-400 text-base-content font-semibold py-3 px-6 rounded-lg text-center block transition-colors"

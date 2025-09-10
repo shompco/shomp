@@ -667,8 +667,7 @@ defmodule Shomp.Payments do
         payment_splits = PaymentSplits.list_payment_splits_by_universal_order(universal_order.id)
         IO.puts("Found #{length(payment_splits)} payment splits")
 
-        # For direct transfers, Stripe handles the transfer automatically
-        # For escrow payments, update the store's pending balance
+        # Process payment splits - all are now direct transfers to Stripe accounts
         Enum.each(payment_splits, fn payment_split ->
           if payment_split.is_escrow do
             IO.puts("Processing escrow payment for store #{payment_split.store_id}")
@@ -679,14 +678,17 @@ defmodule Shomp.Payments do
               transfer_status: "escrow"
             })
           else
-            IO.puts("Direct transfer handled automatically by Stripe for store #{payment_split.store_id}")
+            IO.puts("Direct transfer to Stripe account for store #{payment_split.store_id}")
+            IO.puts("Store amount: #{payment_split.store_amount}")
+            IO.puts("Platform fee: #{payment_split.platform_fee_amount}")
 
-            # Update payment split status
+            # Update payment split status to succeeded
+            # Stripe automatically handles the transfer and platform fee collection
             PaymentSplits.update_payment_split(payment_split, %{
               transfer_status: "succeeded"
             })
 
-            # Update store's available balance
+            # Update store's available balance (for tracking purposes)
             update_store_available_balance(payment_split.store_id, payment_split.store_amount)
           end
         end)
@@ -1096,7 +1098,7 @@ defmodule Shomp.Payments do
     IO.puts("=== PROCESSING STORE PAYOUT ===")
     IO.puts("Store ID: #{store_id}")
 
-    # Get store's KYC info
+    # Get store's Stripe KYC info
     case Shomp.Stores.StoreKYCContext.get_kyc_by_store_id(store_id) do
       nil ->
         {:error, :no_kyc_record}
@@ -1104,10 +1106,7 @@ defmodule Shomp.Payments do
       kyc when is_nil(kyc.stripe_account_id) ->
         {:error, :no_stripe_account}
 
-      kyc when kyc.status != "verified" ->
-        {:error, :kyc_not_verified}
-
-      kyc when not kyc.charges_enabled or not kyc.payouts_enabled ->
+      kyc when not kyc.charges_enabled or not kyc.payouts_enabled or not kyc.onboarding_completed ->
         {:error, :stripe_not_ready}
 
       kyc ->

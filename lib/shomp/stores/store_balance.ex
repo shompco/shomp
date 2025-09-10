@@ -7,10 +7,6 @@ defmodule Shomp.Stores.StoreBalance do
     field :pending_balance, :decimal, default: Decimal.new(0)
     field :paid_out_balance, :decimal, default: Decimal.new(0)
     field :last_payout_date, :utc_datetime
-    field :kyc_verified, :boolean, default: false
-    field :kyc_verified_at, :utc_datetime
-    field :kyc_documents_submitted, :boolean, default: false
-    field :kyc_submitted_at, :utc_datetime
     
     belongs_to :store, Shomp.Stores.Store
     field :store_data, :map, virtual: true  # Virtual field to hold store data
@@ -21,7 +17,7 @@ defmodule Shomp.Stores.StoreBalance do
   @doc false
   def changeset(store_balance, attrs) do
     store_balance
-    |> cast(attrs, [:total_earnings, :pending_balance, :paid_out_balance, :last_payout_date, :kyc_verified, :kyc_verified_at, :kyc_documents_submitted, :kyc_submitted_at, :store_id])
+    |> cast(attrs, [:total_earnings, :pending_balance, :paid_out_balance, :last_payout_date, :store_id])
     |> validate_required([:store_id])
     |> validate_number(:total_earnings, greater_than_or_equal_to: 0)
     |> validate_number(:pending_balance, greater_than_or_equal_to: 0)
@@ -64,32 +60,13 @@ defmodule Shomp.Stores.StoreBalance do
   end
 
   @doc """
-  Marks KYC documents as submitted.
-  """
-  def kyc_submitted_changeset(store_balance) do
-    store_balance
-    |> change(%{
-      kyc_documents_submitted: true,
-      kyc_submitted_at: DateTime.utc_now() |> DateTime.truncate(:second)
-    })
-  end
-
-  @doc """
-  Marks KYC as verified.
-  """
-  def kyc_verified_changeset(store_balance) do
-    store_balance
-    |> change(%{
-      kyc_verified: true,
-      kyc_verified_at: DateTime.utc_now() |> DateTime.truncate(:second)
-    })
-  end
-
-  @doc """
   Checks if the store is eligible for payouts.
+  Note: This now relies on Stripe Connect KYC status, not local KYC status.
   """
   def eligible_for_payout?(store_balance) do
-    store_balance.kyc_verified and 
+    # Payout eligibility is now determined by Stripe Connect status
+    # This function is kept for backward compatibility but should not be used
+    # Use Stripe Connect status checks instead
     Decimal.gt?(store_balance.pending_balance, Decimal.new(0))
   end
 

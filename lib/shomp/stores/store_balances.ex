@@ -126,20 +126,21 @@ defmodule Shomp.Stores.StoreBalances do
 
   @doc """
   Gets all stores eligible for payouts.
+  Note: This function is deprecated. Use Stripe Connect status checks instead.
   """
   def list_eligible_for_payout do
     StoreBalance
-    |> where([sb], sb.kyc_verified == true and sb.pending_balance > 0)
+    |> where([sb], sb.pending_balance > 0)
     |> preload([:store])
     |> Repo.all()
   end
 
   @doc """
   Gets payout statistics.
+  Note: This function is deprecated. Use Stripe Connect status checks instead.
   """
   def get_payout_stats do
     total_pending = StoreBalance
-    |> where([sb], sb.kyc_verified == true)
     |> select([sb], sum(sb.pending_balance))
     |> Repo.one()
     |> case do
@@ -156,7 +157,7 @@ defmodule Shomp.Stores.StoreBalances do
     end
 
     eligible_stores = StoreBalance
-    |> where([sb], sb.kyc_verified == true and sb.pending_balance > 0)
+    |> where([sb], sb.pending_balance > 0)
     |> Repo.aggregate(:count, :id)
 
     %{
@@ -197,63 +198,4 @@ defmodule Shomp.Stores.StoreBalances do
     |> Repo.all()
   end
 
-  @doc """
-  Updates KYC verification status using string store_id.
-  """
-  def update_kyc_status_by_store_id(store_id_string, verified) do
-    case Stores.get_store_by_store_id(store_id_string) do
-      nil ->
-        {:error, :store_not_found}
-      store ->
-        update_kyc_status(store.id, verified)
-    end
-  end
-
-  @doc """
-  Updates KYC verification status using integer ID.
-  """
-  def update_kyc_status(store_id, verified) do
-    case get_store_balance(store_id) do
-      nil ->
-        {:error, :store_balance_not_found}
-      
-      store_balance ->
-        if verified do
-          store_balance
-          |> StoreBalance.kyc_verified_changeset()
-          |> Repo.update()
-        else
-          store_balance
-          |> StoreBalance.changeset(%{kyc_verified: false, kyc_verified_at: nil})
-          |> Repo.update()
-        end
-    end
-  end
-
-  @doc """
-  Marks KYC documents as submitted using string store_id.
-  """
-  def mark_kyc_submitted_by_store_id(store_id_string) do
-    case Stores.get_store_by_store_id(store_id_string) do
-      nil ->
-        {:error, :store_not_found}
-      store ->
-        mark_kyc_submitted(store.id)
-    end
-  end
-
-  @doc """
-  Marks KYC documents as submitted using integer ID.
-  """
-  def mark_kyc_submitted(store_id) do
-    case get_store_balance(store_id) do
-      nil ->
-        {:error, :store_balance_not_found}
-      
-      store_balance ->
-        store_balance
-        |> StoreBalance.kyc_submitted_changeset()
-        |> Repo.update()
-    end
-  end
 end

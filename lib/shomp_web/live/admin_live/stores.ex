@@ -305,7 +305,7 @@ defmodule ShompWeb.AdminLive.Stores do
 
               <div class="card-actions justify-end">
                 <a href={~p"/stores/#{store.slug}"} class="btn btn-primary btn-sm">View Store</a>
-                <a href={~p"/dashboard/store/kyc"} class="btn btn-outline btn-sm">View KYC</a>
+                <a href={~p"/admin/kyc-verification"} class="btn btn-outline btn-sm">View KYC</a>
                 <button class="btn btn-outline btn-sm">Manage</button>
               </div>
             </div>

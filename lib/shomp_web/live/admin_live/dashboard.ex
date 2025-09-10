@@ -100,7 +100,7 @@ defmodule ShompWeb.AdminLive.Dashboard do
     |> assign(:total_products, count_products())
     |> assign(:total_subscriptions, EmailSubscriptions.count_email_subscriptions())
     |> assign(:active_subscriptions, EmailSubscriptions.count_active_subscriptions())
-    |> assign(:kyc_stats, StoreKYCContext.get_kyc_stats())
+    |> assign(:kyc_stats, StoreKYCContext.get_stripe_kyc_stats())
     |> assign(:open_support_tickets, count_open_support_tickets())
     |> assign(:recent_users, list_recent_users())
     |> assign(:recent_stores, list_recent_stores())
@@ -352,10 +352,10 @@ defmodule ShompWeb.AdminLive.Dashboard do
           link={~p"/admin/email-subscriptions"} />
 
         <.stat_card
-          title="Pending KYC"
-          value={@kyc_stats.pending}
-          icon="🆔"
-          color="warning"
+          title="Stripe Accounts"
+          value={@kyc_stats.with_stripe_account}
+          icon="💳"
+          color="info"
           link={~p"/admin/kyc-verification"} />
       </div>
 

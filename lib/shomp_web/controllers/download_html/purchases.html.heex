@@ -32,7 +32,7 @@
             </div>
             <div class="ml-4">
               <p class="text-sm font-medium text-base-content/70">Total Items</p>
-              <p class="text-2xl font-semibold text-base-content"><%= Enum.reduce(@orders, 0, fn order, acc -> acc + length(order.order_items) end) %></p>
+              <p class="text-2xl font-semibold text-base-content"><%= Enum.reduce(@orders, 0, fn order, acc -> acc + length(order.universal_order_items) end) %></p>
             </div>
           </div>
         </div>
@@ -79,7 +79,7 @@
               <div class="flex items-center justify-between mb-4">
                 <div>
                   <h3 class="text-lg font-medium text-base-content">
-                    Order <%= order.immutable_id %>
+                    Order <%= order.universal_order_id %>
                   </h3>
                   <p class="text-sm text-base-content/70">
                     <%= Calendar.strftime(order.inserted_at, "%B %d, %Y at %I:%M %p") %>
@@ -90,18 +90,13 @@
                     $<%= Decimal.to_string(order.total_amount) %>
                   </p>
                   <div class="flex flex-col gap-1 items-end">
-                    <span class="badge badge-success">
-                      <%= String.capitalize(order.status) %>
-                    </span>
-                    <span class="badge badge-info badge-sm">
-                      <%= String.capitalize(order.fulfillment_status || "unfulfilled") %>
-                    </span>
-                    <span class="badge badge-warning badge-sm">
-                      <%= String.capitalize(order.payment_status || "pending") %>
-                    </span>
-                    <%= if order.shipped_at do %>
-                      <span class="badge badge-primary badge-sm">
-                        Shipped <%= Calendar.strftime(order.shipped_at, "%m/%d") %>
+                    <%= if order.payment_status == "succeeded" do %>
+                      <span class="badge badge-success">
+                        Completed
+                      </span>
+                    <% else %>
+                      <span class="badge badge-warning">
+                        <%= String.capitalize(order.payment_status || "pending") %>
                       </span>
                     <% end %>
                   </div>
@@ -110,7 +105,7 @@
               
               <!-- Order Items -->
               <div class="space-y-3 mb-4">
-                <%= for order_item <- order.order_items do %>
+                <%= for order_item <- order.universal_order_items do %>
                   <div class="flex items-center justify-between py-3 px-4 bg-base-200 rounded-md">
                     <div class="flex items-center space-x-3">
                       <div class="w-10 h-10 bg-base-300 rounded flex items-center justify-center">
@@ -159,9 +154,9 @@
               <!-- Order Actions -->
               <div class="flex items-center justify-between pt-4 border-t border-base-300">
                 <div class="text-sm text-base-content/70">
-                  <%= length(order.order_items) %> item<%= if length(order.order_items) != 1, do: "s", else: "" %>
+                  <%= length(order.universal_order_items) %> item<%= if length(order.universal_order_items) != 1, do: "s", else: "" %>
                 </div>
-                <a href={~p"/orders/#{order.immutable_id}"} class="btn btn-primary btn-sm">
+                <a href={~p"/orders/#{order.universal_order_id}"} class="btn btn-primary btn-sm">
                   View Order Details
                 </a>
               </div>

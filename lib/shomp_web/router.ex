@@ -137,7 +137,6 @@ defmodule ShompWeb.Router do
       live "/dashboard/addresses/:id/edit", AddressLive.Edit, :edit
       live "/dashboard/store", StoreLive.Edit, :edit
       live "/dashboard/store/balance", StoreLive.Balance, :show
-      live "/dashboard/store/kyc", StoreLive.KYC, :show
       live "/dashboard/orders", StoreLive.Orders, :index
       live "/dashboard/products/new", ProductLive.New, :new
       live "/dashboard/products/:id/edit", ProductLive.Edit, :edit
@@ -199,8 +198,6 @@ defmodule ShompWeb.Router do
     delete "/reviews/:id", ReviewController, :delete
     post "/reviews/:review_id/vote", ReviewController, :vote
 
-    # Secure KYC image access
-    get "/kyc-images/:filename", KYCImageController, :show
   end
 
   # User profile routes - must come after admin routes to avoid conflicts

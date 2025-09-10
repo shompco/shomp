@@ -5,11 +5,20 @@ defmodule ShompWeb.PaymentIntentController do
   alias Shomp.Stores
   alias Shomp.UniversalOrders
   alias Shomp.PaymentSplits
-  alias Shomp.UniversalOrderItems
 
   def create(conn, %{"product_id" => product_id, "universal_order_id" => universal_order_id, "donate" => donate, "customer_email" => customer_email, "customer_name" => customer_name} = params) do
+    IO.puts("=== PAYMENT INTENT CONTROLLER DEBUG ===")
+    IO.puts("Received params: #{inspect(params)}")
+    IO.puts("Product ID: #{product_id}")
+    IO.puts("Universal Order ID: #{universal_order_id}")
+    IO.puts("Donate: #{donate}")
+    IO.puts("Customer Email: #{customer_email}")
+    IO.puts("Customer Name: #{customer_name}")
+    IO.puts("User ID: #{conn.assigns.current_scope.user.id}")
+
     # Validate required fields
     if is_nil(customer_email) or customer_email == "" do
+      IO.puts("ERROR: Email address is required but was nil or empty")
       conn
       |> put_status(:bad_request)
       |> json(%{error: "Email address is required"})
@@ -25,8 +34,15 @@ defmodule ShompWeb.PaymentIntentController do
   end
 
   defp process_payment_intent(conn, product_id, universal_order_id, donate, customer_email, customer_name, params) do
+    IO.puts("=== PROCESSING PAYMENT INTENT ===")
     user_id = conn.assigns.current_scope.user.id
+    IO.puts("User ID: #{user_id}")
+
+    IO.puts("Fetching product with ID: #{product_id}")
     product = Products.get_product_with_store!(product_id)
+    IO.puts("Product found: #{product.title}")
+    IO.puts("Product price: #{product.price}")
+    IO.puts("Product store ID: #{product.store_id}")
 
     # Calculate amounts
     platform_fee_rate = Decimal.new("0.05")
@@ -42,6 +58,9 @@ defmodule ShompWeb.PaymentIntentController do
       product.price
     end
 
+    IO.puts("Platform fee amount: #{platform_fee_amount}")
+    IO.puts("Total amount: #{total_amount}")
+
     # Convert to cents for Stripe
     total_amount_cents = total_amount
     |> Decimal.mult(100)
@@ -54,6 +73,10 @@ defmodule ShompWeb.PaymentIntentController do
     |> Decimal.to_integer()
 
     store_amount_cents = total_amount_cents - platform_fee_cents
+
+    IO.puts("Total amount cents: #{total_amount_cents}")
+    IO.puts("Platform fee cents: #{platform_fee_cents}")
+    IO.puts("Store amount cents: #{store_amount_cents}")
 
     # Create Stripe Payment Intent
     case create_stripe_payment_intent(product, total_amount_cents, platform_fee_cents, universal_order_id) do
@@ -97,61 +120,67 @@ defmodule ShompWeb.PaymentIntentController do
   end
 
   defp create_stripe_payment_intent(product, total_amount_cents, platform_fee_cents, universal_order_id) do
+    IO.puts("=== CREATING STRIPE PAYMENT INTENT ===")
+    IO.puts("Product ID: #{product.id}")
+    IO.puts("Store ID: #{product.store_id}")
+    IO.puts("Total amount cents: #{total_amount_cents}")
+    IO.puts("Platform fee cents: #{platform_fee_cents}")
+    IO.puts("Universal order ID: #{universal_order_id}")
+
     # Get store's Stripe account ID
     store_kyc = Shomp.Stores.StoreKYCContext.get_kyc_by_store_id(product.store_id)
+    IO.puts("Store KYC found: #{!!store_kyc}")
+    if store_kyc do
+      IO.puts("Store KYC Stripe account ID: #{store_kyc.stripe_account_id}")
+    end
 
     # Now that we create Stripe accounts immediately, we should always have a stripe_account_id
     if store_kyc && store_kyc.stripe_account_id do
-      # Check if store is fully verified (KYC + Stripe ready)
-      is_fully_verified = store_kyc.status == "verified" &&
-                         store_kyc.charges_enabled &&
-                         store_kyc.payouts_enabled
+      IO.puts("Creating payment intent with direct transfer to Stripe account: #{store_kyc.stripe_account_id}")
 
-      if is_fully_verified do
-        # Store is fully verified - create payment intent with direct transfer and application fee
-        Stripe.PaymentIntent.create(%{
-          amount: total_amount_cents,
-          currency: "usd",
-          application_fee_amount: platform_fee_cents,
-          transfer_data: %{
-            destination: store_kyc.stripe_account_id
-          },
-          metadata: %{
-            universal_order_id: universal_order_id,
-            product_id: product.id,
-            store_id: product.store_id,
-            payment_type: "direct_transfer"
-          }
-        })
-      else
-        # Store has Stripe account but isn't fully verified - use escrow
-        Stripe.PaymentIntent.create(%{
-          amount: total_amount_cents,
-          currency: "usd",
-          metadata: %{
-            universal_order_id: universal_order_id,
-            product_id: product.id,
-            store_id: product.store_id,
-            payment_type: "escrow",
-            platform_fee_cents: platform_fee_cents,
-            store_amount_cents: total_amount_cents - platform_fee_cents
-          }
-        })
-      end
+      payment_intent_params = %{
+        amount: total_amount_cents,
+        currency: "usd",
+        application_fee_amount: platform_fee_cents,
+        transfer_data: %{
+          destination: store_kyc.stripe_account_id
+        },
+        metadata: %{
+          universal_order_id: universal_order_id,
+          product_id: product.id,
+          store_id: product.store_id,
+          payment_type: "direct_transfer",
+          platform_fee_cents: platform_fee_cents,
+          store_amount_cents: total_amount_cents - platform_fee_cents
+        }
+      }
+
+      IO.puts("Payment intent params: #{inspect(payment_intent_params)}")
+
+      # Always transfer to merchant's Stripe account (even in restricted mode)
+      # Stripe will hold the funds until KYC is complete, then release them automatically
+      Stripe.PaymentIntent.create(payment_intent_params)
     else
-      # Fallback - this shouldn't happen now that we create accounts immediately
-      Stripe.PaymentIntent.create(%{
+      IO.puts("Creating fallback payment intent (no transfer)")
+
+      payment_intent_params = %{
         amount: total_amount_cents,
         currency: "usd",
         metadata: %{
           universal_order_id: universal_order_id,
           product_id: product.id,
           store_id: product.store_id,
-          payment_type: "escrow",
+          payment_type: "fallback",
           platform_fee_cents: platform_fee_cents,
           store_amount_cents: total_amount_cents - platform_fee_cents
         }
-      })
+      }
+
+      IO.puts("Fallback payment intent params: #{inspect(payment_intent_params)}")
+
+      # Fallback - this shouldn't happen now that we create accounts immediately
+      # But if it does, create a regular payment intent (no transfer)
+      Stripe.PaymentIntent.create(payment_intent_params)
     end
   end
 
@@ -211,8 +240,9 @@ defmodule ShompWeb.PaymentIntentController do
     # Generate payment split ID
     payment_split_id = generate_payment_split_id()
 
-    # Determine if this is an escrow payment
-    is_escrow = force_escrow || !store_kyc || store_kyc.status != "verified" || !store_kyc.charges_enabled || !store_kyc.payouts_enabled
+    # With the new approach, we always do direct transfers to Stripe accounts
+    # Stripe handles holding funds in restricted mode until KYC is complete
+    is_escrow = force_escrow || !store_kyc || !store_kyc.stripe_account_id
 
     PaymentSplits.create_payment_split(%{
       payment_split_id: payment_split_id,

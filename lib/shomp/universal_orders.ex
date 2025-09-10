@@ -6,6 +6,8 @@ defmodule Shomp.UniversalOrders do
   import Ecto.Query, warn: false
   alias Shomp.Repo
   alias Shomp.UniversalOrders.{UniversalOrder, UniversalOrderItem}
+  alias Shomp.Stores.StoreKYCContext
+  alias Shomp.Stores
 
   @doc """
   Creates a universal order.
@@ -36,11 +38,42 @@ defmodule Shomp.UniversalOrders do
   Lists universal orders with optional filters.
   """
   def list_universal_orders(filters \\ %{}) do
-    UniversalOrder
+    orders = UniversalOrder
     |> apply_filters(filters)
     |> order_by([u], [desc: u.inserted_at])
     |> Repo.all()
     |> Repo.preload([:universal_order_items, :payment_splits, :user])
+
+    # Enrich orders with merchant information
+    Enum.map(orders, fn order ->
+      # Get merchant info from payment splits
+      merchant_info = if length(order.payment_splits) > 0 do
+        first_split = List.first(order.payment_splits)
+        store_kyc = Shomp.Stores.StoreKYCContext.get_kyc_by_store_id(first_split.store_id)
+
+        if store_kyc do
+          # Get the store to access user email
+          store = Shomp.Stores.get_store_by_store_id(first_split.store_id)
+          merchant_email = if store do
+            user = Shomp.Accounts.get_user!(store.user_id)
+            user.email
+          else
+            nil
+          end
+
+          %{
+            stripe_account_id: store_kyc.stripe_account_id,
+            merchant_email: merchant_email
+          }
+        else
+          %{stripe_account_id: nil, merchant_email: nil}
+        end
+      else
+        %{stripe_account_id: nil, merchant_email: nil}
+      end
+
+      Map.merge(order, merchant_info)
+    end)
   end
 
   @doc """
