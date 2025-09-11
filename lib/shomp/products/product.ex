@@ -3,6 +3,7 @@ defmodule Shomp.Products.Product do
   import Ecto.Changeset
 
   schema "products" do
+    field :immutable_id, :binary_id
     field :title, :string
     field :description, :string
     field :price, :decimal
@@ -12,7 +13,7 @@ defmodule Shomp.Products.Product do
     field :store_id, :string  # Reference to store's immutable store_id
     field :store, :map, virtual: true  # Virtual field to hold store data
     field :slug, :string  # SEO-friendly URL slug
-    
+
     # Product images
     field :image_original, :string
     field :image_thumb, :string
@@ -22,10 +23,10 @@ defmodule Shomp.Products.Product do
     field :image_ultra, :string
     field :additional_images, {:array, :string}, default: []
     field :primary_image_index, :integer, default: 0
-    
+
     belongs_to :category, Shomp.Categories.Category  # Global platform category
     belongs_to :custom_category, Shomp.Categories.Category  # Store-specific category
-    
+
     has_many :payments, Shomp.Payments.Payment
     has_many :downloads, Shomp.Downloads.Download
 
@@ -83,7 +84,7 @@ defmodule Shomp.Products.Product do
           |> String.replace(~r/[^a-z0-9\s]/, "")
           |> String.replace(~r/\s+/, "-")
           |> String.trim("-")
-          
+
           put_change(changeset, :slug, slug)
         else
           changeset
@@ -95,18 +96,18 @@ defmodule Shomp.Products.Product do
 
   defp validate_slug_format(changeset) do
     slug = get_change(changeset, :slug) || get_field(changeset, :slug)
-    
+
     if slug && not Regex.match?(~r/^[a-z0-9-]+$/, slug) do
       add_error(changeset, :slug, "must contain only lowercase letters, numbers, and hyphens")
     else
       changeset
     end
   end
-  
+
   defp validate_image_paths(changeset) do
     # Validate image paths if they exist
     image_fields = [:image_original, :image_thumb, :image_medium, :image_large, :image_extra_large, :image_ultra]
-    
+
     Enum.reduce(image_fields, changeset, fn field, acc ->
       case get_change(acc, field) do
         nil -> acc

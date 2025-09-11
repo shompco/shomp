@@ -1,7 +1,7 @@
 defmodule ShompWeb.SellerOrderLive.Index do
   use ShompWeb, :live_view
 
-  alias Shomp.Orders
+  alias Shomp.UniversalOrders
   alias Shomp.Stores
   import ShompWeb.OrderComponents
 
@@ -72,7 +72,7 @@ defmodule ShompWeb.SellerOrderLive.Index do
                             <div class="flex-1">
                               <div class="flex items-center space-x-2 mb-2">
                                 <span class="text-sm font-medium text-base-content">
-                                  Order #<%= String.slice(order.immutable_id, 0, 8) %>
+                                  Order #<%= order.universal_order_id %>
                                 </span>
                                 <.status_badge status={order.shipping_status} class="badge-sm" />
                                 <%= if order.tracking_number do %>
@@ -84,7 +84,7 @@ defmodule ShompWeb.SellerOrderLive.Index do
 
                               <!-- Order Items -->
                               <div class="space-y-1">
-                                <%= for item <- order.order_items do %>
+                                <%= for item <- order.universal_order_items do %>
                                   <div class="flex items-center justify-between text-sm">
                                     <div class="flex items-center space-x-2">
                                       <%= if item.product.image_thumb do %>
@@ -99,7 +99,7 @@ defmodule ShompWeb.SellerOrderLive.Index do
                                       <span class="text-base-content"><%= item.product.title %></span>
                                       <span class="text-base-content/60">×<%= item.quantity %></span>
                                     </div>
-                                    <span class="font-medium">$<%= Decimal.to_string(item.price, :normal) %></span>
+                                    <span class="font-medium">$<%= Decimal.to_string(item.unit_price, :normal) %></span>
                                   </div>
                                 <% end %>
                               </div>
@@ -126,7 +126,7 @@ defmodule ShompWeb.SellerOrderLive.Index do
                         <!-- Action Buttons -->
                         <div class="flex items-center space-x-2 ml-4">
                           <.link
-                            href={~p"/dashboard/orders/#{order.immutable_id}"}
+                            href={~p"/dashboard/orders/universal/#{order.universal_order_id}"}
                             class="btn btn-sm btn-outline"
                           >
                             Manage
@@ -155,7 +155,7 @@ defmodule ShompWeb.SellerOrderLive.Index do
 
     # Get orders for each store, grouped by store (show all stores, even with zero orders)
     store_orders = Enum.map(stores, fn store ->
-      orders = Orders.list_store_orders(store.store_id)
+      orders = UniversalOrders.list_universal_orders_by_store(store.store_id)
       {store, orders}
     end)
 
@@ -174,7 +174,7 @@ defmodule ShompWeb.SellerOrderLive.Index do
       updated_orders = Enum.map(orders, fn order ->
         if order.id == updated_order.id do
           # Get the full order with all preloads for proper display
-          Orders.get_order!(updated_order.id)
+          UniversalOrders.get_universal_order!(updated_order.id)
         else
           order
         end
@@ -183,5 +183,26 @@ defmodule ShompWeb.SellerOrderLive.Index do
     end)
 
     {:noreply, assign(socket, :store_orders, updated_store_orders)}
+  end
+
+  defp get_status_badge_class(status) do
+    case status do
+      "completed" -> "success"
+      "pending" -> "warning"
+      "processing" -> "info"
+      "cancelled" -> "error"
+      _ -> "neutral"
+    end
+  end
+
+  defp get_payment_status_badge_class(status) do
+    case status do
+      "paid" -> "success"
+      "pending" -> "warning"
+      "failed" -> "error"
+      "refunded" -> "neutral"
+      "partially_refunded" -> "info"
+      _ -> "neutral"
+    end
   end
 end

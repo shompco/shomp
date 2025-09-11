@@ -471,9 +471,9 @@ defmodule Shomp.Payments do
             update_store_balance_from_payment(updated_payment)
             IO.puts("Store balance updated")
 
-            # Create order for review tracking
+            # Create universal order for review tracking
             order_result = create_order_from_payment(updated_payment, session.id)
-            IO.puts("Order creation result: #{inspect(order_result)}")
+            IO.puts("Universal order creation result: #{inspect(order_result)}")
 
             # Try to create download, but don't fail if it doesn't work
             case create_download_for_product(updated_payment) do
@@ -538,9 +538,9 @@ defmodule Shomp.Payments do
                 update_store_balance_from_payment(updated_payment)
                 IO.puts("Store balance updated")
 
-                # Create order for review tracking
+                # Create universal order for review tracking
                 order_result = create_order_from_payment(updated_payment, session.id)
-                IO.puts("Order creation result: #{inspect(order_result)}")
+                IO.puts("Universal order creation result: #{inspect(order_result)}")
 
                 # Create download for digital products
                 case create_download_for_product(updated_payment) do
@@ -599,8 +599,8 @@ defmodule Shomp.Payments do
               update_store_balance_from_payment(payment)
             end)
 
-            # Create order for review tracking
-            create_cart_order(cart, session.id, user_id)
+        # Create universal order for review tracking
+        create_cart_order(cart, session.id, user_id)
 
             # Complete the cart
             Carts.complete_cart(cart_id)
@@ -948,120 +948,174 @@ defmodule Shomp.Payments do
   # Order creation functions for review tracking
 
   defp create_order_from_payment(payment, session_id) do
-    alias Shomp.Orders
+    alias Shomp.UniversalOrders
 
-    IO.puts("=== CREATING ORDER FROM PAYMENT ===")
+    IO.puts("=== CREATING UNIVERSAL ORDER FROM PAYMENT ===")
     IO.puts("Payment ID: #{payment.id}")
     IO.puts("Session ID: #{session_id}")
     IO.puts("User ID: #{payment.user_id}")
     IO.puts("Product ID: #{payment.product_id}")
     IO.puts("Amount: #{payment.amount}")
 
-    # Generate immutable ID for the order
-    immutable_id = Ecto.UUID.generate()
-    IO.puts("Generated order immutable ID: #{immutable_id}")
+    # Check if universal order already exists for this payment intent
+    case UniversalOrders.get_universal_order_by_payment_intent(session_id) do
+      nil ->
+        IO.puts("No existing universal order found, creating new one")
 
-    # Create the order
-    order_attrs = %{
-      immutable_id: immutable_id,
-      total_amount: payment.amount,
-      stripe_session_id: session_id,
-      user_id: payment.user_id
-    }
-    IO.puts("Creating order with attrs: #{inspect(order_attrs)}")
+        # Get product to determine store_id
+        product = Shomp.Products.get_product!(payment.product_id)
+        store_id = product.store_id
 
-    case Orders.create_order(order_attrs) do
-      {:ok, order} ->
-        IO.puts("Order created successfully: #{order.id}")
+        # Get user for customer info
+        user = Shomp.Accounts.get_user!(payment.user_id)
 
-        # Create order item
-        order_item_attrs = %{
-          order_id: order.id,
-          product_id: payment.product_id,
-          quantity: 1,
-          price: payment.amount
+        # Generate universal order ID
+        universal_order_id = Ecto.UUID.generate()
+        IO.puts("Generated universal order ID: #{universal_order_id}")
+
+        # Create the universal order
+        order_attrs = %{
+          universal_order_id: universal_order_id,
+          user_id: payment.user_id,
+          stripe_payment_intent_id: session_id,
+          total_amount: payment.amount,
+          platform_fee_amount: Decimal.new(0), # No platform fee for single product orders
+          store_id: store_id,
+          status: "pending",
+          payment_status: "pending",
+          customer_email: user.email,
+          customer_name: user.name || "Customer"
         }
-        IO.puts("Creating order item with attrs: #{inspect(order_item_attrs)}")
+        IO.puts("Creating universal order with attrs: #{inspect(order_attrs)}")
 
-        case Orders.create_order_item(order_item_attrs) do
+        case UniversalOrders.create_universal_order(order_attrs) do
+      {:ok, universal_order} ->
+        IO.puts("Universal order created successfully: #{universal_order.id}")
+
+        # Create universal order item
+        order_item_attrs = %{
+          universal_order_id: universal_order.universal_order_id,
+          product_immutable_id: product.immutable_id,
+          store_id: store_id,
+          quantity: 1,
+          unit_price: payment.amount,
+          total_price: payment.amount,
+          store_amount: payment.amount,
+          platform_fee_amount: Decimal.new(0)
+        }
+        IO.puts("Creating universal order item with attrs: #{inspect(order_item_attrs)}")
+
+        case UniversalOrders.create_universal_order_item(order_item_attrs) do
           {:ok, order_item} ->
-            IO.puts("Order item created successfully: #{order_item.id}")
+            IO.puts("Universal order item created successfully: #{order_item.id}")
 
             # Update order status to completed
-            case Orders.update_order_status(order, "completed") do
+            case UniversalOrders.update_universal_order_status(universal_order, "completed") do
               {:ok, updated_order} ->
-                IO.puts("Order status updated to completed")
+                IO.puts("Universal order status updated to completed")
                 # Preload associations before broadcasting
-                order_with_details = Shomp.Repo.preload(updated_order, [order_items: :product])
+                order_with_details = Shomp.Repo.preload(updated_order, [universal_order_items: :product])
                 # Broadcast to LiveView that order is ready
                 PubSub.broadcast(Shomp.PubSub, "order_created:#{session_id}", {:order_created, order_with_details})
                 {:ok, updated_order}
               {:error, reason} ->
-                IO.puts("ERROR: Failed to update order status: #{inspect(reason)}")
+                IO.puts("ERROR: Failed to update universal order status: #{inspect(reason)}")
                 # Still broadcast the order even if status update failed, but preload associations
-                order_with_details = Shomp.Repo.preload(order, [order_items: :product])
+                order_with_details = Shomp.Repo.preload(universal_order, [universal_order_items: :product])
                 PubSub.broadcast(Shomp.PubSub, "order_created:#{session_id}", {:order_created, order_with_details})
-                {:ok, order}  # Return order even if status update fails
+                {:ok, universal_order}  # Return order even if status update fails
             end
 
           {:error, reason} ->
-            IO.puts("ERROR: Failed to create order item: #{inspect(reason)}")
-            {:ok, order}  # Return order even if item creation fails
+            IO.puts("ERROR: Failed to create universal order item: #{inspect(reason)}")
+            {:ok, universal_order}  # Return order even if item creation fails
         end
 
       {:error, reason} ->
-        IO.puts("ERROR: Failed to create order for payment #{payment.id}: #{inspect(reason)}")
+        IO.puts("ERROR: Failed to create universal order for payment #{payment.id}: #{inspect(reason)}")
         {:error, reason}
+        end
+
+      existing_order ->
+        IO.puts("Universal order already exists: #{existing_order.id}")
+        IO.puts("Updating existing order status to completed")
+
+        # Update the existing order status to completed
+        case UniversalOrders.update_universal_order_status(existing_order, "completed") do
+          {:ok, updated_order} ->
+            IO.puts("Existing universal order status updated to completed")
+            {:ok, updated_order}
+          {:error, reason} ->
+            IO.puts("Warning: Failed to update existing universal order status: #{inspect(reason)}")
+            {:ok, existing_order}
+        end
     end
   end
 
   defp create_cart_order(cart, session_id, user_id) do
-    alias Shomp.Orders
+    alias Shomp.UniversalOrders
 
     # Calculate total amount
     total_amount = Enum.reduce(cart.cart_items, Decimal.new(0), fn cart_item, acc ->
       Decimal.add(acc, Decimal.mult(cart_item.price, cart_item.quantity))
     end)
 
-    # Generate immutable ID for the order
-    immutable_id = Ecto.UUID.generate()
+    # Generate universal order ID
+    universal_order_id = Ecto.UUID.generate()
 
-    # Create the order
-    case Orders.create_order(%{
-      immutable_id: immutable_id,
+    # Get the first cart item to determine store_id (assuming all items are from same store)
+    first_cart_item = List.first(cart.cart_items)
+    store_id = first_cart_item.product.store_id
+
+    # Get user for customer info
+    user = Shomp.Accounts.get_user!(user_id)
+
+    # Create the universal order
+    case UniversalOrders.create_universal_order(%{
+      universal_order_id: universal_order_id,
+      user_id: user_id,
+      stripe_payment_intent_id: session_id,
       total_amount: total_amount,
-      stripe_session_id: session_id,
-      user_id: user_id
+      platform_fee_amount: Decimal.new(0), # No platform fee for cart orders
+      store_id: store_id,
+      status: "pending",
+      payment_status: "pending",
+      customer_email: user.email,
+      customer_name: user.name || "Customer"
     }) do
-      {:ok, order} ->
-        # Create order items for each cart item
+      {:ok, universal_order} ->
+        # Create universal order items for each cart item
         Enum.each(cart.cart_items, fn cart_item ->
-          Orders.create_order_item(%{
-            order_id: order.id,
-            product_id: cart_item.product_id,
+          UniversalOrders.create_universal_order_item(%{
+            universal_order_id: universal_order.universal_order_id,
+            product_immutable_id: cart_item.product.immutable_id,
+            store_id: cart_item.product.store_id,
             quantity: cart_item.quantity,
-            price: cart_item.price
+            unit_price: cart_item.price,
+            total_price: Decimal.mult(cart_item.price, cart_item.quantity),
+            store_amount: Decimal.mult(cart_item.price, cart_item.quantity),
+            platform_fee_amount: Decimal.new(0)
           })
         end)
 
         # Update order status to completed
-        case Orders.update_order_status(order, "completed") do
+        case UniversalOrders.update_universal_order_status(universal_order, "completed") do
           {:ok, updated_order} ->
             # Preload associations before broadcasting
-            order_with_details = Shomp.Repo.preload(updated_order, [order_items: :product])
+            order_with_details = Shomp.Repo.preload(updated_order, [universal_order_items: :product])
             # Broadcast to LiveView that order is ready
             PubSub.broadcast(Shomp.PubSub, "order_created:#{session_id}", {:order_created, order_with_details})
             {:ok, updated_order}
           {:error, reason} ->
             IO.puts("Warning: Failed to update cart order status: #{inspect(reason)}")
             # Still broadcast the order even if status update failed, but preload associations
-            order_with_details = Shomp.Repo.preload(order, [order_items: :product])
+            order_with_details = Shomp.Repo.preload(universal_order, [universal_order_items: :product])
             PubSub.broadcast(Shomp.PubSub, "order_created:#{session_id}", {:order_created, order_with_details})
-            {:ok, order}
+            {:ok, universal_order}
         end
 
       {:error, reason} ->
-        IO.puts("Warning: Failed to create cart order for session #{session_id}: #{inspect(reason)}")
+        IO.puts("Warning: Failed to create cart universal order for session #{session_id}: #{inspect(reason)}")
         {:error, reason}
     end
   end

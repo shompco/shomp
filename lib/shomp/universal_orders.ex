@@ -42,7 +42,7 @@ defmodule Shomp.UniversalOrders do
     |> where([u], u.store_id == ^store_id)
     |> order_by([u], [desc: u.inserted_at])
     |> Repo.all()
-    |> Repo.preload([:universal_order_items, :payment_splits, :user])
+    |> Repo.preload([:payment_splits, :user, universal_order_items: :product])
   end
 
   @doc """

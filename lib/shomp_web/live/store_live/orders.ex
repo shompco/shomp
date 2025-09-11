@@ -252,7 +252,7 @@ defmodule ShompWeb.StoreLive.Orders do
                   <div class="flex items-center justify-between mb-4">
                     <div>
                       <h3 class="text-lg font-medium text-base-content">
-                        Order <%= order.immutable_id %>
+                        Order <%= order.universal_order_id %>
                       </h3>
                       <p class="text-sm text-base-content/70">
                         <%= Calendar.strftime(order.inserted_at, "%B %d, %Y at %I:%M %p") %>
@@ -316,7 +316,7 @@ defmodule ShompWeb.StoreLive.Orders do
 
                   <!-- Order Items -->
                   <div class="space-y-3 mb-4">
-                    <%= for order_item <- order.order_items do %>
+                    <%= for order_item <- order.universal_order_items do %>
                       <div class="flex items-center justify-between py-3 px-4 bg-base-200 rounded-md">
                         <div class="flex items-center space-x-3">
                           <div class="w-10 h-10 bg-base-300 rounded flex items-center justify-center">
@@ -329,12 +329,12 @@ defmodule ShompWeb.StoreLive.Orders do
                               <%= order_item.product.title %>
                             </p>
                             <p class="text-xs text-base-content/70">
-                              Quantity: <%= order_item.quantity %> • $<%= Decimal.to_string(order_item.price) %>
+                              Quantity: <%= order_item.quantity %> • $<%= Decimal.to_string(order_item.unit_price) %>
                             </p>
                           </div>
                         </div>
                         <div class="flex items-center space-x-2">
-                          <a href={~p"/stores/#{@store.slug}/products/#{order_item.product_id}"} class="btn btn-xs btn-outline">
+                          <a href={~p"/stores/#{@store.slug}/products/#{order_item.product.immutable_id}"} class="btn btn-xs btn-outline">
                             View Product
                           </a>
                         </div>
@@ -345,7 +345,7 @@ defmodule ShompWeb.StoreLive.Orders do
                   <!-- Order Actions -->
                   <div class="flex items-center justify-between pt-4 border-t border-base-300">
                     <div class="text-sm text-base-content/70">
-                      <%= length(order.order_items) %> item<%= if length(order.order_items) != 1, do: "s", else: "" %>
+                      <%= length(order.universal_order_items) %> item<%= if length(order.universal_order_items) != 1, do: "s", else: "" %>
                     </div>
                     <div class="flex items-center space-x-2">
                       <%= if order.status == "pending" do %>
@@ -390,13 +390,13 @@ defmodule ShompWeb.StoreLive.Orders do
          socket
          |> put_flash(:error, "Order not found")
          |> push_navigate(to: ~p"/dashboard/orders")}
-      
+
       universal_order ->
         # Verify the order belongs to one of the user's stores
         user = socket.assigns.current_scope.user
         stores = Stores.get_stores_by_user(user.id)
         store_ids = Enum.map(stores, & &1.store_id)
-        
+
         if universal_order.store_id in store_ids do
           {:ok, assign(socket,
             universal_order: universal_order,

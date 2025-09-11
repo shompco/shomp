@@ -16,6 +16,10 @@ defmodule ShompWeb.PaymentIntentController do
     IO.puts("Customer Name: #{customer_name}")
     IO.puts("User ID: #{conn.assigns.current_scope.user.id}")
 
+    # Convert product_id to integer
+    product_id = String.to_integer(product_id)
+    IO.puts("Converted Product ID: #{product_id}")
+
     # Validate required fields
     if is_nil(customer_email) or customer_email == "" do
       IO.puts("ERROR: Email address is required but was nil or empty")
@@ -233,7 +237,7 @@ defmodule ShompWeb.PaymentIntentController do
 
     order_item_data = %{
       universal_order_id: universal_order.universal_order_id,
-      product_id: product.id,
+      product_immutable_id: product.immutable_id,
       store_id: product.store_id,
       quantity: 1,
       unit_price: product.price,
@@ -242,7 +246,21 @@ defmodule ShompWeb.PaymentIntentController do
       platform_fee_amount: platform_fee_amount
     }
 
-    UniversalOrders.create_universal_order_item(order_item_data)
+    IO.puts("=== CREATING UNIVERSAL ORDER ITEM ===")
+    IO.puts("Order item data: #{inspect(order_item_data)}")
+
+    case UniversalOrders.create_universal_order_item(order_item_data) do
+      {:ok, order_item} ->
+        IO.puts("Universal order item created successfully: #{inspect(order_item)}")
+        {:ok, order_item}
+      {:error, changeset} ->
+        IO.puts("=== UNIVERSAL ORDER ITEM CREATION FAILED ===")
+        IO.puts("Changeset errors: #{inspect(changeset.errors)}")
+        IO.puts("Changeset changes: #{inspect(changeset.changes)}")
+        IO.puts("Changeset data: #{inspect(changeset.data)}")
+        IO.puts("Changeset valid?: #{inspect(changeset.valid?)}")
+        {:error, changeset}
+    end
   end
 
   defp create_payment_split(universal_order, product, payment_intent_id, store_amount_cents, platform_fee_cents) do
