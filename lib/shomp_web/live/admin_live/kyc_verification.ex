@@ -167,6 +167,7 @@ defmodule ShompWeb.AdminLive.KYCVerification do
                   <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Store</th>
                   <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
                   <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stripe Account</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Country</th>
                   <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                   <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Individual Info</th>
                   <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -188,6 +189,15 @@ defmodule ShompWeb.AdminLive.KYCVerification do
                         <div class="text-sm text-gray-900 font-mono"><%= String.slice(kyc.stripe_account_id, 0, 20) %>...</div>
                       <% else %>
                         <span class="text-sm text-gray-500">No Stripe Account</span>
+                      <% end %>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <%= if kyc.country do %>
+                        <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                          <%= kyc.country %>
+                        </span>
+                      <% else %>
+                        <span class="text-sm text-gray-500">Not synced</span>
                       <% end %>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
@@ -256,6 +266,18 @@ defmodule ShompWeb.AdminLive.KYCVerification do
                 <div>
                   <dt class="text-sm font-medium text-gray-500">Stripe Account ID</dt>
                   <dd class="mt-1 text-sm text-gray-900 font-mono"><%= @selected_kyc.stripe_account_id || "Not set" %></dd>
+                </div>
+                <div>
+                  <dt class="text-sm font-medium text-gray-500">Country</dt>
+                  <dd class="mt-1">
+                    <%= if @selected_kyc.country do %>
+                      <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                        <%= @selected_kyc.country %>
+                      </span>
+                    <% else %>
+                      <span class="text-sm text-gray-500">Not synced</span>
+                    <% end %>
+                  </dd>
                 </div>
                 <div>
                   <dt class="text-sm font-medium text-gray-500">Charges Enabled</dt>

@@ -186,6 +186,7 @@ defmodule Shomp.Stores.StoreKYCContext do
         payouts_enabled: k.payouts_enabled,
         onboarding_completed: k.onboarding_completed,
         stripe_individual_info: k.stripe_individual_info,
+        country: k.country,
         store: %{
           id: s.id,
           store_id: s.store_id,

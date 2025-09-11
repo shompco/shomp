@@ -117,7 +117,8 @@ defmodule Shomp.StripeConnect do
           payouts_enabled: account.payouts_enabled,
           requirements: account.requirements,
           onboarding_completed: account.details_submitted,
-          stripe_individual_info: individual_info
+          stripe_individual_info: individual_info,
+          country: account.country
         }
 
         StoreKYCContext.update_kyc_stripe_status(kyc.id, attrs)
@@ -197,17 +198,17 @@ defmodule Shomp.StripeConnect do
       # Make a direct HTTP request to Stripe API using Req
       url = "https://api.stripe.com/v1/balance"
       stripe_key = Application.get_env(:shomp, :stripe_secret_key)
-      
+
       IO.puts("=== BALANCE DEBUG ===")
       IO.puts("Using Stripe Key: #{String.slice(stripe_key, 0, 10)}...")
       IO.puts("Account ID: #{stripe_account_id}")
       IO.puts("====================")
-      
+
       headers = [
         {"Authorization", "Bearer #{stripe_key}"},
         {"Stripe-Account", stripe_account_id}
       ]
-      
+
       case Req.get(url, headers: headers) do
         {:ok, %{status: 200, body: balance_data}} ->
           IO.puts("=== STRIPE BALANCE STRUCTURE ===")
@@ -263,17 +264,17 @@ defmodule Shomp.StripeConnect do
       # Make a direct HTTP request to Stripe API using Req
       url = "https://api.stripe.com/v1/balance"
       stripe_key = Application.get_env(:shomp, :stripe_secret_key)
-      
+
       IO.puts("=== TEST BALANCE DEBUG ===")
       IO.puts("Using Stripe Key: #{String.slice(stripe_key, 0, 10)}...")
       IO.puts("Account ID: #{stripe_account_id}")
       IO.puts("=========================")
-      
+
       headers = [
         {"Authorization", "Bearer #{stripe_key}"},
         {"Stripe-Account", stripe_account_id}
       ]
-      
+
       case Req.get(url, headers: headers) do
         {:ok, %{status: 200, body: balance_data}} ->
           IO.puts("=== TEST STRIPE BALANCE STRUCTURE ===")
