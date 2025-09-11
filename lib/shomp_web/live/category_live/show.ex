@@ -111,8 +111,8 @@ defmodule ShompWeb.CategoryLive.Show do
                 <%= for product <- @products do %>
                   <div class="card bg-base-200 shadow-lg hover:shadow-xl transition-all duration-300">
                     <figure class="px-6 pt-6">
-                      <%= if product.image_thumb do %>
-                        <img src={product.image_thumb} alt={product.title} class="w-full h-48 object-cover rounded-lg" />
+                      <%= if get_product_image(product) do %>
+                        <img src={get_product_image(product)} alt={product.title} class="w-full h-48 object-cover rounded-lg" />
                       <% else %>
                         <div class="w-full h-48 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-lg flex items-center justify-center">
                           <span class="text-4xl">
@@ -179,7 +179,7 @@ defmodule ShompWeb.CategoryLive.Show do
         if custom_category_slug do
           "/stores/#{product.store.slug}/#{custom_category_slug}/#{product.slug}"
         else
-          "/stores/#{product.store.slug}/#{product.slug}"
+          "/stores/#{product.store.slug}/products/#{product.slug}"
         end
       else
         "/stores/#{product.store.slug}/products/#{product.id}"
@@ -220,6 +220,25 @@ defmodule ShompWeb.CategoryLive.Show do
       "diy tutorials" -> "🛠️"
       "software/plugins" -> "💻"
       _ -> "📦"
+    end
+  end
+
+  # Helper function to get the best available image for a product
+  defp get_product_image(product) do
+    cond do
+      # Try thumbnail first
+      product.image_thumb && product.image_thumb != "" -> product.image_thumb
+      # Fall back to original image
+      product.image_original && product.image_original != "" -> product.image_original
+      # Try medium image
+      product.image_medium && product.image_medium != "" -> product.image_medium
+      # Try large image
+      product.image_large && product.image_large != "" -> product.image_large
+      # Try additional images if available
+      product.additional_images && length(product.additional_images) > 0 ->
+        List.first(product.additional_images)
+      # No image available
+      true -> nil
     end
   end
 end

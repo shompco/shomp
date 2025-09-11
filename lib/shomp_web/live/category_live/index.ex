@@ -101,9 +101,9 @@ defmodule ShompWeb.CategoryLive.Index do
                             <!-- Lens effect for product thumbnails -->
                             <div class="absolute inset-0 bg-gradient-to-br from-white/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
 
-                            <%= if product.image_thumb && product.image_thumb != "" do %>
+                            <%= if get_product_image(product) do %>
                               <img
-                                src={product.image_thumb}
+                                src={get_product_image(product)}
                                 alt={product.title}
                                 class="w-full h-full object-cover relative z-10"
                                 loading="lazy"
@@ -185,13 +185,32 @@ defmodule ShompWeb.CategoryLive.Index do
         if custom_category_slug do
           "/stores/#{product.store.slug}/#{custom_category_slug}/#{product.slug}"
         else
-          "/stores/#{product.store.slug}/#{product.slug}"
+          "/stores/#{product.store.slug}/products/#{product.slug}"
         end
       else
         "/stores/#{product.store.slug}/products/#{product.id}"
       end
     else
       "#"
+    end
+  end
+
+  # Helper function to get the best available image for a product
+  defp get_product_image(product) do
+    cond do
+      # Try thumbnail first
+      product.image_thumb && product.image_thumb != "" -> product.image_thumb
+      # Fall back to original image
+      product.image_original && product.image_original != "" -> product.image_original
+      # Try medium image
+      product.image_medium && product.image_medium != "" -> product.image_medium
+      # Try large image
+      product.image_large && product.image_large != "" -> product.image_large
+      # Try additional images if available
+      product.additional_images && length(product.additional_images) > 0 ->
+        List.first(product.additional_images)
+      # No image available
+      true -> nil
     end
   end
 

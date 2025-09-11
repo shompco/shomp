@@ -131,13 +131,32 @@ defmodule ShompWeb.PageHTML do
         if custom_category_slug do
           "/stores/#{product.store.slug}/#{custom_category_slug}/#{product.slug}"
         else
-          "/stores/#{product.store.slug}/#{product.slug}"
+          "/stores/#{product.store.slug}/products/#{product.slug}"
         end
       else
         "/stores/#{product.store.slug}/products/#{product.id}"
       end
     else
       "#"
+    end
+  end
+
+  # Helper function to get the best available image for a product
+  def get_product_image(product) do
+    cond do
+      # Try thumbnail first
+      product.image_thumb && product.image_thumb != "" -> product.image_thumb
+      # Fall back to original image
+      product.image_original && product.image_original != "" -> product.image_original
+      # Try medium image
+      product.image_medium && product.image_medium != "" -> product.image_medium
+      # Try large image
+      product.image_large && product.image_large != "" -> product.image_large
+      # Try additional images if available
+      product.additional_images && length(product.additional_images) > 0 ->
+        List.first(product.additional_images)
+      # No image available
+      true -> nil
     end
   end
 end
