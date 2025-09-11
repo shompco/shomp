@@ -396,7 +396,7 @@ defmodule Shomp.Stores do
 
       case Stripe.Account.create(%{
         type: "express",
-        country: "US",  # Default to US, can be made configurable later
+        country: "US",  # Users must be US based for shomp sales (501c3 compliance)
         email: user.email,
         business_type: "individual",
         requested_capabilities: ["card_payments", "transfers"],
