@@ -181,87 +181,125 @@ defmodule Shomp.Accounts.User do
     username = get_change(changeset, :username) || get_field(changeset, :username)
 
     if username do
-      # List of reserved usernames that should not be allowed
-      blacklisted_usernames = [
-        "dashboard",
-        "admin",
-        "administrator",
-        "api",
-        "www",
-        "mail",
-        "ftp",
-        "root",
-        "support",
-        "help",
-        "about",
-        "contact",
-        "privacy",
-        "terms",
-        "legal",
-        "blog",
-        "news",
-        "shop",
-        "store",
-        "stores",
-        "products",
-        "product",
-        "cart",
-        "checkout",
-        "payment",
-        "payments",
-        "billing",
-        "account",
-        "accounts",
-        "profile",
-        "profiles",
-        "settings",
-        "login",
-        "logout",
-        "register",
-        "signup",
-        "signin",
-        "signout",
-        "auth",
-        "authentication",
-        "oauth",
-        "oauth2",
-        "sso",
-        "webhook",
-        "webhooks",
-        "callback",
-        "callbacks",
-        "redirect",
-        "redirects",
-        "error",
-        "errors",
-        "404",
-        "500",
-        "maintenance",
-        "status",
-        "health",
-        "ping",
-        "test",
-        "testing",
-        "dev",
-        "development",
-        "staging",
-        "production",
-        "prod",
-        "demo",
-        "sandbox",
-        "beta",
-        "alpha",
-        "preview",
-        "release",
-        "releases",
-        "version",
-        "versions",
-        "changelog",
-        "docs",
-        "documentation",
-        "guide",
-        "guides",
-        "tutorial",
+      # Check if username is in reserved words list (case insensitive)
+      if String.downcase(username) in reserved_usernames() do
+        add_error(changeset, :username, "that name is taken")
+      else
+        changeset
+      end
+    else
+      changeset
+    end
+  end
+
+  # Reserved usernames that should not be allowed
+  defp reserved_usernames do
+    # Application routes and core functionality
+    application_reserved = [
+      "dashboard", "admin", "api", "payments", "checkout", "stores", "users",
+      "orders", "support", "notifications", "cart", "downloads", "reviews",
+      "categories", "requests", "about", "mission", "donations", "landing",
+      "settings", "profile", "register", "login", "logout", "password", "email",
+      "tier", "upgrade", "addresses", "purchases", "refunds", "webhook"
+    ]
+
+    # Common system/technical terms
+    system_reserved = [
+      "www", "mail", "ftp", "smtp", "pop", "imap", "dns", "ssl", "tls", "http",
+      "https", "ftp", "ssh", "root", "system", "service", "server", "client",
+      "app", "api", "dev", "test", "staging", "production", "local", "host",
+      "null", "undefined", "true", "false", "none", "nil", "void"
+    ]
+
+    # Common social media and platform terms
+    platform_reserved = [
+      "facebook", "twitter", "instagram", "linkedin", "youtube", "tiktok",
+      "snapchat", "pinterest", "reddit", "discord", "telegram", "whatsapp",
+      "github", "gitlab", "bitbucket", "stackoverflow", "medium", "dev"
+    ]
+
+    # Combine all reserved word lists
+    application_reserved ++ system_reserved ++ platform_reserved
+  end
+
+  defp validate_username_store_conflict(changeset) do
+    username = get_change(changeset, :username) || get_field(changeset, :username)
+
+    if username do
+      # Convert username to store slug format for comparison
+      potential_store_slug = username
+      |> String.downcase()
+      |> String.replace(~r/[^a-z0-9-]/, "-")
+      |> String.replace(~r/-+/, "-")
+      |> String.trim("-")
+
+      # Check if this would conflict with an existing store slug
+      case Shomp.Repo.get_by(Shomp.Stores.Store, slug: potential_store_slug) do
+        nil -> changeset
+        _store ->
+          add_error(changeset, :username, "username conflicts with existing store name '#{potential_store_slug}'. Please choose a different username.")
+      end
+    else
+      changeset
+    end
+  end
+
+  @doc """
+  A user changeset for changing the password.
+
+
+  ## Options
+
+    * `:hash_password` - Hashes the password so it can be stored securely
+      in the database and ensures the password field is cleared to prevent
+      leaks in the logs. If password hashing is not needed and clearing the
+      password field is not desired (like when using this changeset for
+      validations on a LiveView form), this option can be set to `false`.
+      Defaults to `true`.
+  """
+  def password_changeset(user, attrs, opts \\ []) do
+    user
+    |> cast(attrs, [:password])
+    |> validate_confirmation(:password, message: "does not match password")
+    |> validate_password(opts)
+  end
+
+  defp validate_password(changeset, opts) do
+    changeset
+    |> validate_required([:password])
+    |> validate_length(:password, min: 12, max: 72)
+    # |> validate_format(:password, ~r/[A-Z]/, message: "at least one upper case character")
+    # |> validate_format(:password, ~r/[!?@#$%^&*_0-9]/, message: "at least one digit or punctuation character")
+    |> maybe_hash_password(opts)
+  end
+
+  defp maybe_hash_password(changeset, opts) do
+    hash_password? = Keyword.get(opts, :hash_password, true)
+    password = get_change(changeset, :password)
+
+    if hash_password? && password && changeset.valid? do
+      # If using Bcrypt, then further validate it is at most 72 bytes long
+      changeset
+      |> validate_length(:password, max: 72, count: :bytes)
+      # Hashing could be done with `Ecto.Changeset.prepare_changes/2`, but that
+      # would keep the database transaction open longer and hurt performance.
+      |> put_change(:hashed_password, Bcrypt.hash_pwd_salt(password))
+      |> delete_change(:password)
+    else
+      changeset
+    end
+  end
+
+  defp maybe_validate_password(changeset, opts) do
+    password = get_change(changeset, :password)
+
+    if password do
+      validate_password(changeset, opts)
+    else
+      changeset
+    end
+  end
+end
         "tutorials",
         "faq",
         "faqs",
@@ -696,8 +734,6 @@ defmodule Shomp.Accounts.User do
   @doc """
   A user changeset for changing the password.
 
-  It is important to validate the length of the password, as long passwords may
-  be very expensive to hash for certain algorithms.
 
   ## Options
 
