@@ -14,7 +14,7 @@ defmodule ShompWeb.AboutLive.Show do
     # Get the current host from the endpoint configuration
     # This will automatically use the correct domain in production
     host = Endpoint.url()
-    
+
     case Payments.create_donation_session(
       String.to_integer(amount),
       frequency,
@@ -24,9 +24,9 @@ defmodule ShompWeb.AboutLive.Show do
     ) do
       {:ok, session} ->
         {:noreply, redirect(socket, external: session.url)}
-      
+
       {:error, _reason} ->
-        {:noreply, 
+        {:noreply,
          socket
          |> put_flash(:error, "Failed to create donation session. Please try again.")}
     end
@@ -78,7 +78,7 @@ defmodule ShompWeb.AboutLive.Show do
                   </div>
                   <h3 class="text-lg font-semibold text-base-content mb-2">No Platform Fees</h3>
                   <p class="text-base-content/70">
-                    Shomp has no platform fee, ensuring creators keep 100% of their earnings from sales.
+                    Shomp has no platform fee, ensuring creators keep all of their earnings from sales after Stripe's transaction fee.
                   </p>
                 </div>
               </div>
@@ -106,7 +106,7 @@ defmodule ShompWeb.AboutLive.Show do
             <p class="text-center text-base-content/70 mb-8">
               Help us continue building a platform that empowers creators
             </p>
-            
+
             <div class="max-w-2xl mx-auto">
               <div class="grid grid-cols-2 gap-4">
                 <button phx-click="donate" phx-value-amount="5" phx-value-frequency="one_time" class="btn btn-outline w-full">
@@ -128,7 +128,7 @@ defmodule ShompWeb.AboutLive.Show do
                   Donate $25 (Monthly)
                 </button>
               </div>
-              
+
               <div class="text-center mt-6">
                 <p class="text-sm text-base-content/60">
                   All donations are processed securely through Stripe
@@ -145,7 +145,7 @@ defmodule ShompWeb.AboutLive.Show do
               </a>
             </div>
           </div>
-          
+
           <!-- Footer -->
           <div class="px-6 py-8 bg-base-100 border-t border-base-300">
             <div class="text-center">
@@ -153,9 +153,9 @@ defmodule ShompWeb.AboutLive.Show do
               <p class="text-base-content/70 mb-4">
                 Read our latest thoughts on nonprofit marketplaces and the future of creator economies.
               </p>
-              <a 
-                href="https://shompco.wordpress.com/2025/08/20/it-might-be-the-right-time-for-nonprofits/" 
-                target="_blank" 
+              <a
+                href="https://shompco.wordpress.com/2025/08/20/it-might-be-the-right-time-for-nonprofits/"
+                target="_blank"
                 rel="noopener noreferrer"
                 class="inline-flex items-center px-4 py-2 bg-primary text-primary-content rounded-lg hover:bg-primary/90 transition-colors"
               >

@@ -18,7 +18,7 @@ Our mission is to empower creators and artists to make gainful livelihood throug
 - No vendor lock-in - you can always self-host
 
 ### 💰 **Zero Platform Fees**
-- **Creators keep 100% of their earnings** from sales
+- **Creators keep all of their earnings** from sales after Stripe's transaction fee
 - No hidden fees, no percentage cuts, no surprise charges
 - Only standard payment processing fees apply (Stripe's ~2.9%)
 - We believe creators should be rewarded for their work, not the platform

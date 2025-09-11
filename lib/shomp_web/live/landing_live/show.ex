@@ -166,7 +166,7 @@ defmodule ShompWeb.LandingLive.Show do
         No Platform Fees. No Corporate Middlemen. Just Creators & Community.
       </h2>
       <p class="text-xl text-base-content/70 leading-relaxed mb-8">
-        Shomp is a 501c3 nonprofit e-commerce platform built by creators, for creators.
+        Shomp aims to be a 501c3 nonprofit e-commerce platform built by creators, for creators.
         We believe artists should be rewarded for their work, not exploited by corporate fees.
       </p>
 
@@ -305,7 +305,7 @@ defmodule ShompWeb.LandingLive.Show do
     <div>
       <h3 class="text-3xl font-bold mb-6 text-success">Zero Platform Fees</h3>
       <p class="text-xl text-base-content/70 mb-6 leading-relaxed">
-        Creators keep 100% of their earnings. The only fee is Stripe's standard payment processing (~2.9%),
+        Creators keep more of their earnings. The only fee is Stripe's standard payment processing (~2.9%),
         which goes directly to payment security, not corporate profits.
       </p>
       <div class="space-y-4">
