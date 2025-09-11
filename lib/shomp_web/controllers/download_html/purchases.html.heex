@@ -32,7 +32,7 @@
             </div>
             <div class="ml-4">
               <p class="text-sm font-medium text-base-content/70">Total Items</p>
-              <p class="text-2xl font-semibold text-base-content"><%= Enum.reduce(@orders, 0, fn order, acc -> acc + length(order.universal_order_items) end) %></p>
+              <p class="text-2xl font-semibold text-base-content"><%= Enum.reduce(@orders, 0, fn order, acc -> acc + Enum.sum(Enum.map(order.universal_order_items, & &1.quantity)) end) %></p>
             </div>
           </div>
         </div>
@@ -154,10 +154,10 @@
               <!-- Order Actions -->
               <div class="flex items-center justify-between pt-4 border-t border-base-300">
                 <div class="text-sm text-base-content/70">
-                  <%= length(order.universal_order_items) %> item<%= if length(order.universal_order_items) != 1, do: "s", else: "" %>
+                  <%= Enum.sum(Enum.map(order.universal_order_items, & &1.quantity)) %> item<%= if Enum.sum(Enum.map(order.universal_order_items, & &1.quantity)) != 1, do: "s", else: "" %>
                 </div>
-                <a href={~p"/dashboard/orders/#{order.id}"} class="btn btn-primary btn-sm">
-                  View Order Details
+                <a href={~p"/dashboard/purchases/#{order.universal_order_id}"} class="btn btn-primary btn-sm">
+                  View Purchase Details
                 </a>
               </div>
             </li>

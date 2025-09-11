@@ -146,6 +146,7 @@ defmodule ShompWeb.UniversalOrderLive.Show do
                         <div>
                           <h3 class="font-medium text-base-content"><%= order_item.product.title %></h3>
                           <p class="text-sm text-base-content/60">Quantity: <%= order_item.quantity %></p>
+                          <p class="text-sm text-base-content/60">Price: $<%= Decimal.to_string(order_item.unit_price, :normal) %></p>
                           <p class="text-sm text-base-content/60">Store ID: <%= order_item.store_id %></p>
                         </div>
                       </div>
@@ -258,6 +259,12 @@ defmodule ShompWeb.UniversalOrderLive.Show do
                   <span class="text-base-content/70">Total Amount</span>
                   <span class="font-semibold">$<%= Decimal.to_string(@universal_order.total_amount, :normal) %></span>
                 </div>
+                <%= if Decimal.gt?(@universal_order.platform_fee_amount, Decimal.new("0")) do %>
+                  <div class="flex justify-between">
+                    <span class="text-base-content/70">Shomp Donation (5%)</span>
+                    <span class="text-success">$<%= Decimal.to_string(@universal_order.platform_fee_amount, :normal) %></span>
+                  </div>
+                <% end %>
                 <div class="flex justify-between">
                   <span class="text-base-content/70">Status</span>
                   <.status_badge status={@universal_order.shipping_status} class="badge-sm" />

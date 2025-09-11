@@ -170,6 +170,11 @@
             </svg>
           </div>
           <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
+            <li>
+              <.link href={~p"/purchases"} class="btn btn-ghost btn-sm justify-start">
+                📦 My Purchases
+              </.link>
+            </li>
             <%= if Shomp.Stores.count_user_stores(@current_scope.user.id) > 0 do %>
               <li>
                 <.link href={~p"/stores/new"} class="btn btn-ghost btn-sm justify-start">
@@ -195,11 +200,6 @@
             <li>
               <.link href={~p"/dashboard/addresses"} class="btn btn-ghost btn-sm justify-start">
                 📍 Addresses
-              </.link>
-            </li>
-            <li>
-              <.link href={~p"/purchases"} class="btn btn-ghost btn-sm justify-start">
-                📦 My Purchases
               </.link>
             </li>
             <li>

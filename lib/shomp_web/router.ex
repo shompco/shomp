@@ -147,6 +147,7 @@ defmodule ShompWeb.Router do
       live "/dashboard/orders/:immutable_id", SellerOrderLive.Show, :show
       live "/dashboard/orders/universal/:universal_order_id", UniversalOrderLive.Show, :show
       live "/dashboard/purchases", DownloadLive.Purchases, :index
+      live "/dashboard/purchases/:universal_order_id", PurchaseDetailsLive.Show, :show
 
       # Order management (new system)
       live "/orders", OrderLive.Index, :index
