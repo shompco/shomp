@@ -242,11 +242,11 @@ defmodule ShompWeb.SellerOrderLive.Show do
   end
 
   @impl true
-  def mount(%{"id" => order_id}, _session, socket) do
+  def mount(%{"immutable_id" => order_immutable_id}, _session, socket) do
     user = socket.assigns.current_scope.user
 
-    # Get the order and verify the user owns a store that has products in this order
-    order = Orders.get_order!(order_id)
+    # Get the order by immutable_id and verify the user owns a store that has products in this order
+    order = Orders.get_order_by_immutable_id!(order_immutable_id)
 
     # Check if user owns any store that has products in this order
     store_ids = order.order_items

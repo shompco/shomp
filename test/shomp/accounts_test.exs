@@ -216,7 +216,7 @@ defmodule Shomp.AccountsTest do
 
       assert %{
                password: ["should be at least 12 character(s)"],
-               password_confirmation: ["does not match password"]
+               password_confirmation: ["passwords do not match"]
              } = errors_on(changeset)
     end
 
@@ -418,7 +418,7 @@ defmodule Shomp.AccountsTest do
 
     test "validates password requirements" do
       user = unconfirmed_user_fixture()
-      
+
       {:error, changeset} = Accounts.add_user_password(user, %{password: "short"})
       assert "should be at least 12 character(s)" in errors_on(changeset).password
     end

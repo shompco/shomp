@@ -138,7 +138,7 @@ defmodule ShompWeb.UserLive.SettingsTest do
 
       assert result =~ "Save Password"
       assert result =~ "should be at least 12 character(s)"
-      assert result =~ "does not match password"
+      assert result =~ "passwords do not match"
     end
 
     test "renders errors with invalid data (phx-submit)", %{conn: conn} do
@@ -156,7 +156,7 @@ defmodule ShompWeb.UserLive.SettingsTest do
 
       assert result =~ "Save Password"
       assert result =~ "should be at least 12 character(s)"
-      assert result =~ "does not match password"
+      assert result =~ "passwords do not match"
     end
   end
 

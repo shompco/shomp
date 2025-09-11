@@ -126,7 +126,7 @@ defmodule ShompWeb.SellerOrderLive.Index do
                         <!-- Action Buttons -->
                         <div class="flex items-center space-x-2 ml-4">
                           <.link
-                            href={~p"/dashboard/orders/#{order.id}"}
+                            href={~p"/dashboard/orders/#{order.immutable_id}"}
                             class="btn btn-sm btn-outline"
                           >
                             Manage

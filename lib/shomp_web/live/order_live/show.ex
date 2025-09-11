@@ -57,7 +57,7 @@ defmodule ShompWeb.OrderLive.Show do
                         </p>
                         <%= if item.product.type == "digital" do %>
                           <.link
-                            href={~p"/downloads/#{@order.id}"}
+                            href={~p"/downloads/#{@order.immutable_id}"}
                             class="btn btn-xs btn-primary mt-2"
                           >
                             Download
@@ -255,9 +255,9 @@ defmodule ShompWeb.OrderLive.Show do
   end
 
   @impl true
-  def mount(%{"id" => order_id}, _session, socket) do
+  def mount(%{"id" => order_immutable_id}, _session, socket) do
     user = socket.assigns.current_scope.user
-    order = Orders.get_order!(order_id)
+    order = Orders.get_order_by_immutable_id!(order_immutable_id)
 
     # Verify the order belongs to the current user
     if order.user_id != user.id do

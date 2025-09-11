@@ -111,7 +111,7 @@ defmodule ShompWeb.OrderLive.Index do
                     <!-- Action Buttons -->
                     <div class="flex items-center space-x-2">
                       <.link
-                        href={~p"/orders/#{order.id}"}
+                        href={~p"/orders/#{order.immutable_id}"}
                         class="btn btn-sm btn-outline"
                       >
                         View Details
@@ -120,7 +120,7 @@ defmodule ShompWeb.OrderLive.Index do
                       <!-- Download button for digital products -->
                       <%= if order.order_items |> Enum.any?(fn item -> item.product.type == "digital" end) do %>
                         <.link
-                          href={~p"/downloads/#{order.id}"}
+                          href={~p"/downloads/#{order.immutable_id}"}
                           class="btn btn-sm btn-primary"
                         >
                           Download
