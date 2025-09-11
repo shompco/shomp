@@ -10,19 +10,19 @@ defmodule Shomp.Orders.Order do
     field :total_amount, :decimal
     field :status, :string, default: "pending"
     field :stripe_session_id, :string
-    
+
     # Enhanced order status fields
     field :fulfillment_status, :string, default: "unfulfilled"
     field :payment_status, :string, default: "pending"
     field :shipped_at, :utc_datetime
-    
+
     # Physical goods tracking
-    field :shipping_status, :string, default: "not_shipped"
+    field :shipping_status, :string, default: "ordered"
     field :tracking_number, :string
     field :carrier, :string
     field :estimated_delivery, :date
     field :delivered_at, :utc_datetime
-    
+
     # Shipping address
     field :shipping_name, :string
     field :shipping_address_line1, :string
@@ -31,11 +31,11 @@ defmodule Shomp.Orders.Order do
     field :shipping_state, :string
     field :shipping_postal_code, :string
     field :shipping_country, :string
-    
+
     # Notes
     field :seller_notes, :string
     field :customer_notes, :string
-    
+
     belongs_to :user, User
     has_many :order_items, OrderItem
     has_many :products, through: [:order_items, :product]
@@ -54,7 +54,7 @@ defmodule Shomp.Orders.Order do
     |> validate_inclusion(:status, ["pending", "processing", "completed", "cancelled"])
     |> validate_inclusion(:fulfillment_status, ["unfulfilled", "partially_fulfilled", "fulfilled"])
     |> validate_inclusion(:payment_status, ["pending", "paid", "failed", "refunded", "partially_refunded"])
-    |> validate_inclusion(:shipping_status, ["not_shipped", "preparing", "shipped", "in_transit", "out_for_delivery", "delivered", "delivery_failed", "returned"])
+    |> validate_inclusion(:shipping_status, ["ordered", "label_printed", "shipped", "delivered"])
     |> validate_length(:tracking_number, max: 100)
     |> validate_length(:carrier, max: 50)
     |> validate_length(:seller_notes, max: 1000)
@@ -65,7 +65,7 @@ defmodule Shomp.Orders.Order do
     |> put_change(:status, "pending")
     |> put_change(:fulfillment_status, "unfulfilled")
     |> put_change(:payment_status, "pending")
-    |> put_change(:shipping_status, "not_shipped")
+    |> put_change(:shipping_status, "ordered")
   end
 
   @doc """
@@ -77,7 +77,7 @@ defmodule Shomp.Orders.Order do
     |> validate_inclusion(:status, ["pending", "processing", "completed", "cancelled"])
     |> validate_inclusion(:fulfillment_status, ["unfulfilled", "partially_fulfilled", "fulfilled"])
     |> validate_inclusion(:payment_status, ["pending", "paid", "failed", "refunded", "partially_refunded"])
-    |> validate_inclusion(:shipping_status, ["not_shipped", "preparing", "shipped", "in_transit", "out_for_delivery", "delivered", "delivery_failed", "returned"])
+    |> validate_inclusion(:shipping_status, ["ordered", "label_printed", "shipped", "delivered"])
     |> validate_number(:total_amount, greater_than: 0)
     |> validate_length(:tracking_number, max: 100)
     |> validate_length(:carrier, max: 50)
