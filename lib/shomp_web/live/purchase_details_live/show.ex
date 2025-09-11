@@ -30,12 +30,25 @@ defmodule ShompWeb.PurchaseDetailsLive.Show do
           universal_order = universal_order
           |> Shomp.Repo.preload([:user])
 
-          # Manually load order items since association is broken
+          # Manually load order items with proper product preloading
           import Ecto.Query
           order_items = from(u in Shomp.UniversalOrders.UniversalOrderItem,
             where: u.universal_order_id == ^universal_order_id,
             preload: [:product]
           ) |> Shomp.Repo.all()
+
+          # Debug: Check product data
+          IO.puts("=== PURCHASE DETAILS DEBUG ===")
+          IO.puts("Order items count: #{length(order_items)}")
+          for {item, index} <- Enum.with_index(order_items) do
+            IO.puts("Item #{index + 1}:")
+            IO.puts("  Product loaded: #{item.product != nil}")
+            if item.product do
+              IO.puts("  Product title: #{item.product.title}")
+              IO.puts("  Product image_thumb: #{inspect(item.product.image_thumb)}")
+              IO.puts("  Product image_original: #{inspect(item.product.image_original)}")
+            end
+          end
 
           # Manually set the order items
           universal_order = %{universal_order | universal_order_items: order_items}
@@ -81,10 +94,15 @@ defmodule ShompWeb.PurchaseDetailsLive.Show do
                     <div class="flex items-center justify-between py-3 px-4 bg-base-200 rounded-lg">
                       <div class="flex items-center space-x-4">
                         <div class="w-16 h-16 bg-base-300 rounded-lg flex items-center justify-center">
-                          <%= if order_item.product.image_thumb do %>
-                            <img src={order_item.product.image_thumb} alt={order_item.product.title} class="w-full h-full object-cover rounded-lg" />
-                          <% else %>
-                            <div class="text-base-content/40 text-xs">No Image</div>
+                          <%= cond do %>
+                            <% order_item.product.image_thumb && order_item.product.image_thumb != "" -> %>
+                              <img src={order_item.product.image_thumb} alt={order_item.product.title} class="w-full h-full object-cover rounded-lg" />
+                            <% order_item.product.image_medium && order_item.product.image_medium != "" -> %>
+                              <img src={order_item.product.image_medium} alt={order_item.product.title} class="w-full h-full object-cover rounded-lg" />
+                            <% order_item.product.image_original && order_item.product.image_original != "" -> %>
+                              <img src={order_item.product.image_original} alt={order_item.product.title} class="w-full h-full object-cover rounded-lg" />
+                            <% true -> %>
+                              <div class="text-base-content/40 text-xs">No Image</div>
                           <% end %>
                         </div>
                         <div>
@@ -151,7 +169,7 @@ defmodule ShompWeb.PurchaseDetailsLive.Show do
                 </div>
                 <%= if Decimal.gt?(@universal_order.platform_fee_amount, Decimal.new("0")) do %>
                   <div class="flex justify-between">
-                    <span class="text-base-content/70">Shomp Donation (5%)</span>
+                    <span class="text-base-content/70">Shomp Donation (5%) - Thank you!</span>
                     <span class="text-success">$<%= Decimal.to_string(@universal_order.platform_fee_amount, :normal) %></span>
                   </div>
                 <% end %>

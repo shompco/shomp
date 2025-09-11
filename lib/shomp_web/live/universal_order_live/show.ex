@@ -137,10 +137,15 @@ defmodule ShompWeb.UniversalOrderLive.Show do
                     <div class="flex items-center justify-between py-3 px-4 bg-base-200 rounded-lg">
                       <div class="flex items-center space-x-4">
                         <div class="w-16 h-16 bg-base-300 rounded-lg flex items-center justify-center">
-                          <%= if order_item.product.image_thumb do %>
-                            <img src={order_item.product.image_thumb} alt={order_item.product.title} class="w-full h-full object-cover rounded-lg" />
-                          <% else %>
-                            <div class="text-base-content/40 text-xs">No Image</div>
+                          <%= cond do %>
+                            <% order_item.product.image_thumb && order_item.product.image_thumb != "" -> %>
+                              <img src={order_item.product.image_thumb} alt={order_item.product.title} class="w-full h-full object-cover rounded-lg" />
+                            <% order_item.product.image_medium && order_item.product.image_medium != "" -> %>
+                              <img src={order_item.product.image_medium} alt={order_item.product.title} class="w-full h-full object-cover rounded-lg" />
+                            <% order_item.product.image_original && order_item.product.image_original != "" -> %>
+                              <img src={order_item.product.image_original} alt={order_item.product.title} class="w-full h-full object-cover rounded-lg" />
+                            <% true -> %>
+                              <div class="text-base-content/40 text-xs">No Image</div>
                           <% end %>
                         </div>
                         <div>
@@ -259,12 +264,12 @@ defmodule ShompWeb.UniversalOrderLive.Show do
                   <span class="text-base-content/70">Total Amount</span>
                   <span class="font-semibold">$<%= Decimal.to_string(@universal_order.total_amount, :normal) %></span>
                 </div>
-                <%= if Decimal.gt?(@universal_order.platform_fee_amount, Decimal.new("0")) do %>
-                  <div class="flex justify-between">
-                    <span class="text-base-content/70">Shomp Donation (5%)</span>
-                    <span class="text-success">$<%= Decimal.to_string(@universal_order.platform_fee_amount, :normal) %></span>
-                  </div>
-                <% end %>
+            <%= if Decimal.gt?(@universal_order.platform_fee_amount, Decimal.new("0")) do %>
+              <div class="flex justify-between">
+                <span class="text-base-content/70">Shomp Donation (5%) - Thank you!</span>
+                <span class="text-success">$<%= Decimal.to_string(@universal_order.platform_fee_amount, :normal) %></span>
+              </div>
+            <% end %>
                 <div class="flex justify-between">
                   <span class="text-base-content/70">Status</span>
                   <.status_badge status={@universal_order.shipping_status} class="badge-sm" />
