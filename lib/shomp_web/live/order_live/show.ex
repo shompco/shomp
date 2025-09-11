@@ -257,7 +257,7 @@ defmodule ShompWeb.OrderLive.Show do
   @impl true
   def mount(%{"id" => order_immutable_id}, _session, socket) do
     user = socket.assigns.current_scope.user
-    order = Orders.get_order_by_immutable_id!(order_immutable_id)
+    order = Orders.get_order_by_immutable_id!(order_immutable_id, [:order_items, :user])
 
     # Verify the order belongs to the current user
     if order.user_id != user.id do

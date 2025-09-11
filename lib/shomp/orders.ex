@@ -27,7 +27,11 @@ defmodule Shomp.Orders do
   @doc """
   Gets a single order by immutable_id.
   """
-  def get_order_by_immutable_id!(immutable_id), do: Repo.get_by(Order, immutable_id: immutable_id)
+  def get_order_by_immutable_id!(immutable_id, preloads \\ []) do
+    Order
+    |> Repo.get_by!(immutable_id: immutable_id)
+    |> Repo.preload(preloads)
+  end
 
   @doc """
   Gets a single order by stripe session ID.
@@ -63,7 +67,7 @@ defmodule Shomp.Orders do
         # Broadcast the order update to all subscribers
         broadcast_order_update(updated_order)
         {:ok, updated_order}
-      
+
       error -> error
     end
   end
@@ -79,7 +83,7 @@ defmodule Shomp.Orders do
         # Broadcast the order update to all subscribers
         broadcast_order_update(updated_order)
         {:ok, updated_order}
-      
+
       error -> error
     end
   end

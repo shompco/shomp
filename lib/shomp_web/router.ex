@@ -150,7 +150,7 @@ defmodule ShompWeb.Router do
 
       # Order management (new system)
       live "/orders", OrderLive.Index, :index
-      live "/orders/:id", OrderLive.Show, :show
+      live "/dashboard/orders/:id", OrderLive.Show, :show
       live "/dashboard/products/new", ProductLive.New, :new
       live "/dashboard/products/:id/edit", ProductLive.Edit, :edit
       live "/cart", CartLive.Show, :show
