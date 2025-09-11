@@ -229,12 +229,12 @@ defmodule ShompWeb.StoreLive.Index do
                       <div class="flex gap-1 flex-wrap justify-end">
                         <%= for product <- store.products do %>
                           <.link
-                            navigate={~p"/stores/#{store.slug}/products/#{product.slug || product.id}"}
+                            navigate={get_product_url(product)}
                             class="block w-20 h-20 bg-base-200 overflow-hidden hover:shadow-sm transition-all duration-200 hover:scale-105 rounded-lg flex-shrink-0"
                           >
-                            <%= if product.image_thumb && product.image_thumb != "" do %>
+                            <%= if get_product_image(product) do %>
                               <img
-                                src={product.image_thumb}
+                                src={get_product_image(product)}
                                 alt={product.title}
                                 class="w-full h-full object-cover"
                                 loading="lazy"
@@ -305,5 +305,50 @@ defmodule ShompWeb.StoreLive.Index do
       </div>
     </Layouts.app>
     """
+  end
+
+  # Helper function to get the best available image for a product
+  defp get_product_image(product) do
+    cond do
+      # Try thumbnail first
+      product.image_thumb && product.image_thumb != "" -> product.image_thumb
+      # Fall back to original image
+      product.image_original && product.image_original != "" -> product.image_original
+      # Try medium image
+      product.image_medium && product.image_medium != "" -> product.image_medium
+      # Try large image
+      product.image_large && product.image_large != "" -> product.image_large
+      # Try additional images if available
+      product.additional_images && length(product.additional_images) > 0 -> 
+        List.first(product.additional_images)
+      # No image available
+      true -> nil
+    end
+  end
+
+  # Helper function to get product URL
+  defp get_product_url(product) do
+    if product.store do
+      if product.slug do
+        # Check if custom_category is loaded and has a slug
+        custom_category_slug = case product do
+          %{custom_category: %Ecto.Association.NotLoaded{}} -> nil
+          %{custom_category: nil} -> nil
+          %{custom_category: custom_category} when is_map(custom_category) ->
+            Map.get(custom_category, :slug)
+          _ -> nil
+        end
+
+        if custom_category_slug do
+          "/stores/#{product.store.slug}/#{custom_category_slug}/#{product.slug}"
+        else
+          "/stores/#{product.store.slug}/products/#{product.slug}"
+        end
+      else
+        "/stores/#{product.store.slug}/products/#{product.id}"
+      end
+    else
+      "#"
+    end
   end
 end

@@ -176,6 +176,7 @@ defmodule ShompWeb.Router do
       live "/admin/stores", AdminLive.Stores, :show
       live "/admin/products", AdminLive.Products, :show
       live "/admin/products/:id/edit", AdminLive.ProductEdit, :edit
+      live "/admin/delete-success", AdminLive.DeleteSuccess, :show
       live "/admin/kyc-verification", AdminLive.KYCVerification, :show
 
       # Admin support routes

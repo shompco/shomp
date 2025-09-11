@@ -14,33 +14,33 @@ defmodule ShompWeb.AdminLive.ProductEdit do
   @impl true
   def mount(%{"id" => id}, _session, socket) do
     # Check if user is admin
-    if socket.assigns.current_scope && 
+    if socket.assigns.current_scope &&
        socket.assigns.current_scope.user.email == @admin_email do
-      
+
       product = Products.get_product_with_store!(id)
-      
+
       # Load categories based on current product type
       filtered_category_options = if product.type do
         Categories.get_categories_by_type(product.type)
       else
         []
       end
-      
+
       # Load custom categories for the store
       custom_category_options = StoreCategories.get_store_category_options_with_default(product.store_id)
-      
+
       changeset = Products.change_product(product)
-      
-      {:ok, assign(socket, 
-        product: product, 
+
+      {:ok, assign(socket,
+        product: product,
         form: to_form(changeset),
         filtered_category_options: filtered_category_options,
         custom_category_options: custom_category_options,
         page_title: @page_title
       )}
     else
-      {:ok, 
-       socket 
+      {:ok,
+       socket
        |> put_flash(:error, "Access denied. Admin privileges required.")
        |> redirect(to: ~p"/")}
     end
@@ -82,7 +82,7 @@ defmodule ShompWeb.AdminLive.ProductEdit do
           <div class="lg:col-span-2">
             <div class="bg-white rounded-lg shadow-lg p-6">
               <h2 class="text-xl font-semibold mb-4">Product Information</h2>
-              
+
               <.form for={@form} id="product_form" phx-submit="save" phx-change="validate">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <.input
@@ -206,7 +206,7 @@ defmodule ShompWeb.AdminLive.ProductEdit do
                 >
                   View Product
                 </.link>
-                
+
                 <.link
                   navigate={~p"/stores/#{@product.store.slug}"}
                   class="btn btn-outline w-full"
@@ -215,8 +215,8 @@ defmodule ShompWeb.AdminLive.ProductEdit do
                   View Store
                 </.link>
 
-                <button 
-                  phx-click="delete_product" 
+                <button
+                  phx-click="delete_product"
                   phx-confirm="Are you sure you want to delete this product? This action cannot be undone."
                   class="btn btn-error w-full"
                 >
@@ -259,13 +259,13 @@ defmodule ShompWeb.AdminLive.ProductEdit do
     else
       Categories.get_main_category_options()
     end
-    
+
     {:noreply, assign(socket, filtered_category_options: filtered_category_options)}
   end
 
   def handle_event("save", %{"product" => product_params}, socket) do
     product = socket.assigns.product
-    
+
     # Store the product state before changes for logging
     product_before = %{
       title: product.title,
@@ -277,12 +277,12 @@ defmodule ShompWeb.AdminLive.ProductEdit do
       slug: product.slug,
       file_path: product.file_path
     }
-    
+
     case Products.update_product(product, product_params) do
       {:ok, updated_product} ->
         # Log the admin action
         changes = Map.take(product_params, ["title", "description", "price", "type", "category_id", "custom_category_id", "slug", "file_path"])
-        
+
         product_after = %{
           title: updated_product.title,
           description: updated_product.description,
@@ -293,7 +293,7 @@ defmodule ShompWeb.AdminLive.ProductEdit do
           slug: updated_product.slug,
           file_path: updated_product.file_path
         }
-        
+
         # Only log if there were actual changes
         if map_size(changes) > 0 do
           AdminLogs.log_product_edit(
@@ -304,12 +304,12 @@ defmodule ShompWeb.AdminLive.ProductEdit do
             product_after
           )
         end
-        
+
         {:noreply,
          socket
          |> put_flash(:info, "Product updated successfully!")
          |> assign(product: updated_product)}
-      
+
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign(socket, form: to_form(changeset))}
     end
@@ -317,7 +317,7 @@ defmodule ShompWeb.AdminLive.ProductEdit do
 
   def handle_event("delete_product", _params, socket) do
     product = socket.assigns.product
-    
+
     case Products.delete_product(product) do
       {:ok, _deleted_product} ->
         # Log the deletion
@@ -330,12 +330,15 @@ defmodule ShompWeb.AdminLive.ProductEdit do
             price: if(product.price, do: Decimal.to_string(product.price), else: nil)
           }
         )
-        
+
+        # Redirect to success page with product details
+        success_url = ~p"/admin/delete-success?entity_type=product&entity_name=#{URI.encode(product.title)}&entity_id=#{product.id}"
+
         {:noreply,
          socket
          |> put_flash(:info, "Product deleted successfully!")
-         |> push_navigate(to: ~p"/admin/products")}
-      
+         |> push_navigate(to: success_url)}
+
       {:error, _changeset} ->
         {:noreply,
          socket

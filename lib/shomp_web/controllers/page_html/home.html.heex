@@ -218,12 +218,12 @@
                   <div class="flex gap-1 flex-wrap justify-end">
                     <%= for product <- Enum.take(store.products, 8) do %>
                       <a
-                        href={"/stores/#{store.slug}/products/#{product.slug || product.id}"}
+                        href={get_product_url(product)}
                         class="block w-20 h-20 bg-base-200 overflow-hidden hover:shadow-sm transition-all duration-200 hover:scale-105 rounded-lg flex-shrink-0"
                       >
-                        <%= if product.image_thumb && product.image_thumb != "" do %>
+                        <%= if get_product_image(product) do %>
                           <img
-                            src={product.image_thumb}
+                            src={get_product_image(product)}
                             alt={product.title}
                             class="w-full h-full object-cover"
                             loading="lazy"
