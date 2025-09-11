@@ -22,15 +22,18 @@ defmodule ShompWeb.ProductLive.Show do
   end
 
   @impl true
-  def mount(%{"store_slug" => store_slug, "id" => id}, _session, socket) do
+  def mount(%{"store_slug" => store_slug, "id" => id} = params, _session, socket) do
     product = Products.get_product_with_store!(id)
-    
+
     # Verify the product belongs to the store with the given slug
     if product.store.slug == store_slug do
       # Fetch reviews for this product
       reviews = Shomp.Reviews.get_product_reviews(id)
-      
-      {:ok, assign(socket, product: product, reviews: reviews, current_image: product.image_original, current_image_index: nil, donate: true)}
+
+      # Get referrer from params or default to store
+      referrer = params["referrer"] || "store"
+
+      {:ok, assign(socket, product: product, reviews: reviews, current_image: product.image_original, current_image_index: nil, donate: true, referrer: referrer)}
     else
       {:ok,
        socket
@@ -40,7 +43,7 @@ defmodule ShompWeb.ProductLive.Show do
   end
 
   # New mount function for slug-based routing: /:store_slug/:category_slug/:product_slug
-  def mount(%{"store_slug" => store_slug, "category_slug" => category_slug, "product_slug" => product_slug}, _session, socket) do
+  def mount(%{"store_slug" => store_slug, "category_slug" => category_slug, "product_slug" => product_slug} = params, _session, socket) do
     # First, get the store by slug
     case Stores.get_store_by_slug(store_slug) do
       nil ->
@@ -48,7 +51,7 @@ defmodule ShompWeb.ProductLive.Show do
          socket
          |> put_flash(:error, "Store not found")
          |> push_navigate(to: ~p"/")}
-      
+
       store ->
         # Get the custom category by slug within the store
         case StoreCategories.get_store_category_by_slug(store.store_id, category_slug) do
@@ -57,7 +60,7 @@ defmodule ShompWeb.ProductLive.Show do
              socket
              |> put_flash(:error, "Category not found")
              |> push_navigate(to: ~p"/stores/#{store_slug}")}
-          
+
           category ->
             # Get the product by slug within the store and category
             case Products.get_product_by_store_and_category_slug(store.store_id, category.id, product_slug) do
@@ -66,12 +69,15 @@ defmodule ShompWeb.ProductLive.Show do
                  socket
                  |> put_flash(:error, "Product not found")
                  |> push_navigate(to: ~p"/stores/#{store_slug}")}
-              
+
               product ->
                 # Fetch reviews for this product
                 reviews = Shomp.Reviews.get_product_reviews(product.id)
-                
-                {:ok, assign(socket, product: product, reviews: reviews, current_image: product.image_original, current_image_index: nil, donate: true)}
+
+                # Get referrer from params or default to store_category
+                referrer = params["referrer"] || "store_category"
+
+                {:ok, assign(socket, product: product, reviews: reviews, current_image: product.image_original, current_image_index: nil, donate: true, referrer: referrer)}
             end
         end
     end
@@ -79,7 +85,7 @@ defmodule ShompWeb.ProductLive.Show do
 
   # New mount function for slug-based routing: /:store_slug/products/:product_slug
   # This handles products in the default "products" category
-  def mount(%{"store_slug" => store_slug, "product_slug" => product_slug}, _session, socket) do
+  def mount(%{"store_slug" => store_slug, "product_slug" => product_slug} = params, _session, socket) do
     # First, get the store by slug
     case Stores.get_store_by_slug(store_slug) do
       nil ->
@@ -87,7 +93,7 @@ defmodule ShompWeb.ProductLive.Show do
          socket
          |> put_flash(:error, "Store not found")
          |> push_navigate(to: ~p"/")}
-      
+
       store ->
         # Find product by slug in this store
         case Products.get_product_by_store_slug(store.store_id, product_slug) do
@@ -96,18 +102,21 @@ defmodule ShompWeb.ProductLive.Show do
              socket
              |> put_flash(:error, "Product not found")
              |> push_navigate(to: ~p"/stores/#{store_slug}")}
-          
+
           product ->
             # Fetch reviews for this product
             reviews = Shomp.Reviews.get_product_reviews(product.id)
-            
+
             IO.puts("=== PRODUCT DEBUG ===")
             IO.puts("Product ID: #{product.id}")
             IO.puts("Product additional_images: #{inspect(product.additional_images)}")
             IO.puts("Product image_original: #{inspect(product.image_original)}")
             IO.puts("=====================")
-            
-            {:ok, assign(socket, product: product, reviews: reviews, current_image: product.image_original, current_image_index: nil, donate: true)}
+
+            # Get referrer from params or default to store
+            referrer = params["referrer"] || "store"
+
+            {:ok, assign(socket, product: product, reviews: reviews, current_image: product.image_original, current_image_index: nil, donate: true, referrer: referrer)}
         end
     end
   end
@@ -119,6 +128,45 @@ defmodule ShompWeb.ProductLive.Show do
     <div class="w-full min-h-screen bg-base-100">
       <!-- Main Product Content -->
       <div class="w-full px-4 sm:px-6 lg:px-8 py-6">
+        <!-- Back Button -->
+        <div class="mb-4">
+          <%= case Map.get(assigns, :referrer, "store") do %>
+            <% "category" -> %>
+              <!-- From main categories page -->
+              <.link
+                navigate={~p"/categories/#{@product.category.slug}"}
+                class="inline-flex items-center text-sm text-primary hover:text-primary-focus transition-colors duration-200"
+              >
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                </svg>
+                Back to <%= @product.category.name %>
+              </.link>
+            <% "store_category" -> %>
+              <!-- From store category page -->
+              <.link
+                navigate={~p"/stores/#{@product.store.slug}/#{@product.custom_category.slug}"}
+                class="inline-flex items-center text-sm text-primary hover:text-primary-focus transition-colors duration-200"
+              >
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                </svg>
+                Back to <%= @product.custom_category.name %>
+              </.link>
+            <% _ -> %>
+              <!-- From store page -->
+              <.link
+                navigate={~p"/stores/#{@product.store.slug}"}
+                class="inline-flex items-center text-sm text-primary hover:text-primary-focus transition-colors duration-200"
+              >
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                </svg>
+                Back to <%= @product.store.name %>
+              </.link>
+          <% end %>
+        </div>
+
         <!-- Breadcrumb Navigation -->
         <div class="mb-6">
           <nav class="flex items-center space-x-2 text-sm text-base-content/70">
@@ -135,7 +183,7 @@ defmodule ShompWeb.ProductLive.Show do
             >
               <%= @product.store.name %>
             </.link>
-            
+
             <%= if @product.custom_category && Map.has_key?(@product.custom_category, :slug) && @product.custom_category.slug do %>
               <span>/</span>
               <.link
@@ -145,12 +193,12 @@ defmodule ShompWeb.ProductLive.Show do
                 <%= @product.custom_category.name %>
               </.link>
             <% end %>
-            
+
             <span>/</span>
             <span class="text-base-content font-medium"><%= @product.title %></span>
           </nav>
         </div>
-        
+
         <div class="grid grid-cols-1 xl:grid-cols-2 gap-8 xl:gap-16">
           <!-- Left Column: Large Image Gallery -->
           <div class="space-y-8">
@@ -158,18 +206,18 @@ defmodule ShompWeb.ProductLive.Show do
             <%= if has_valid_image(@current_image) || has_valid_image(@product.image_original) do %>
               <div class="relative">
                 <div class="relative aspect-square overflow-hidden rounded-2xl shadow-2xl bg-base-200">
-                  <img 
-                    src={@current_image || @product.image_original} 
+                  <img
+                    src={@current_image || @product.image_original}
                     alt={@product.title}
                     class="w-full h-full object-cover transition-opacity duration-500"
                     id="main-product-image"
                   />
                 </div>
-                
+
                 <!-- Navigation Buttons - Below Image -->
                 <%= if @product.additional_images && length(@product.additional_images) > 0 do %>
                   <div class="flex justify-center space-x-4 mt-6">
-                    <button 
+                    <button
                       phx-click="previous_image"
                       class="bg-base-300 hover:bg-base-300/80 text-base-content p-3 rounded-full shadow-lg transition-all duration-200"
                       title="Previous image"
@@ -178,8 +226,8 @@ defmodule ShompWeb.ProductLive.Show do
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                       </svg>
                     </button>
-                    
-                    <button 
+
+                    <button
                       phx-click="next_image"
                       class="bg-base-300 hover:bg-base-300/80 text-base-content p-3 rounded-full shadow-lg transition-all duration-200"
                       title="Next image"
@@ -191,7 +239,7 @@ defmodule ShompWeb.ProductLive.Show do
                   </div>
                 <% end %>
               </div>
-              
+
               <!-- Thumbnail Gallery -->
               <%= if @product.additional_images && length(@product.additional_images) > 0 do %>
                 <div class="space-y-4">
@@ -199,28 +247,28 @@ defmodule ShompWeb.ProductLive.Show do
                   <div class="flex space-x-3 overflow-x-auto pb-2">
                     <!-- Primary Image Thumbnail -->
                     <%= if has_valid_image(@product.image_thumb) || has_valid_image(@product.image_original) do %>
-                      <button 
+                      <button
                         phx-click="show_image"
                         phx-value-index="primary"
                         class={"flex-shrink-0 w-24 h-24 rounded-xl overflow-hidden border-2 transition-all duration-200 #{if @current_image_index == nil, do: "border-primary ring-2 ring-primary/20", else: "border-base-300 hover:border-base-400"}"}
                       >
-                        <img 
-                          src={@product.image_thumb || @product.image_original} 
+                        <img
+                          src={@product.image_thumb || @product.image_original}
                           alt="Primary image"
                           class="w-full h-full object-cover"
                         />
                       </button>
                     <% end %>
-                    
+
                     <!-- Additional Images Thumbnails -->
                     <%= for {image, index} <- Enum.with_index(@product.additional_images || []) do %>
-                      <button 
+                      <button
                         phx-click="show_image"
                         phx-value-index={index}
                         class={"flex-shrink-0 w-24 h-24 rounded-xl overflow-hidden border-2 transition-all duration-200 #{if @current_image_index == index, do: "border-primary ring-2 ring-primary/20", else: "border-base-300 hover:border-base-400"}"}
                       >
-                        <img 
-                          src={image} 
+                        <img
+                          src={image}
                           alt="Product image #{index + 2}"
                           class="w-full h-full object-cover"
                         />
@@ -249,7 +297,7 @@ defmodule ShompWeb.ProductLive.Show do
               <h1 class="text-4xl lg:text-5xl font-bold text-base-content leading-tight">
                 <%= @product.title %>
               </h1>
-              
+
               <div class="text-3xl lg:text-4xl font-bold text-primary">
                 $<%= @product.price %>
               </div>
@@ -265,7 +313,7 @@ defmodule ShompWeb.ProductLive.Show do
                   </span>
                 </div>
               <% end %>
-              
+
               <%= if @product.custom_category && Map.has_key?(@product.custom_category, :name) do %>
                 <div class="flex items-center space-x-3">
                   <span class="text-sm font-medium text-base-content/70">Category:</span>
@@ -274,7 +322,7 @@ defmodule ShompWeb.ProductLive.Show do
                   </span>
                 </div>
               <% end %>
-              
+
               <div class="flex items-center space-x-3">
                 <span class="text-sm font-medium text-base-content/70">Type:</span>
                 <span class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-accent/10 text-accent border border-accent/20">
@@ -309,8 +357,8 @@ defmodule ShompWeb.ProductLive.Show do
             <!-- Donation Checkbox -->
             <div class="pt-6 pb-4">
               <div class="flex items-center space-x-3 p-4 bg-base-200 rounded-lg">
-                <input type="checkbox" 
-                       id="donate_checkbox" 
+                <input type="checkbox"
+                       id="donate_checkbox"
                        name="donate"
                        checked={@donate}
                        phx-click="toggle_donation"
@@ -323,16 +371,16 @@ defmodule ShompWeb.ProductLive.Show do
 
             <!-- Action Buttons -->
             <div class="space-y-4">
-              <button 
+              <button
                 phx-click="buy_now"
                 phx-disable-with="Creating checkout..."
                 class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-8 rounded-2xl text-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1"
               >
                 Buy Now - $<%= calculate_total_price(@product, @donate) %>
               </button>
-              
+
               <%= if @current_scope && @current_scope.user do %>
-                <button 
+                <button
                   phx-click="add_to_cart"
                   phx-value-product_id={@product.id}
                   phx-value-store_id={@product.store_id}
@@ -342,7 +390,7 @@ defmodule ShompWeb.ProductLive.Show do
                   🛒 Add to Cart
                 </button>
               <% end %>
-              
+
               <%= if @current_scope && @current_scope.user && @current_scope.user.id == @product.store.user_id do %>
                 <div class="pt-4 border-t border-base-300">
                   <.link
@@ -364,39 +412,39 @@ defmodule ShompWeb.ProductLive.Show do
   @impl true
   def handle_event("add_to_cart", %{"product_id" => product_id, "store_id" => store_id}, socket) do
     user_id = socket.assigns.current_scope.user.id
-    
+
     case Shomp.Carts.get_or_create_cart(user_id, store_id) do
       {:ok, cart} ->
         case Shomp.Carts.add_to_cart(cart.id, product_id) do
           {:ok, _cart_item} ->
             # Update cart count
             cart_count = Shomp.Carts.list_user_carts(user_id)
-            |> Enum.reduce(0, fn cart, acc -> 
+            |> Enum.reduce(0, fn cart, acc ->
               acc + Shomp.Carts.Cart.item_count(cart)
             end)
-            
+
             socket = assign(socket, :cart_count, cart_count)
-            
+
             # Push the updated count to the client
             socket = push_event(socket, "cart-count-updated", %{count: cart_count})
-            
-            {:noreply, 
+
+            {:noreply,
              socket
              |> put_flash(:info, "Product added to cart!")}
-          
+
           {:error, :item_already_in_cart} ->
-            {:noreply, 
+            {:noreply,
              socket
              |> put_flash(:info, "This product is already in your cart!")}
-          
+
           {:error, _changeset} ->
-            {:noreply, 
+            {:noreply,
              socket
              |> put_flash(:error, "Failed to add product to cart.")}
         end
-      
+
       {:error, _changeset} ->
-        {:noreply, 
+        {:noreply,
          socket
          |> put_flash(:error, "Failed to create cart.")}
     end
@@ -411,7 +459,7 @@ defmodule ShompWeb.ProductLive.Show do
     product = socket.assigns.product
     donate = socket.assigns.donate
     store_slug = product.store.slug
-    
+
     # Pass donation preference and referrer as URL parameters
     {:noreply, push_navigate(socket, to: ~p"/checkout/single/#{product.id}?donate=#{donate}&from=store&store=#{store_slug}")}
   end
@@ -426,7 +474,7 @@ defmodule ShompWeb.ProductLive.Show do
       "ultra" -> socket.assigns.product.image_ultra
       _ -> socket.assigns.product.image_original
     end
-    
+
     # Push the image switch event to the client
     {:noreply, push_event(socket, "switch-main-image", %{image_path: image_path})}
   end
@@ -438,7 +486,7 @@ defmodule ShompWeb.ProductLive.Show do
   def handle_event("show_image", %{"index" => index}, socket) do
     index = String.to_integer(index)
     additional_images = socket.assigns.product.additional_images || []
-    
+
     if index < length(additional_images) do
       image_url = Enum.at(additional_images, index)
       {:noreply, assign(socket, current_image: image_url, current_image_index: index)}
@@ -450,7 +498,7 @@ defmodule ShompWeb.ProductLive.Show do
   def handle_event("next_image", _params, socket) do
     additional_images = socket.assigns.product.additional_images || []
     current_index = socket.assigns[:current_image_index]
-    
+
     cond do
       current_index == nil ->
         # Currently showing primary image, go to first additional image
@@ -459,17 +507,17 @@ defmodule ShompWeb.ProductLive.Show do
         else
           {:noreply, socket}
         end
-      
+
       current_index < length(additional_images) - 1 ->
         # Go to next additional image
         next_index = current_index + 1
         next_image = Enum.at(additional_images, next_index)
         {:noreply, assign(socket, current_image: next_image, current_image_index: next_index)}
-      
+
       current_index == length(additional_images) - 1 ->
         # Currently on last additional image, go back to primary
         {:noreply, assign(socket, current_image: socket.assigns.product.image_original, current_image_index: nil)}
-      
+
       true ->
         {:noreply, socket}
     end
@@ -478,7 +526,7 @@ defmodule ShompWeb.ProductLive.Show do
   def handle_event("previous_image", _params, socket) do
     additional_images = socket.assigns.product.additional_images || []
     current_index = socket.assigns[:current_image_index]
-    
+
     cond do
       current_index == nil ->
         # Currently showing primary image, go to last additional image
@@ -489,17 +537,17 @@ defmodule ShompWeb.ProductLive.Show do
         else
           {:noreply, socket}
         end
-      
+
       current_index > 0 ->
         # Go to previous additional image
         prev_index = current_index - 1
         prev_image = Enum.at(additional_images, prev_index)
         {:noreply, assign(socket, current_image: prev_image, current_image_index: prev_index)}
-      
+
       current_index == 0 ->
         # Currently on first additional image, go back to primary
         {:noreply, assign(socket, current_image: socket.assigns.product.image_original, current_image_index: nil)}
-      
+
       true ->
         {:noreply, socket}
     end
@@ -507,31 +555,31 @@ defmodule ShompWeb.ProductLive.Show do
 
   def handle_event("vote_helpful", %{"review_id" => review_id, "helpful" => helpful}, socket) do
     user_id = socket.assigns.current_scope.user.id
-    
+
     case Shomp.Reviews.get_or_create_review_vote(user_id, review_id, helpful == "true") do
       {:ok, _vote} ->
         # Update the review's helpful count and refresh reviews
         review = Shomp.Reviews.get_review!(review_id)
         Shomp.Reviews.update_review_helpful_count(review)
-        
+
         reviews = Shomp.Reviews.get_product_reviews(socket.assigns.product.id)
-        
+
         {:noreply, assign(socket, reviews: reviews)}
-      
+
       {:ok, :removed} ->
         # Update the review's helpful count and refresh reviews
         review = Shomp.Reviews.get_review!(review_id)
         Shomp.Reviews.update_review_helpful_count(review)
-        
+
         reviews = Shomp.Reviews.get_product_reviews(socket.assigns.product.id)
-        
-        {:noreply, 
+
+        {:noreply,
          socket
          |> assign(reviews: reviews)
          |> put_flash(:info, "Vote removed!")}
-      
+
       {:error, _changeset} ->
-        {:noreply, 
+        {:noreply,
          socket
          |> put_flash(:error, "Failed to submit vote.")}
     end
@@ -540,10 +588,10 @@ defmodule ShompWeb.ProductLive.Show do
   def handle_event("delete_review", %{"review_id" => review_id}, socket) do
     user_id = socket.assigns.current_scope.user.id
     review = Shomp.Reviews.get_review!(review_id)
-    
+
     # Verify the review belongs to the current user
     if review.user_id != user_id do
-      {:noreply, 
+      {:noreply,
        socket
        |> put_flash(:error, "You can only delete your own reviews")}
     else
@@ -551,14 +599,14 @@ defmodule ShompWeb.ProductLive.Show do
         {:ok, _review} ->
           # Refresh reviews after deletion
           reviews = Shomp.Reviews.get_product_reviews(socket.assigns.product.id)
-          
-          {:noreply, 
+
+          {:noreply,
            socket
            |> assign(reviews: reviews)
            |> put_flash(:info, "Review deleted successfully!")}
-        
+
         {:error, _changeset} ->
-          {:noreply, 
+          {:noreply,
            socket
            |> put_flash(:error, "Failed to delete review")}
       end

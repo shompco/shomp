@@ -69,91 +69,130 @@ defmodule ShompWeb.CategoryLive.Show do
         </script>
       </head>
 
-      <div class="min-h-screen bg-base-100 py-12">
-        <div class="container mx-auto px-4">
-          <div class="max-w-6xl mx-auto">
-            <!-- Breadcrumbs -->
-            <nav class="text-sm breadcrumbs mb-8">
+      <!-- Full viewport width category page -->
+      <div class="w-screen min-h-screen bg-base-100" style="margin-left: calc(-50vw + 50%); margin-right: calc(-50vw + 50%); margin-top: -9rem; padding-top: 0;">
+        <!-- Ultra Thin Header Section -->
+        <div class="relative w-full h-12 bg-gradient-to-r from-primary/10 to-secondary/10">
+          <div class="relative z-10 flex items-center justify-between h-full px-4">
+            <div class="flex items-center space-x-3">
+              <div class="text-xl">
+                <%= get_category_icon(@category.name) %>
+              </div>
+              <h1 class="text-sm font-semibold text-primary">
+                <%= @category.name %>
+              </h1>
+              <span class="text-xs text-base-content/60">
+                <%= length(@products) %> products
+              </span>
+            </div>
+            <div class="text-xs text-base-content/70">
+              <%= @category.description || "Discover amazing products" %>
+            </div>
+          </div>
+        </div>
+
+        <!-- Breadcrumbs -->
+        <div class="w-full bg-base-100">
+          <div class="px-4 py-2">
+            <nav class="text-xs breadcrumbs">
               <ul>
                 <li><a href="/" class="link link-hover">Home</a></li>
                 <li><a href="/categories" class="link link-hover">Categories</a></li>
                 <li><%= @category.name %></li>
               </ul>
             </nav>
+          </div>
+        </div>
 
-            <!-- Category Header -->
-            <div class="text-center mb-12">
-              <div class="text-6xl mb-4">
-                <%= get_category_icon(@category.name) %>
-              </div>
-              <h1 class="text-4xl md:text-5xl font-bold text-primary mb-4">
-                <%= @category.name %>
-              </h1>
-              <p class="text-xl text-base-content/70">
-                <%= @category.description || "Discover amazing products in this category" %>
+        <!-- Products Full-Width Grid -->
+        <div class="w-full">
+          <%= if Enum.empty?(@products) do %>
+            <div class="text-center py-24">
+              <div class="text-8xl mb-6">📦</div>
+              <h3 class="text-3xl font-semibold mb-4">No Products Yet</h3>
+              <p class="text-lg text-base-content/70 mb-8 max-w-2xl mx-auto">
+                No products have been added to this category yet. Check back soon for amazing products!
               </p>
+              <a href="/stores" class="btn btn-primary btn-lg">
+                Browse All Stores
+              </a>
             </div>
-
-            <!-- Products Grid -->
-            <%= if Enum.empty?(@products) do %>
-              <div class="text-center py-16">
-                <div class="text-6xl mb-4">📦</div>
-                <h3 class="text-2xl font-semibold mb-4">No Products Yet</h3>
-                <p class="text-base-content/70 mb-8">
-                  No products have been added to this category yet.
-                </p>
-                <a href="/stores" class="btn btn-primary btn-lg">
-                  Browse All Stores
-                </a>
-              </div>
-            <% else %>
-              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                <%= for product <- @products do %>
-                  <div class="card bg-base-200 shadow-lg hover:shadow-xl transition-all duration-300">
-                    <figure class="px-6 pt-6">
-                      <%= if get_product_image(product) do %>
-                        <img src={get_product_image(product)} alt={product.title} class="w-full h-48 object-cover rounded-lg" />
-                      <% else %>
-                        <div class="w-full h-48 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-lg flex items-center justify-center">
-                          <span class="text-4xl">
-                            <%= case product.type do %>
-                              <% "digital" -> %>💻
-                              <% "physical" -> %>📦
-                              <% _ -> %>🎨
-                            <% end %>
-                          </span>
-                        </div>
-                      <% end %>
-                    </figure>
-                    <div class="card-body">
-                      <h3 class="card-title text-lg"><%= product.title %></h3>
-                      <p class="text-sm text-base-content/70">
-                        <%= if product.description && String.length(product.description) > 0 do %>
-                          <%= String.slice(product.description, 0, 100) %><%= if String.length(product.description) > 100, do: "...", else: "" %>
-                        <% else %>
+          <% else %>
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+              <%= for {product, index} <- Enum.with_index(@products) do %>
+                <a
+                  href={get_product_url(product) <> "?referrer=category"}
+                  class="group relative aspect-square overflow-hidden bg-base-200 hover:shadow-2xl transition-all duration-500 hover:scale-105"
+                  style={"animation-delay: #{index * 50}ms"}
+                >
+                  <!-- Product Image -->
+                  <%= if get_product_image(product) do %>
+                    <img
+                      src={get_product_image(product)}
+                      alt={product.title}
+                      class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                      loading="lazy"
+                    />
+                  <% else %>
+                    <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-base-200 to-base-300">
+                      <div class="text-center p-4">
+                        <div class="text-4xl mb-2">
                           <%= case product.type do %>
-                            <% "digital" -> %>Digital product available for download
-                            <% "physical" -> %>Physical product available for purchase
-                            <% _ -> %>Product available for purchase
+                            <% "digital" -> %>💻
+                            <% "physical" -> %>📦
+                            <% _ -> %>🎨
                           <% end %>
-                        <% end %>
-                      </p>
-                      <%= if product.store do %>
-                        <p class="text-xs text-base-content/50 mt-2">by <%= product.store.name %></p>
-                      <% end %>
-                      <div class="flex justify-between items-center mt-4">
-                        <span class="text-2xl font-bold text-primary">$<%= product.price %></span>
-                        <a href={get_product_url(product)} class="btn btn-primary btn-sm">View Details</a>
+                        </div>
+                        <p class="text-xs text-base-content/60">No Image</p>
+                      </div>
+                    </div>
+                  <% end %>
+
+                  <!-- Overlay with Product Details -->
+                  <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <div class="absolute bottom-0 left-0 right-0 p-3 text-white">
+                      <h3 class="font-bold text-sm mb-2 line-clamp-2 group-hover:text-primary transition-colors duration-300">
+                        <%= product.title %>
+                      </h3>
+                      <div class="flex items-center justify-between text-xs mb-2">
+                        <span class="font-semibold text-primary-200 text-lg">
+                          $<%= product.price %>
+                        </span>
+                        <span class="text-white/80">
+                          <%= if product.store, do: product.store.name, else: "Store" %>
+                        </span>
+                      </div>
+                      <div class="flex items-center justify-between">
+                        <span class="text-xs text-white/70">
+                          <%= case product.type do %>
+                            <% "digital" -> %>💻 Digital
+                            <% "physical" -> %>📦 Physical
+                            <% _ -> %>🎨 Product
+                          <% end %>
+                        </span>
+                        <div class="flex items-center text-xs text-white/70">
+                          <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.293l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L9 9.414V13a1 1 0 102 0V9.414l1.293 1.293a1 1 0 001.414-1.414z" clip-rule="evenodd" />
+                          </svg>
+                          View
+                        </div>
                       </div>
                     </div>
                   </div>
-                <% end %>
-              </div>
-            <% end %>
 
-            <!-- Back to Categories -->
-            <div class="text-center mt-12">
-              <a href="/categories" class="btn btn-outline btn-lg">
+                  <!-- Hover Effect Overlay -->
+                  <div class="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+                </a>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+
+        <!-- Back to Categories -->
+        <div class="w-full bg-base-100">
+          <div class="px-4 py-4">
+            <div class="text-center">
+              <a href="/categories" class="btn btn-outline btn-sm">
                 ← Back to All Categories
               </a>
             </div>
