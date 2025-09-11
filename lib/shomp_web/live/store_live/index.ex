@@ -18,7 +18,7 @@ defmodule ShompWeb.StoreLive.Index do
 
   @impl true
   def handle_event("search", %{"search" => search}, socket) do
-    filtered_stores = 
+    filtered_stores =
       if String.trim(search) == "" do
         socket.assigns.stores
       else
@@ -107,12 +107,25 @@ defmodule ShompWeb.StoreLive.Index do
     <Layouts.app flash={@flash} current_scope={@current_scope}>
       <!-- Header and Search - constrained to container -->
       <div class="w-full py-8">
+        <!-- Back Button -->
+        <div class="mb-6 px-4">
+          <button
+            onclick="history.back()"
+            class="btn btn-ghost btn-sm text-base-content/70 hover:text-base-content hover:bg-base-200 transition-colors duration-200"
+          >
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+            Back
+          </button>
+        </div>
+
         <div class="text-center mb-12">
           <.header>
             Discover Stores
             <:subtitle>Find amazing products from creators around the world</:subtitle>
           </.header>
-          
+
           <div class="mt-6">
             <.link
               navigate={~p"/about"}
@@ -187,13 +200,13 @@ defmodule ShompWeb.StoreLive.Index do
                     >
                       <%= store.name %>
                     </.link>
-                    
+
                     <%= if store.description do %>
                       <p class="text-base-content/70 text-sm mt-1 line-clamp-1">
                         <%= store.description %>
                       </p>
                     <% end %>
-                    
+
                     <div class="flex items-center space-x-3 text-xs text-base-content/60 mt-1">
                       <span class="flex items-center">
                         <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
@@ -209,7 +222,7 @@ defmodule ShompWeb.StoreLive.Index do
                       </span>
                     </div>
                   </div>
-                  
+
                   <!-- Product Images Section - flexible width to fill remaining space -->
                   <div class="flex-1 flex justify-end min-w-0">
                     <%= if store.products && length(store.products) > 0 do %>

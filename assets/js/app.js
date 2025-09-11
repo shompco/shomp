@@ -130,6 +130,36 @@ const CartDonationHook = {
   }
 }
 
+// US Citizenship validation hook
+const UsCitizenshipValidation = {
+  mounted() {
+    const checkbox = this.el.querySelector('input[type="checkbox"][name*="us_citizen_confirmation"]')
+    const submitBtn = document.getElementById('create-store-btn')
+    
+    if (checkbox && submitBtn) {
+      // Initial state - disable button if checkbox is unchecked
+      this.updateButtonState(checkbox.checked, submitBtn)
+      
+      // Add event listener for checkbox changes
+      checkbox.addEventListener('change', (e) => {
+        this.updateButtonState(e.target.checked, submitBtn)
+      })
+    }
+  },
+  
+  updateButtonState(isChecked, submitBtn) {
+    if (isChecked) {
+      submitBtn.disabled = false
+      submitBtn.classList.remove('btn-disabled')
+      submitBtn.classList.add('btn-primary')
+    } else {
+      submitBtn.disabled = true
+      submitBtn.classList.add('btn-disabled')
+      submitBtn.classList.remove('btn-primary')
+    }
+  }
+}
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
@@ -138,7 +168,8 @@ const liveSocket = new LiveSocket("/live", Socket, {
     ...colocatedHooks,
     VoteUpdates,
     FileUploadHook,
-    CartDonationHook
+    CartDonationHook,
+    UsCitizenshipValidation
   },
 })
 

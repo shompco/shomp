@@ -81,4 +81,63 @@ defmodule ShompWeb.PageHTML do
     category = Shomp.Categories.get_category_by_slug!(category_slug)
     Shomp.Products.get_products_by_category(category.id, limit)
   end
+
+  def get_japanese_name(category_name) do
+    case String.downcase(category_name) do
+      "accessories" -> "アクセサリー"
+      "art & collectibles" -> "アート・コレクション"
+      "bags & purses" -> "バッグ・財布"
+      "bath & beauty" -> "バス・美容"
+      "clothing" -> "衣類"
+      "craft supplies & tools" -> "クラフト用品・工具"
+      "electronics & accessories" -> "電子機器・アクセサリー"
+      "home & living" -> "ホーム・リビング"
+      "jewelry" -> "ジュエリー"
+      "paper & party supplies" -> "紙・パーティー用品"
+      "pet supplies" -> "ペット用品"
+      "shoes" -> "靴"
+      "toys & games" -> "おもちゃ・ゲーム"
+      "baby" -> "ベビー"
+      "books, movies & music" -> "本・映画・音楽"
+      "weddings" -> "結婚式"
+      "gifts" -> "ギフト"
+      "educational ebooks" -> "教育電子書籍"
+      "templates" -> "テンプレート"
+      "online courses" -> "オンラインコース"
+      "study guides" -> "学習ガイド"
+      "memberships/subscriptions" -> "メンバーシップ・サブスクリプション"
+      "design assets" -> "デザインアセット"
+      "podcasts and audiobooks" -> "ポッドキャスト・オーディオブック"
+      "music & audio" -> "音楽・オーディオ"
+      "paid newsletters" -> "有料ニュースレター"
+      "diy tutorials" -> "DIYチュートリアル"
+      "software/plugins" -> "ソフトウェア・プラグイン"
+      _ -> "その他"
+    end
+  end
+
+  def get_product_url(product) do
+    if product.store do
+      if product.slug do
+        # Check if custom_category is loaded and has a slug
+        custom_category_slug = case product do
+          %{custom_category: %Ecto.Association.NotLoaded{}} -> nil
+          %{custom_category: nil} -> nil
+          %{custom_category: custom_category} when is_map(custom_category) ->
+            Map.get(custom_category, :slug)
+          _ -> nil
+        end
+
+        if custom_category_slug do
+          "/stores/#{product.store.slug}/#{custom_category_slug}/#{product.slug}"
+        else
+          "/stores/#{product.store.slug}/#{product.slug}"
+        end
+      else
+        "/stores/#{product.store.slug}/products/#{product.id}"
+      end
+    else
+      "#"
+    end
+  end
 end

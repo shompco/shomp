@@ -8,7 +8,7 @@ defmodule ShompWeb.PaymentController do
   """
   def create_checkout(conn, %{"product_id" => product_id}) do
     user = conn.assigns.current_scope.user
-    
+
     success_url = url(conn, ~p"/payments/success?session_id={CHECKOUT_SESSION_ID}")
     cancel_url = url(conn, ~p"/payments/cancel")
 
@@ -45,7 +45,7 @@ defmodule ShompWeb.PaymentController do
       {:ok, event} ->
         IO.puts("Webhook signature verified successfully")
         IO.puts("Event type: #{event.type}")
-        
+
         try do
           result = Payments.handle_webhook(event)
           IO.puts("Webhook handling result: #{inspect(result)}")
@@ -84,16 +84,19 @@ defmodule ShompWeb.PaymentController do
   @doc """
   Creates a custom amount donation checkout session and redirects directly to Stripe.
   """
-  def custom_donate(conn, %{"amount" => amount}) do
+  def custom_donate(conn, %{"amount" => amount} = params) do
     # Parse the amount and create checkout session
     amount_int = case Integer.parse(amount) do
       {amount, _} when amount > 0 -> amount
       _ -> 25  # Default to $25 if invalid
     end
 
+    # Get frequency from params, default to "one_time"
+    frequency = Map.get(params, "frequency", "one_time")
+
     case Payments.create_donation_session(
       amount_int,
-      "one_time",
+      frequency,
       "shomp",
       url(conn, ~p"/payments/success?session_id={CHECKOUT_SESSION_ID}&source=donation"),
       url(conn, ~p"/payments/cancel?source=donation")
@@ -112,7 +115,7 @@ defmodule ShompWeb.PaymentController do
     # Get the referer to determine where user came from
     referer = get_req_header(conn, "referer") |> List.first()
     back_page = get_back_page_name(referer)
-    
+
     # Show a simple form to collect the amount
     render(conn, :custom_donate_form, back_page: back_page)
   end
@@ -137,7 +140,7 @@ defmodule ShompWeb.PaymentController do
     webhook_secret = Application.get_env(:shomp, :stripe_webhook_secret)
     IO.puts("Webhook secret from config: #{inspect(webhook_secret)}")
     IO.puts("Environment STRIPE_WEBHOOK_SECRET: #{inspect(System.get_env("STRIPE_WEBHOOK_SECRET"))}")
-    
+
     case webhook_secret do
       nil ->
         {:error, :missing_webhook_secret}

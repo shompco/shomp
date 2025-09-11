@@ -66,204 +66,199 @@
 </div>
 
 
-<!-- Latest Products Section -->
+<!-- All Categories Section -->
 <div class="py-16 bg-base-50">
   <div class="container mx-auto px-4">
     <div class="flex justify-between items-center mb-8">
-      <h2 class="text-3xl font-bold">Latest Products</h2>
-      <a href="/stores" class="btn btn-outline">View All</a>
+      <h2 class="text-3xl font-bold">Browse Categories</h2>
+      <a href="/categories" class="btn btn-outline">View All Categories</a>
     </div>
     
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-      <%= for product <- @latest_products do %>
-        <div class="card bg-base-100 shadow-lg hover:shadow-xl transition-shadow">
-          <figure class="px-6 pt-6">
-            <%= if product.image_thumb do %>
-              <img src={product.image_thumb} alt={product.title} class="w-full h-48 object-cover rounded-lg" />
-            <% else %>
-              <div class="w-full h-48 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-lg flex items-center justify-center">
-                <span class="text-4xl">
-                  <%= case product.type do %>
-                    <% "digital" -> %>💻
-                    <% "physical" -> %>📦
-                    <% _ -> %>🎨
-                  <% end %>
-                </span>
+    <%= if Enum.empty?(@categories) do %>
+      <div class="text-center py-12">
+        <div class="text-6xl mb-4">📂</div>
+        <h3 class="text-xl font-semibold mb-2">No Categories Yet</h3>
+        <p class="text-base-content/70 mb-6">Categories will appear here once products are added to them.</p>
+        <a href="/stores" class="btn btn-primary">Browse Stores</a>
+      </div>
+    <% else %>
+      <!-- Categories as contained rows -->
+      <div class="space-y-0">
+        <%= for category <- Enum.take(@categories, 4) do %>
+          <div class="w-full bg-base-100 border-b border-base-300 hover:bg-base-200 transition-colors duration-200">
+            <div class="flex items-center justify-between w-full px-4 py-3">
+              <!-- Category Info Section - fixed width -->
+              <div class="flex-shrink-0 w-80 lg:w-96">
+                <div class="flex items-center space-x-4">
+                  <div class="w-12 h-12 bg-gradient-to-br from-primary/20 to-primary/40 rounded-lg flex items-center justify-center shadow-sm">
+                    <div class="w-6 h-6 bg-gradient-to-br from-primary to-primary/70 rounded-sm"></div>
+                  </div>
+                  <div>
+                    <h3 class="text-2xl font-bold text-base-content hover:text-primary transition-colors duration-300">
+                      <%= category.name %>
+                    </h3>
+                    <p class="text-primary/80 text-sm font-medium">
+                      <%= get_japanese_name(category.name) %>
+                    </p>
+                    <p class="text-base-content/70 text-sm mt-1">
+                      <%= length(category.products) %> products available
+                    </p>
+                    <a
+                      href={"/categories/#{category.slug}"}
+                      class="btn btn-primary btn-sm mt-2 shadow-sm hover:shadow-md transition-all duration-300"
+                    >
+                      Browse <%= category.name %>
+                    </a>
+                  </div>
+                </div>
               </div>
-            <% end %>
-          </figure>
-          <div class="card-body">
-            <h3 class="card-title text-lg"><%= product.title %></h3>
-            <p class="text-sm text-base-content/70">
-              <%= if product.description && String.length(product.description) > 0 do %>
-                <%= String.slice(product.description, 0, 100) %><%= if String.length(product.description) > 100, do: "...", else: "" %>
-              <% else %>
-                <%= case product.type do %>
-                  <% "digital" -> %>Digital product available for download
-                  <% "physical" -> %>Physical product available for purchase
-                  <% _ -> %>Product available for purchase
+
+              <!-- Product Images Section - flexible width to fill remaining space -->
+              <div class="flex-1 flex justify-end min-w-0">
+                <%= if category.products && length(category.products) > 0 do %>
+                  <div class="flex gap-1 flex-wrap justify-end">
+                    <%= for product <- Enum.take(category.products, 6) do %>
+                      <a
+                        href={get_product_url(product)}
+                        class="block w-20 h-20 bg-base-200 overflow-hidden hover:shadow-sm transition-all duration-200 hover:scale-105 rounded-lg flex-shrink-0"
+                      >
+                        <%= if product.image_thumb && product.image_thumb != "" do %>
+                          <img
+                            src={product.image_thumb}
+                            alt={product.title}
+                            class="w-full h-full object-cover"
+                            loading="lazy"
+                          />
+                        <% else %>
+                          <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-base-200 to-base-300">
+                            <div class="text-center p-1">
+                              <svg class="w-5 h-5 text-base-content/40 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                            </div>
+                          </div>
+                        <% end %>
+                      </a>
+                    <% end %>
+                  </div>
+                <% else %>
+                  <div class="w-20 h-20 flex items-center justify-center bg-base-200 border border-dashed border-base-300 rounded-lg flex-shrink-0">
+                    <div class="text-center">
+                      <svg class="w-6 h-6 text-base-content/30 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                      </svg>
+                      <p class="text-base-content/40 text-xs mt-1">No products yet</p>
+                    </div>
+                  </div>
                 <% end %>
-              <% end %>
-            </p>
-            <%= if product.store do %>
-              <p class="text-xs text-base-content/50 mt-2">by <%= product.store.name %></p>
-            <% end %>
-            <div class="flex justify-between items-center mt-4">
-              <span class="text-2xl font-bold text-primary">$<%= product.price %></span>
-              <a href={
-                if product.store do
-                  if product.slug do
-                    if product.custom_category && product.custom_category.slug do
-                      "/stores/#{product.store.slug}/#{product.custom_category.slug}/#{product.slug}"
-                    else
-                      "/stores/#{product.store.slug}/#{product.slug}"
-                    end
-                  else
-                    "/stores/#{product.store.slug}/products/#{product.id}"
-                  end
-                else
-                  "#"
-                end
-              } class="btn btn-primary btn-sm">View Details</a>
+              </div>
             </div>
           </div>
-        </div>
-      <% end %>
-    </div>
-    
-    <%= if Enum.empty?(@latest_products) do %>
-      <div class="text-center py-12">
-        <div class="text-6xl mb-4">🎨</div>
-        <h3 class="text-xl font-semibold mb-2">No products yet</h3>
-        <p class="text-base-content/70 mb-6">Be the first to create amazing products!</p>
-        <a href="/stores/new" class="btn btn-primary">Create Your Store</a>
+        <% end %>
       </div>
     <% end %>
   </div>
 </div>
 
-<!-- Editor's Picks Section -->
+<!-- All Stores Section -->
 <div class="py-16 bg-base-100">
   <div class="container mx-auto px-4">
     <div class="flex justify-between items-center mb-8">
-      <h2 class="text-3xl font-bold">Editor's Picks</h2>
-      <a href="/stores" class="btn btn-outline">Discover More</a>
+      <h2 class="text-3xl font-bold">Discover Stores</h2>
+      <a href="/stores" class="btn btn-outline">View All Stores</a>
     </div>
     
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      <%= for product <- @featured_products do %>
-        <div class="card bg-gradient-to-br from-primary/5 to-secondary/5 border-2 border-primary/20">
-          <div class="card-body">
-            <div class="flex items-center gap-4 mb-4">
-              <div class="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center">
-                <%= if product.image_thumb do %>
-                  <img src={product.image_thumb} alt={product.title} class="w-12 h-12 object-cover rounded-full" />
-                <% else %>
-                  <span class="text-2xl">
-                    <%= case product.type do %>
-                      <% "digital" -> %>💻
-                      <% "physical" -> %>📦
-                      <% _ -> %>🏆
-                    <% end %>
+    <%= if Enum.empty?(@stores) do %>
+      <div class="text-center py-12">
+        <div class="text-6xl mb-4">🏪</div>
+        <h3 class="text-xl font-semibold mb-2">No Stores Yet</h3>
+        <p class="text-base-content/70 mb-6">Be the first to create a store and start selling!</p>
+        <a href="/stores/new" class="btn btn-primary">Create Your Store</a>
+      </div>
+    <% else %>
+      <!-- Stores as full-width rows -->
+      <div class="space-y-0">
+        <%= for store <- Enum.take(@stores, 6) do %>
+          <div class="w-full bg-base-100 border-b border-base-300 hover:bg-base-200 transition-colors duration-200">
+            <div class="flex items-center justify-between w-full px-4 py-3">
+              <!-- Store Info Section - fixed width -->
+              <div class="flex-shrink-0 w-80 lg:w-96">
+                <a
+                  href={"/stores/#{store.slug}"}
+                  class="text-lg font-semibold text-base-content hover:text-primary transition-colors duration-200 block"
+                >
+                  <%= store.name %>
+                </a>
+                
+                <%= if store.description do %>
+                  <p class="text-base-content/70 text-sm mt-1 line-clamp-1">
+                    <%= store.description %>
+                  </p>
+                <% end %>
+                
+                <div class="flex items-center space-x-3 text-xs text-base-content/60 mt-1">
+                  <span class="flex items-center">
+                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
+                    </svg>
+                    by <%= store.user.username || "Creator" %>
                   </span>
+                  <span class="flex items-center">
+                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm0 4a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1V8zm8 0a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V8zm0 4a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1v-2z" clip-rule="evenodd" />
+                    </svg>
+                    <%= if store.products, do: length(store.products), else: 0 %> products
+                  </span>
+                </div>
+              </div>
+              
+              <!-- Product Images Section - flexible width to fill remaining space -->
+              <div class="flex-1 flex justify-end min-w-0">
+                <%= if store.products && length(store.products) > 0 do %>
+                  <div class="flex gap-1 flex-wrap justify-end">
+                    <%= for product <- Enum.take(store.products, 8) do %>
+                      <a
+                        href={"/stores/#{store.slug}/products/#{product.slug || product.id}"}
+                        class="block w-20 h-20 bg-base-200 overflow-hidden hover:shadow-sm transition-all duration-200 hover:scale-105 rounded-lg flex-shrink-0"
+                      >
+                        <%= if product.image_thumb && product.image_thumb != "" do %>
+                          <img
+                            src={product.image_thumb}
+                            alt={product.title}
+                            class="w-full h-full object-cover"
+                            loading="lazy"
+                          />
+                        <% else %>
+                          <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-base-200 to-base-300">
+                            <div class="text-center p-1">
+                              <svg class="w-5 h-5 text-base-content/40 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                            </div>
+                          </div>
+                        <% end %>
+                      </a>
+                    <% end %>
+                  </div>
+                <% else %>
+                  <div class="w-20 h-20 flex items-center justify-center bg-base-200 border border-dashed border-base-300 rounded-lg flex-shrink-0">
+                    <div class="text-center">
+                      <svg class="w-6 h-6 text-base-content/30 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                      </svg>
+                      <p class="text-base-content/40 text-xs mt-1">No products yet</p>
+                    </div>
+                  </div>
                 <% end %>
               </div>
-              <div>
-                <h3 class="text-xl font-bold"><%= product.title %></h3>
-                <p class="text-sm text-base-content/70">
-                  <%= if product.store do %>
-                    by <%= product.store.name %>
-                  <% else %>
-                    Featured product
-                  <% end %>
-                </p>
-              </div>
-            </div>
-            <p class="text-base-content/80 mb-4">
-              <%= if product.description && String.length(product.description) > 0 do %>
-                <%= String.slice(product.description, 0, 150) %><%= if String.length(product.description) > 150, do: "...", else: "" %>
-              <% else %>
-                <%= case product.type do %>
-                  <% "digital" -> %>Premium digital product available for immediate download
-                  <% "physical" -> %>High-quality physical product available for purchase
-                  <% _ -> %>Featured product with exceptional value
-                <% end %>
-              <% end %>
-            </p>
-            <div class="flex justify-between items-center">
-              <span class="text-3xl font-bold text-primary">$<%= product.price %></span>
-              <a href={
-                if product.store do
-                  if product.slug do
-                    if product.custom_category && product.custom_category.slug do
-                      "/stores/#{product.store.slug}/#{product.custom_category.slug}/#{product.slug}"
-                    else
-                      "/stores/#{product.store.slug}/#{product.slug}"
-                    end
-                  else
-                    "/stores/#{product.store.slug}/products/#{product.id}"
-                  end
-                else
-                  "#"
-                end
-              } class="btn btn-primary">View Details</a>
             </div>
           </div>
-        </div>
-      <% end %>
-      
-      <%= if Enum.empty?(@featured_products) do %>
-        <div class="col-span-2 text-center py-12">
-          <div class="text-6xl mb-4">⭐</div>
-          <h3 class="text-xl font-semibold mb-2">No featured products yet</h3>
-          <p class="text-base-content/70 mb-6">Create amazing products to be featured here!</p>
-          <a href="/stores/new" class="btn btn-primary">Create Your Store</a>
-        </div>
-      <% end %>
-    </div>
+        <% end %>
+      </div>
+    <% end %>
   </div>
 </div>
 
-<!-- Explore Categories -->
-<%= if !Enum.empty?(@categories_with_counts) do %>
-<div class="py-16 bg-base-100">
-  <div class="container mx-auto px-4">
-    <h2 class="text-3xl font-bold text-center mb-12">Explore Categories</h2>
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      <%= for {category_name, category_slug, count} <- @categories_with_counts do %>
-        <a href={"/categories/#{category_slug}"} class="card bg-base-200 hover:bg-base-300 transition-colors cursor-pointer">
-          <div class="card-body text-center">
-            <div class="flex justify-center gap-2 mb-4">
-              <%= for product <- get_category_sample_products(category_slug, 2) do %>
-                <div class="w-16 h-16 rounded-lg overflow-hidden bg-base-300">
-                  <%= if product.image_thumb do %>
-                    <img src={product.image_thumb} 
-                         alt={product.title} 
-                         class="w-full h-full object-cover" />
-                  <% else %>
-                    <div class="w-full h-full flex items-center justify-center text-base-content/40">
-                      <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd" />
-                      </svg>
-                    </div>
-                  <% end %>
-                </div>
-              <% end %>
-            </div>
-            <h3 class="card-title justify-center">
-              <%= category_name %>
-              <span class="text-sm font-normal text-base-content/60">(<%= count %>)</span>
-            </h3>
-            <p class="text-sm text-base-content/70">
-              <%= get_category_description(category_name) %>
-            </p>
-          </div>
-        </a>
-      <% end %>
-    </div>
-  </div>
-</div>
-<% end %>
 
  <!-- Call to Action -->
  <div class="py-16 bg-primary text-primary-content">
@@ -442,3 +437,4 @@
     </div>
   </div>
 <% end %>
+

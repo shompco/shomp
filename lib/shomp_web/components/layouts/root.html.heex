@@ -73,8 +73,58 @@
       <li>
         <.link href={~p"/stores"} class="btn btn-ghost btn-sm">Browse Stores</.link>
       </li>
-      <li>
-        <.link href={~p"/donations"} class="btn btn-ghost btn-sm">💝 Donate</.link>
+      <li class="dropdown dropdown-end">
+        <div tabindex="0" role="button" class="btn btn-ghost btn-sm">
+          💝 Donate
+          <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
+        </div>
+        <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow-2xl bg-base-100 rounded-box w-64 border border-base-300">
+          <li class="menu-title">
+            <span>One-time Donations</span>
+          </li>
+          <li>
+            <.link href={~p"/payments/custom-donate?amount=5&frequency=one_time"} class="text-sm py-2 px-4 hover:bg-primary/10 rounded-lg transition-colors">
+              💝 Donate $5 once
+            </.link>
+          </li>
+          <li>
+            <.link href={~p"/payments/custom-donate?amount=10&frequency=one_time"} class="text-sm py-2 px-4 hover:bg-primary/10 rounded-lg transition-colors">
+              💝 Donate $10 once
+            </.link>
+          </li>
+          <li>
+            <.link href={~p"/payments/custom-donate?amount=25&frequency=one_time"} class="text-sm py-2 px-4 hover:bg-primary/10 rounded-lg transition-colors">
+              💝 Donate $25 once
+            </.link>
+          </li>
+          <li class="divider"></li>
+          <li class="menu-title">
+            <span>Monthly Donations</span>
+          </li>
+          <li>
+            <.link href={~p"/payments/custom-donate?amount=5&frequency=monthly"} class="text-sm py-2 px-4 hover:bg-primary/10 rounded-lg transition-colors">
+              💝🔄 Donate $5 monthly
+            </.link>
+          </li>
+          <li>
+            <.link href={~p"/payments/custom-donate?amount=10&frequency=monthly"} class="text-sm py-2 px-4 hover:bg-primary/10 rounded-lg transition-colors">
+              💝🔄 Donate $10 monthly
+            </.link>
+          </li>
+          <li>
+            <.link href={~p"/payments/custom-donate?amount=25&frequency=monthly"} class="text-sm py-2 px-4 hover:bg-primary/10 rounded-lg transition-colors">
+              💝🔄 Donate $25 monthly
+            </.link>
+          </li>
+          <li class="divider"></li>
+          <li>
+            <.link href={~p"/donations"} class="text-sm py-2 px-4 hover:bg-primary/10 rounded-lg transition-colors">
+              💝 Choose Your Amount
+            </.link>
+          </li>
+        </ul>
       </li>
       <%= if @current_scope do %>
         <!-- Conditional Store Display -->

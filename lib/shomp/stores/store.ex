@@ -12,6 +12,7 @@ defmodule Shomp.Stores.Store do
     field :merchant_status, :string, default: "pending_verification"
     field :pending_balance, :decimal, default: 0
     field :available_balance, :decimal, default: 0
+    field :us_citizen_confirmation, :boolean, virtual: true  # Virtual field for checkbox
     belongs_to :user, User
     has_many :products, Shomp.Products.Product, foreign_key: :store_id, references: :store_id
     has_many :carts, Shomp.Carts.Cart, foreign_key: :store_id, references: :store_id
@@ -45,14 +46,15 @@ defmodule Shomp.Stores.Store do
   """
   def create_changeset(store, attrs) do
     store
-    |> cast(attrs, [:name, :slug, :description, :user_id])
+    |> cast(attrs, [:name, :slug, :description, :user_id, :us_citizen_confirmation])
     |> generate_slug()
     |> generate_store_id()
-    |> validate_required([:name, :slug, :user_id, :store_id])
+    |> validate_required([:name, :slug, :user_id, :store_id, :us_citizen_confirmation])
     |> validate_length(:name, min: 2, max: 100)
     |> validate_length(:slug, min: 3, max: 50)
     |> validate_format(:slug, ~r/^[a-z0-9-]+$/, message: "must contain only lowercase letters, numbers, and hyphens")
     |> validate_length(:description, max: 1000)
+    |> validate_us_citizenship()
     |> validate_store_username_conflict()
     |> unique_constraint(:slug)
     |> unique_constraint(:store_id)
@@ -69,7 +71,7 @@ defmodule Shomp.Stores.Store do
           |> String.replace(~r/[^a-z0-9\s]/, "")
           |> String.replace(~r/\s+/, "-")
           |> String.trim("-")
-          
+
           put_change(changeset, :slug, slug)
         else
           changeset
@@ -90,14 +92,24 @@ defmodule Shomp.Stores.Store do
     end
   end
 
+  defp validate_us_citizenship(changeset) do
+    us_citizen = get_field(changeset, :us_citizen_confirmation)
+
+    if us_citizen != true do
+      add_error(changeset, :us_citizen_confirmation, "Shomp is only available to US-based sellers and merchants because of our 501c3 nonprofit obligations.")
+    else
+      changeset
+    end
+  end
+
   defp validate_store_username_conflict(changeset) do
     slug = get_change(changeset, :slug) || get_field(changeset, :slug)
-    
+
     if slug do
       # Check if this store slug conflicts with any existing username
       case Shomp.Repo.get_by(Shomp.Accounts.User, username: slug) do
         nil -> changeset
-        _user -> 
+        _user ->
           add_error(changeset, :slug, "store name conflicts with existing username '#{slug}'. Please choose a different store name.")
       end
     else
