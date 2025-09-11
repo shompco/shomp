@@ -25,8 +25,13 @@ defmodule ShompWeb.SellerOrderLive.Index do
             <svg class="mx-auto h-12 w-12 text-base-content/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
-            <h3 class="mt-2 text-sm font-medium text-base-content">No orders yet</h3>
-            <p class="mt-1 text-sm text-base-content/60">Orders from your stores will appear here.</p>
+            <h3 class="mt-2 text-sm font-medium text-base-content">No stores yet</h3>
+            <p class="mt-1 text-sm text-base-content/60">Create a store to start selling and see orders here.</p>
+            <div class="mt-6">
+              <.link href={~p"/stores/new"} class="btn btn-primary">
+                Create Your First Store
+              </.link>
+            </div>
           </div>
         <% else %>
           <%= for {store, orders} <- @store_orders do %>
@@ -40,14 +45,25 @@ defmodule ShompWeb.SellerOrderLive.Index do
                       <p class="text-sm text-base-content/60"><%= store.description %></p>
                     </div>
                     <div class="text-right">
-                      <p class="text-sm text-base-content/60"><%= length(orders) %> orders</p>
+                      <p class="text-sm text-base-content/60">
+                        <%= length(orders) %> <%= if length(orders) == 1, do: "order", else: "orders" %>
+                      </p>
                     </div>
                   </div>
                 </div>
 
                 <!-- Orders List -->
                 <div class="divide-y divide-base-300">
-                  <%= for order <- orders do %>
+                  <%= if Enum.empty?(orders) do %>
+                    <div class="px-6 py-8 text-center">
+                      <svg class="mx-auto h-8 w-8 text-base-content/40 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                      </svg>
+                      <h3 class="text-sm font-medium text-base-content mb-1">No orders yet</h3>
+                      <p class="text-xs text-base-content/60">Orders from this store will appear here when customers make purchases.</p>
+                    </div>
+                  <% else %>
+                    <%= for order <- orders do %>
                     <div class="px-6 py-4 hover:bg-base-50 transition-colors">
                       <div class="flex items-center justify-between">
                         <div class="flex-1">
@@ -118,6 +134,7 @@ defmodule ShompWeb.SellerOrderLive.Index do
                         </div>
                       </div>
                     </div>
+                    <% end %>
                   <% end %>
                 </div>
               </div>
