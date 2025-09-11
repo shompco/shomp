@@ -44,16 +44,23 @@ defmodule ShompWeb.AdminLive.KYCVerification do
     if kyc && kyc.stripe_account_id do
       # Sync with Stripe
       case Shomp.StripeConnect.sync_account_status(kyc.stripe_account_id) do
-        {:ok, _updated_kyc} ->
-          {:noreply,
-           socket
-           |> load_kyc_data()
-           |> put_flash(:info, "Stripe data synced successfully")}
+        {:ok, updated_kyc} ->
+          # Reload the data to get the updated information
+          updated_socket = load_kyc_data(socket)
 
-        {:error, _reason} ->
+          # Find the updated KYC record to show in the details
+          updated_kyc_record = Enum.find(updated_socket.assigns.kyc_records, &(&1.id == kyc_id))
+
+          {:noreply,
+           updated_socket
+           |> assign(:selected_kyc, updated_kyc_record)
+           |> put_flash(:info, "Stripe data synced successfully! Country: #{updated_kyc.stripe_country || "Unknown"}")}
+
+        {:error, reason} ->
+          IO.puts("Sync error: #{inspect(reason)}")
           {:noreply,
            socket
-           |> put_flash(:error, "Failed to sync Stripe data. Please try again.")}
+           |> put_flash(:error, "Failed to sync Stripe data: #{inspect(reason)}")}
       end
     else
       {:noreply,
@@ -167,6 +174,7 @@ defmodule ShompWeb.AdminLive.KYCVerification do
                   <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Store</th>
                   <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
                   <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stripe Account</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Country</th>
                   <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                   <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Individual Info</th>
                   <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -188,6 +196,17 @@ defmodule ShompWeb.AdminLive.KYCVerification do
                         <div class="text-sm text-gray-900 font-mono"><%= String.slice(kyc.stripe_account_id, 0, 20) %>...</div>
                       <% else %>
                         <span class="text-sm text-gray-500">No Stripe Account</span>
+                      <% end %>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <%= if kyc.stripe_country do %>
+                        <div class="text-sm text-gray-900">
+                          <span class={"inline-flex px-2 py-1 text-xs font-semibold rounded-full #{if kyc.stripe_country == "US", do: "bg-green-100 text-green-800", else: "bg-red-100 text-red-800"}"}>
+                            <%= kyc.stripe_country %>
+                          </span>
+                        </div>
+                      <% else %>
+                        <span class="text-sm text-gray-500">Not synced</span>
                       <% end %>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
@@ -224,10 +243,12 @@ defmodule ShompWeb.AdminLive.KYCVerification do
                         <button
                           phx-click="sync_stripe_data"
                           phx-value-kyc_id={kyc.id}
-                          class="text-indigo-600 hover:text-indigo-900"
+                          class="btn btn-sm btn-outline btn-primary"
                         >
-                          Sync Stripe
+                          🔄 Sync with Stripe Connect
                         </button>
+                      <% else %>
+                        <span class="text-gray-400">No Stripe Account</span>
                       <% end %>
                     </td>
                   </tr>
@@ -256,6 +277,18 @@ defmodule ShompWeb.AdminLive.KYCVerification do
                 <div>
                   <dt class="text-sm font-medium text-gray-500">Stripe Account ID</dt>
                   <dd class="mt-1 text-sm text-gray-900 font-mono"><%= @selected_kyc.stripe_account_id || "Not set" %></dd>
+                </div>
+                <div>
+                  <dt class="text-sm font-medium text-gray-500">Country</dt>
+                  <dd class="mt-1">
+                    <%= if @selected_kyc.stripe_country do %>
+                      <span class={"inline-flex px-2 py-1 text-xs font-semibold rounded-full #{if @selected_kyc.stripe_country == "US", do: "bg-green-100 text-green-800", else: "bg-red-100 text-red-800"}"}>
+                        <%= @selected_kyc.stripe_country %>
+                      </span>
+                    <% else %>
+                      <span class="text-sm text-gray-500">Unknown</span>
+                    <% end %>
+                  </dd>
                 </div>
                 <div>
                   <dt class="text-sm font-medium text-gray-500">Charges Enabled</dt>

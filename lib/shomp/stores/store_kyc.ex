@@ -10,6 +10,7 @@ defmodule Shomp.Stores.StoreKYC do
     field :requirements, :map, default: %{}
     field :onboarding_completed, :boolean, default: false
     field :stripe_individual_info, :map, default: %{}
+    field :stripe_country, :string
 
     belongs_to :store, Shomp.Stores.Store
     field :store_data, :map, virtual: true  # Virtual field to hold store data
@@ -20,7 +21,7 @@ defmodule Shomp.Stores.StoreKYC do
   @doc false
   def changeset(store_kyc, attrs) do
     store_kyc
-    |> cast(attrs, [:store_id, :stripe_account_id, :charges_enabled, :payouts_enabled, :requirements, :onboarding_completed, :stripe_individual_info])
+    |> cast(attrs, [:store_id, :stripe_account_id, :charges_enabled, :payouts_enabled, :requirements, :onboarding_completed, :stripe_individual_info, :stripe_country])
     |> validate_required([:store_id])
     |> validate_inclusion(:charges_enabled, [true, false])
     |> validate_inclusion(:payouts_enabled, [true, false])
@@ -33,7 +34,7 @@ defmodule Shomp.Stores.StoreKYC do
   """
   def minimal_changeset(store_kyc, attrs) do
     store_kyc
-    |> cast(attrs, [:store_id, :stripe_account_id, :charges_enabled, :payouts_enabled, :requirements, :onboarding_completed])
+    |> cast(attrs, [:store_id, :stripe_account_id, :charges_enabled, :payouts_enabled, :requirements, :onboarding_completed, :stripe_country])
     |> validate_required([:store_id])
     |> validate_inclusion(:charges_enabled, [true, false])
     |> validate_inclusion(:payouts_enabled, [true, false])

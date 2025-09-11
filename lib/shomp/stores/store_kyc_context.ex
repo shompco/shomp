@@ -91,6 +91,8 @@ defmodule Shomp.Stores.StoreKYCContext do
   def get_kyc_by_stripe_account_id(stripe_account_id) do
     StoreKYC
     |> where([k], k.stripe_account_id == ^stripe_account_id)
+    |> order_by([k], desc: k.inserted_at)
+    |> limit(1)
     |> Repo.one()
   end
 
@@ -186,6 +188,7 @@ defmodule Shomp.Stores.StoreKYCContext do
         payouts_enabled: k.payouts_enabled,
         onboarding_completed: k.onboarding_completed,
         stripe_individual_info: k.stripe_individual_info,
+        stripe_country: k.stripe_country,
         store: %{
           id: s.id,
           store_id: s.store_id,

@@ -44,6 +44,7 @@ defmodule Shomp.StripeConnect do
         IO.puts("=== STRIPE ACCOUNT DATA AVAILABLE ===")
         IO.puts("Account ID: #{account.id}")
         IO.puts("Country: #{account.country}")
+        IO.puts("Country Type: #{inspect(account.country)}")
         IO.puts("Type: #{account.type}")
         IO.puts("Charges Enabled: #{account.charges_enabled}")
         IO.puts("Payouts Enabled: #{account.payouts_enabled}")
@@ -54,6 +55,7 @@ defmodule Shomp.StripeConnect do
         IO.puts("Individual: #{inspect(account.individual)}")
         IO.puts("Company: #{inspect(account.company)}")
         IO.puts("Requirements: #{inspect(account.requirements)}")
+        IO.puts("Full Account Object: #{inspect(account)}")
 
         # Extract individual information if available
         individual_info = if account.individual do
@@ -62,12 +64,26 @@ defmodule Shomp.StripeConnect do
             last_name: account.individual.last_name,
             email: account.individual.email,
             phone: account.individual.phone,
-            dob: account.individual.dob
+            dob: account.individual.dob,
+            address: account.individual.address
           }
         else
           nil
         end
+
+        # Extract company information if available
+        company_info = if account.company do
+          %{
+            name: account.company.name || "Unknown",
+            address: account.company[:address] || nil,
+            country: account.company[:country] || nil
+          }
+        else
+          nil
+        end
+
         IO.puts("Individual Info: #{inspect(individual_info)}")
+        IO.puts("Company Info: #{inspect(company_info)}")
         IO.puts("=====================================")
 
         update_kyc_from_stripe_account(account)
@@ -96,6 +112,7 @@ defmodule Shomp.StripeConnect do
           IO.puts("Email: #{account.individual.email}")
           IO.puts("Phone: #{account.individual.phone}")
           IO.puts("DOB: #{inspect(account.individual.dob)}")
+          IO.puts("Address: #{inspect(account.individual.address)}")
           IO.puts("=============================")
 
           %{
@@ -103,7 +120,8 @@ defmodule Shomp.StripeConnect do
             last_name: account.individual.last_name,
             email: account.individual.email,
             phone: account.individual.phone,
-            dob: account.individual.dob
+            dob: account.individual.dob,
+            address: account.individual.address
           }
         else
           IO.puts("=== NO INDIVIDUAL INFO AVAILABLE ===")
@@ -112,12 +130,49 @@ defmodule Shomp.StripeConnect do
           nil
         end
 
+        # Extract company information if available
+        company_info = if account.company do
+          IO.puts("=== STRIPE COMPANY INFO ===")
+          IO.puts("Company object: #{inspect(account.company)}")
+          IO.puts("Company name: #{account.company.name}")
+          IO.puts("Company address: #{inspect(account.company[:address])}")
+          IO.puts("Company country: #{account.company[:country]}")
+          IO.puts("===========================")
+
+          %{
+            name: account.company.name,
+            address: account.company[:address],
+            country: account.company[:country]
+          }
+        else
+          IO.puts("=== NO COMPANY INFO AVAILABLE ===")
+          IO.puts("Account company field: #{inspect(account.company)}")
+          IO.puts("==================================")
+          nil
+        end
+
+        # Try to get country from various sources
+        detected_country = cond do
+          account.country && account.country != "" -> account.country
+          individual_info && individual_info.address && individual_info.address.country -> individual_info.address.country
+          company_info && company_info.country && company_info.country != "" -> company_info.country
+          true -> nil
+        end
+
+        IO.puts("=== COUNTRY DETECTION ===")
+        IO.puts("Account Country: #{account.country}")
+        IO.puts("Individual Address Country: #{if individual_info && individual_info.address, do: individual_info.address.country, else: "N/A"}")
+        IO.puts("Company Country: #{if company_info, do: company_info.country, else: "N/A"}")
+        IO.puts("Final Detected Country: #{detected_country}")
+        IO.puts("=========================")
+
         attrs = %{
           charges_enabled: account.charges_enabled,
           payouts_enabled: account.payouts_enabled,
           requirements: account.requirements,
           onboarding_completed: account.details_submitted,
-          stripe_individual_info: individual_info
+          stripe_individual_info: individual_info,
+          stripe_country: detected_country
         }
 
         StoreKYCContext.update_kyc_stripe_status(kyc.id, attrs)
@@ -129,6 +184,34 @@ defmodule Shomp.StripeConnect do
   """
   def account_verified?(account) do
     account.charges_enabled && account.payouts_enabled && account.details_submitted
+  end
+
+  @doc """
+  Gets the country for a Stripe Connect account.
+  """
+  def get_account_country(stripe_account_id) do
+    case Stripe.Account.retrieve(stripe_account_id) do
+      {:ok, account} ->
+        # Try to get country from various sources
+        detected_country = cond do
+          account.country && account.country != "" -> account.country
+          account.individual && account.individual.address && account.individual.address.country -> account.individual.address.country
+          account.company && account.company.country -> account.company.country
+          true -> nil
+        end
+
+        IO.puts("=== COUNTRY QUERY FOR #{stripe_account_id} ===")
+        IO.puts("Account Country: #{account.country}")
+        IO.puts("Individual Address Country: #{if account.individual && account.individual.address, do: account.individual.address.country, else: "N/A"}")
+        IO.puts("Company Country: #{if account.company, do: account.company.country, else: "N/A"}")
+        IO.puts("Final Detected Country: #{detected_country}")
+        IO.puts("=============================================")
+
+        {:ok, detected_country}
+      {:error, reason} ->
+        IO.puts("Error fetching country for #{stripe_account_id}: #{inspect(reason)}")
+        {:error, reason}
+    end
   end
 
   @doc """
@@ -197,17 +280,17 @@ defmodule Shomp.StripeConnect do
       # Make a direct HTTP request to Stripe API using Req
       url = "https://api.stripe.com/v1/balance"
       stripe_key = Application.get_env(:shomp, :stripe_secret_key)
-      
+
       IO.puts("=== BALANCE DEBUG ===")
       IO.puts("Using Stripe Key: #{String.slice(stripe_key, 0, 10)}...")
       IO.puts("Account ID: #{stripe_account_id}")
       IO.puts("====================")
-      
+
       headers = [
         {"Authorization", "Bearer #{stripe_key}"},
         {"Stripe-Account", stripe_account_id}
       ]
-      
+
       case Req.get(url, headers: headers) do
         {:ok, %{status: 200, body: balance_data}} ->
           IO.puts("=== STRIPE BALANCE STRUCTURE ===")
@@ -263,17 +346,17 @@ defmodule Shomp.StripeConnect do
       # Make a direct HTTP request to Stripe API using Req
       url = "https://api.stripe.com/v1/balance"
       stripe_key = Application.get_env(:shomp, :stripe_secret_key)
-      
+
       IO.puts("=== TEST BALANCE DEBUG ===")
       IO.puts("Using Stripe Key: #{String.slice(stripe_key, 0, 10)}...")
       IO.puts("Account ID: #{stripe_account_id}")
       IO.puts("=========================")
-      
+
       headers = [
         {"Authorization", "Bearer #{stripe_key}"},
         {"Stripe-Account", stripe_account_id}
       ]
-      
+
       case Req.get(url, headers: headers) do
         {:ok, %{status: 200, body: balance_data}} ->
           IO.puts("=== TEST STRIPE BALANCE STRUCTURE ===")
@@ -329,9 +412,9 @@ defmodule Shomp.StripeConnect do
     IO.puts("User Email from Store: #{user_email}")
 
     # Create a minimal Stripe account - Stripe will collect the details during onboarding
+    # Let Stripe detect the country automatically based on user's location
     account_params = %{
       type: "express",
-      country: "US",
       capabilities: %{
         card_payments: %{requested: true},
         transfers: %{requested: true}
