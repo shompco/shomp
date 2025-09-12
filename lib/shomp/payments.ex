@@ -1401,6 +1401,14 @@ defmodule Shomp.Payments do
             case Shomp.Products.update_product(product, %{quantity: new_quantity}) do
               {:ok, updated_product} ->
                 IO.puts("✅ Product quantity decreased from #{product.quantity} to #{new_quantity} via metadata")
+
+                # Broadcast quantity change via PubSub
+                Phoenix.PubSub.broadcast(
+                  Shomp.PubSub,
+                  "product_quantity:#{updated_product.id}",
+                  {:quantity_changed, updated_product}
+                )
+
                 {:ok, updated_product}
 
               {:error, reason} ->

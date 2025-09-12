@@ -25,6 +25,11 @@ defmodule ShompWeb.ProductLive.Show do
   def mount(%{"store_slug" => store_slug, "id" => id} = params, _session, socket) do
     product = Products.get_product_with_store!(id)
 
+    # Subscribe to product quantity changes
+    if connected?(socket) do
+      Phoenix.PubSub.subscribe(Shomp.PubSub, "product_quantity:#{id}")
+    end
+
     # Verify the product belongs to the store with the given slug
     if product.store.slug == store_slug do
       # Fetch reviews for this product
@@ -51,6 +56,11 @@ defmodule ShompWeb.ProductLive.Show do
          |> push_navigate(to: ~p"/")}
 
       store ->
+        # Subscribe to product quantity changes
+        if connected?(socket) do
+          # We'll get the product ID later when we find the product
+        end
+
         # Get the custom category by slug within the store
         case StoreCategories.get_store_category_by_slug(store.store_id, category_slug) do
           nil ->
@@ -69,6 +79,11 @@ defmodule ShompWeb.ProductLive.Show do
                  |> push_navigate(to: ~p"/stores/#{store_slug}")}
 
               product ->
+                # Subscribe to product quantity changes
+                if connected?(socket) do
+                  Phoenix.PubSub.subscribe(Shomp.PubSub, "product_quantity:#{product.id}")
+                end
+
                 # Fetch reviews for this product
                 reviews = Shomp.Reviews.get_product_reviews(product.id)
 
@@ -100,6 +115,11 @@ defmodule ShompWeb.ProductLive.Show do
              |> push_navigate(to: ~p"/stores/#{store_slug}")}
 
           product ->
+            # Subscribe to product quantity changes
+            if connected?(socket) do
+              Phoenix.PubSub.subscribe(Shomp.PubSub, "product_quantity:#{product.id}")
+            end
+
             # Fetch reviews for this product
             reviews = Shomp.Reviews.get_product_reviews(product.id)
 
@@ -420,6 +440,13 @@ defmodule ShompWeb.ProductLive.Show do
       </div>
     </div>
     """
+  end
+
+  @impl true
+  def handle_info({:quantity_changed, updated_product}, socket) do
+    # Update the product in socket assigns with new quantity
+    IO.puts("🔄 Received quantity change via PubSub: product #{updated_product.id} quantity = #{updated_product.quantity}")
+    {:noreply, assign(socket, product: updated_product)}
   end
 
   @impl true
