@@ -96,5 +96,5 @@ config :stripity_stripe,
   signing_secret: System.get_env("STRIPE_WH_SECRET_KEY")
 
 config :shomp,
-  stripe_webhook_secret: System.get_env("STRIPE_WH_SECRET_KEY"),
+  stripe_webhook_secret: System.get_env("STRIPE_WEBHOOK_SECRET"),
   stripe_publishable_key: System.get_env("STRIPE_PUBLISHABLE_KEY")

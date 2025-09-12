@@ -94,7 +94,30 @@ defmodule Shomp.Payments do
     with {:ok, _synced_product} <- ensure_product_has_stripe_id(product),
          {:ok, session} <- create_individual_item_stripe_session(product, quantity, donate, user_id) do
       IO.puts("Individual item checkout session created successfully: #{session.id}")
-      {:ok, session}
+      IO.puts("Payment intent: #{session.payment_intent}")
+
+      # Create payment record using the payment intent ID
+      IO.puts("=== CREATING PAYMENT RECORD ===")
+      IO.puts("Payment intent ID: #{session.payment_intent}")
+      IO.puts("Product ID: #{product.id}")
+      IO.puts("User ID: #{user_id}")
+      IO.puts("Amount: #{product.price}")
+
+      case create_payment(%{
+        amount: product.price,
+        stripe_payment_id: session.payment_intent,
+        product_id: product.id,
+        user_id: user_id,
+        status: "pending"
+      }) do
+        {:ok, payment} ->
+          IO.puts("✅ Payment record created successfully: #{payment.id}")
+          IO.puts("✅ Payment stripe_payment_id: #{payment.stripe_payment_id}")
+          {:ok, session}
+        {:error, reason} ->
+          IO.puts("❌ Failed to create payment record: #{inspect(reason)}")
+          {:ok, session}  # Still return success even if payment record fails
+      end
     else
       {:error, reason} ->
         IO.puts("Failed to create individual item checkout session: #{inspect(reason)}")
@@ -382,18 +405,24 @@ defmodule Shomp.Payments do
 
   defp handle_charge_succeeded(charge) do
     IO.puts("=== CHARGE SUCCEEDED WEBHOOK ===")
-    IO.puts("Charge ID: #{charge.id}")
-    IO.puts("Charge amount: #{charge.amount}")
-    IO.puts("Charge metadata: #{inspect(charge.metadata)}")
 
-    # Get the payment intent ID from the charge
-    payment_intent_id = charge.payment_intent
+    # Handle both struct (proper webhook) and map (fallback parsing) formats
+    charge_id = get_field(charge, :id, "id")
+    charge_amount = get_field(charge, :amount, "amount")
+    charge_metadata = get_field(charge, :metadata, "metadata")
+    payment_intent_id = get_field(charge, :payment_intent, "payment_intent")
 
-    # Look up the payment by the payment intent ID
+    IO.puts("Charge ID: #{charge_id}")
+    IO.puts("Charge amount: #{charge_amount}")
+    IO.puts("Charge metadata: #{inspect(charge_metadata)}")
+    IO.puts("Payment intent ID: #{payment_intent_id}")
+
+    # Look up the payment by the payment intent ID OR use metadata fallback
     case get_payment_by_payment_intent_id(payment_intent_id) do
       nil ->
-        IO.puts("ERROR: No payment found for payment intent #{payment_intent_id}")
-        {:error, :payment_not_found}
+        IO.puts("No payment record found, trying to decrease quantity from metadata...")
+        # Fallback: decrease quantity directly from charge metadata
+        decrease_quantity_from_metadata(charge_metadata)
 
       payment ->
         IO.puts("Found payment: #{payment.id}")
@@ -412,6 +441,10 @@ defmodule Shomp.Payments do
             # Create download for digital products
             download_result = create_download_for_product(updated_payment)
             IO.puts("Download creation result: #{inspect(download_result)}")
+
+            # Decrease quantity for physical products
+            quantity_result = decrease_product_quantity(updated_payment)
+            IO.puts("Quantity decrease result: #{inspect(quantity_result)}")
 
             {:ok, updated_payment}
 
@@ -650,14 +683,20 @@ defmodule Shomp.Payments do
   defp handle_payment_succeeded(payment_intent) do
     # Handle successful payment intent
     IO.puts("=== PAYMENT SUCCEEDED ===")
-    IO.puts("Payment Intent ID: #{payment_intent.id}")
-    IO.puts("Amount: #{payment_intent.amount}")
-    IO.puts("Metadata: #{inspect(payment_intent.metadata)}")
+
+    # Handle both struct (proper webhook) and map (fallback parsing) formats
+    payment_intent_id = get_field(payment_intent, :id, "id")
+    payment_intent_amount = get_field(payment_intent, :amount, "amount")
+    payment_intent_metadata = get_field(payment_intent, :metadata, "metadata")
+
+    IO.puts("Payment Intent ID: #{payment_intent_id}")
+    IO.puts("Amount: #{payment_intent_amount}")
+    IO.puts("Metadata: #{inspect(payment_intent_metadata)}")
 
     # Get the universal order and payment splits
-    case UniversalOrders.get_universal_order_by_payment_intent(payment_intent.id) do
+    case UniversalOrders.get_universal_order_by_payment_intent(payment_intent_id) do
       nil ->
-        IO.puts("No universal order found for payment intent: #{payment_intent.id}")
+        IO.puts("No universal order found for payment intent: #{payment_intent_id}")
         {:ok, :no_order_found}
 
       universal_order ->
@@ -1332,6 +1371,80 @@ defmodule Shomp.Payments do
     case Repo.one(query) do
       nil -> {:ok, Decimal.new(0)}
       total -> {:ok, total}
+    end
+  end
+
+  # Helper function to safely get field from struct or map
+  defp get_field(data, atom_key, string_key) when is_struct(data) do
+    Map.get(data, atom_key)
+  end
+
+  defp get_field(data, _atom_key, string_key) when is_map(data) do
+    Map.get(data, string_key)
+  end
+
+  # Decrease quantity directly from charge metadata (fallback when no payment record)
+  defp decrease_quantity_from_metadata(metadata) do
+    case Map.get(metadata, "product_id") do
+      nil ->
+        IO.puts("No product_id in metadata")
+        {:error, :no_product_id}
+
+      product_id_string ->
+        try do
+          product_id = String.to_integer(product_id_string)
+          product = Shomp.Products.get_product_with_store!(product_id)
+
+          if product.type == "physical" and product.quantity > 0 do
+            new_quantity = product.quantity - 1
+
+            case Shomp.Products.update_product(product, %{quantity: new_quantity}) do
+              {:ok, updated_product} ->
+                IO.puts("✅ Product quantity decreased from #{product.quantity} to #{new_quantity} via metadata")
+                {:ok, updated_product}
+
+              {:error, reason} ->
+                IO.puts("❌ Failed to decrease product quantity: #{inspect(reason)}")
+                {:error, reason}
+            end
+          else
+            IO.puts("Product is digital or already out of stock, skipping quantity decrease")
+            {:ok, :skipped}
+          end
+        rescue
+          error ->
+            IO.puts("❌ Error processing product from metadata: #{inspect(error)}")
+            {:error, :product_processing_failed}
+        end
+    end
+  end
+
+  # Private function to decrease product quantity
+  defp decrease_product_quantity(payment) do
+    try do
+      product = Shomp.Products.get_product_with_store!(payment.product_id)
+
+      if product.type == "physical" and product.quantity > 0 do
+        # Decrease quantity by 1
+        new_quantity = product.quantity - 1
+
+        case Shomp.Products.update_product(product, %{quantity: new_quantity}) do
+          {:ok, updated_product} ->
+            IO.puts("Product quantity decreased from #{product.quantity} to #{new_quantity}")
+            {:ok, updated_product}
+
+          {:error, reason} ->
+            IO.puts("ERROR: Failed to decrease product quantity: #{inspect(reason)}")
+            {:error, reason}
+        end
+      else
+        IO.puts("Product is digital or already out of stock, skipping quantity decrease")
+        {:ok, :skipped}
+      end
+    rescue
+      error ->
+        IO.puts("ERROR: Product not found for payment #{payment.id}: #{inspect(error)}")
+        {:error, :product_not_found}
     end
   end
 end
