@@ -111,6 +111,35 @@ defmodule ShompWeb.StoreLive.Balance do
               </div>
             </div>
           </div>
+        <% else %>
+          <!-- Stripe Connect Onboarding Button -->
+          <div class="mb-8 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center">
+                <div class="flex-shrink-0">
+                  <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                  </svg>
+                </div>
+                <div class="ml-3">
+                  <h3 class="text-sm font-medium text-yellow-800">
+                    Stripe Connect Required
+                  </h3>
+                  <div class="mt-1 text-sm text-yellow-700">
+                    <p>Complete Stripe Connect onboarding to receive payouts and process payments.</p>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <button
+                  phx-click="start_stripe_onboarding"
+                  phx-value-store_id={get_first_store_id(@stores_with_data)}
+                  class="btn btn-primary">
+                  Start Stripe Onboarding
+                </button>
+              </div>
+            </div>
+          </div>
         <% end %>
 
         <!-- Stripe Connect Dashboard Links -->
@@ -170,56 +199,6 @@ defmodule ShompWeb.StoreLive.Balance do
                   <div class="text-sm text-gray-500 mt-1">Lifetime Earnings</div>
                 </div>
 
-                <!-- Stripe Connect Actions -->
-                <div class="pt-4 border-t border-gray-200">
-                  <%= if store_data.kyc_record == nil do %>
-                    <!-- No Stripe account yet -->
-                    <div class="text-center py-2">
-                      <div class="text-sm text-yellow-600 font-medium mb-2">Stripe Connect Not Set Up</div>
-                      <button
-                        phx-click="start_stripe_onboarding"
-                        phx-value-store_id={store_data.store.store_id}
-                        class="btn btn-primary btn-sm">
-                        Start Onboarding
-                      </button>
-                    </div>
-                  <% else %>
-                    <%= if not is_nil(store_data.kyc_record.stripe_account_id) && store_data.kyc_record.charges_enabled && store_data.kyc_record.payouts_enabled && store_data.kyc_record.onboarding_completed do %>
-                      <!-- Stripe Connect Fully Verified -->
-                      <div class="text-center py-2">
-                        <div class="text-sm text-green-600 font-medium mb-2">✅ Ready for Payouts</div>
-                        <div class="text-xs text-gray-500">
-                          Stripe Connect verified
-                        </div>
-                      </div>
-                    <% else %>
-                      <!-- Stripe Connect Incomplete -->
-                      <div class="text-center py-2">
-                        <div class="text-sm text-yellow-600 font-medium mb-2">Stripe Connect Incomplete</div>
-                        <div class="text-xs text-gray-500 mb-2">
-                          <%= if store_data.kyc_record.stripe_account_id, do: "Account created", else: "No account" %> •
-                          <%= if store_data.kyc_record.charges_enabled, do: "Charges ✓", else: "Charges ✗" %> •
-                          <%= if store_data.kyc_record.payouts_enabled, do: "Payouts ✓", else: "Payouts ✗" %>
-                        </div>
-                        <%= if is_nil(store_data.kyc_record.stripe_account_id) do %>
-                          <button
-                            phx-click="start_stripe_onboarding"
-                            phx-value-store_id={store_data.store.store_id}
-                            class="btn btn-primary btn-sm">
-                            Start Onboarding
-                          </button>
-                        <% else %>
-                          <button
-                            phx-click="sync_stripe_status"
-                            phx-value-store_id={store_data.store.store_id}
-                            class="btn btn-secondary btn-sm">
-                            Sync Status
-                          </button>
-                        <% end %>
-                      </div>
-                    <% end %>
-                  <% end %>
-                </div>
               </div>
             </div>
           <% end %>
@@ -444,6 +423,13 @@ defmodule ShompWeb.StoreLive.Balance do
     case Payments.get_store_total_earnings(store_id) do
       {:ok, total} -> total
       {:error, _} -> Decimal.new(0)
+    end
+  end
+
+  defp get_first_store_id(stores_with_data) do
+    case stores_with_data do
+      [%{store: %{store_id: store_id}} | _] -> store_id
+      [] -> nil
     end
   end
 end
