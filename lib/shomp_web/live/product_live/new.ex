@@ -265,7 +265,7 @@ defmodule ShompWeb.ProductLive.New do
         socket = assign_form(socket, changeset, store_options, stores, physical_categories, custom_categories)
           |> assign(:filtered_category_options, physical_categories)
           |> assign(:uploaded_images, [])
-          |> push_event("js", %{exec: JS.show(to: "#quantity-section")})
+          |> push_event("js", %{exec: "document.getElementById('quantity-section').classList.remove('hidden')"})
 
         {:ok, socket}
     end
@@ -301,14 +301,17 @@ defmodule ShompWeb.ProductLive.New do
     end
 
     # Show/hide quantity section based on product type
-    quantity_js = if product_type == "physical" do
-      JS.show(to: "#quantity-section")
+    socket = if product_type == "physical" do
+      socket
+      |> assign(filtered_category_options: filtered_category_options)
+      |> push_event("js", %{exec: "document.getElementById('quantity-section').classList.remove('hidden')"})
     else
-      JS.hide(to: "#quantity-section")
+      socket
+      |> assign(filtered_category_options: filtered_category_options)
+      |> push_event("js", %{exec: "document.getElementById('quantity-section').classList.add('hidden')"})
     end
 
-    socket = assign(socket, filtered_category_options: filtered_category_options)
-    {:noreply, push_event(socket, "js", %{exec: quantity_js})}
+    {:noreply, socket}
   end
 
   def handle_event("cancel-upload", %{"ref" => ref}, socket) do

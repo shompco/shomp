@@ -160,6 +160,15 @@ const UsCitizenshipValidation = {
   }
 }
 
+// Show/Hide on Type Change hook
+const ShowHideOnTypeChange = {
+  mounted() {
+    // This hook is now handled by server-side JavaScript execution
+    // The hook is kept for compatibility but the actual functionality
+    // is handled by the type_changed event in the LiveView
+  }
+}
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
