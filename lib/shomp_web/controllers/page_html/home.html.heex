@@ -94,9 +94,12 @@
                     <div class="w-6 h-6 bg-gradient-to-br from-primary to-primary/70 rounded-sm"></div>
                   </div>
                   <div>
-                    <h3 class="text-2xl font-bold text-base-content hover:text-primary transition-colors duration-300">
+                    <a
+                      href={"/categories/#{category.slug}"}
+                      class="text-2xl font-bold text-base-content hover:text-primary transition-colors duration-300 block"
+                    >
                       <%= category.name %>
-                    </h3>
+                    </a>
                     <p class="text-primary/80 text-sm font-medium">
                       <%= get_japanese_name(category.name) %>
                     </p>
