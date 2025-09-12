@@ -90,13 +90,18 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
 
               <!-- Product Info -->
               <div class="flex space-x-4 mb-4">
-                <%= if @product.image_thumb do %>
-                  <img
-                    src={@product.image_thumb}
-                    alt={@product.title}
-                    class="w-16 h-16 object-cover rounded-lg"
-                  />
-                <% end %>
+                <div class="w-16 h-16 bg-base-300 rounded-lg flex items-center justify-center">
+                  <%= cond do %>
+                    <% @product.image_thumb && @product.image_thumb != "" -> %>
+                      <img src={@product.image_thumb} alt={@product.title} class="w-full h-full object-cover rounded-lg" />
+                    <% @product.image_medium && @product.image_medium != "" -> %>
+                      <img src={@product.image_medium} alt={@product.title} class="w-full h-full object-cover rounded-lg" />
+                    <% @product.image_original && @product.image_original != "" -> %>
+                      <img src={@product.image_original} alt={@product.title} class="w-full h-full object-cover rounded-lg" />
+                    <% true -> %>
+                      <div class="text-base-content/40 text-xs">No Image</div>
+                  <% end %>
+                </div>
                 <div class="flex-1">
                   <h3 class="font-medium text-base-content"><%= @product.title %></h3>
                   <p class="text-sm text-base-content/70"><%= @product.store.name %></p>
