@@ -17,28 +17,35 @@ defmodule ShompWeb.CategoryLive.Index do
   def render(assigns) do
     ~H"""
     <div class="min-h-screen bg-base-100">
-        <!-- Header without gap -->
-        <div class="bg-base-100 border-b border-base-300">
-          <div class="w-full px-4 py-8">
-            <!-- Back Button -->
-            <div class="mb-6">
-              <button
-                onclick="history.back()"
-                class="btn btn-ghost btn-sm text-base-content/70 hover:text-base-content hover:bg-base-200 transition-colors duration-200"
-              >
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                </svg>
-                Back
-              </button>
+        <!-- Ultra Thin Header Section -->
+        <div class="relative w-full h-12 bg-gradient-to-r from-primary/10 to-secondary/10">
+          <div class="relative z-10 flex items-center justify-between h-full px-4">
+            <div class="flex items-center space-x-3">
+              <div class="text-xl">
+                📂
+              </div>
+              <h1 class="text-sm font-semibold text-primary">
+                Browse Categories
+              </h1>
+              <span class="text-xs text-base-content/60">
+                <%= length(@categories) %> categories
+              </span>
             </div>
+            <div class="text-xs text-base-content/70">
+              Discover products organized by category
+            </div>
+          </div>
+        </div>
 
-            <div class="text-center">
-              <h1 class="text-4xl md:text-5xl font-bold text-primary mb-4">Browse Categories</h1>
-              <p class="text-xl text-base-content/70">
-                Discover products organized by category
-              </p>
-            </div>
+        <!-- Breadcrumbs -->
+        <div class="w-full bg-base-100">
+          <div class="px-4 py-2">
+            <nav class="text-xs breadcrumbs">
+              <ul>
+                <li><a href="/" class="link link-hover">Home</a></li>
+                <li>Categories</li>
+              </ul>
+            </nav>
           </div>
         </div>
 

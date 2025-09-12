@@ -105,36 +105,42 @@ defmodule ShompWeb.StoreLive.Index do
       }
     </style>
     <Layouts.app flash={@flash} current_scope={@current_scope}>
-      <!-- Header and Search - constrained to container -->
-      <div class="w-full py-8">
-        <!-- Back Button -->
-        <div class="mb-6 px-4">
-          <button
-            onclick="history.back()"
-            class="btn btn-ghost btn-sm text-base-content/70 hover:text-base-content hover:bg-base-200 transition-colors duration-200"
-          >
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-            </svg>
-            Back
-          </button>
-        </div>
-
-        <div class="text-center mb-12">
-          <.header>
-            Discover Stores
-            <:subtitle>Find amazing products from creators around the world</:subtitle>
-          </.header>
-
-          <div class="mt-6">
-            <.link
-              navigate={~p"/about"}
-              class="text-blue-600 hover:text-blue-800 text-sm font-medium"
-            >
-              About Shomp
-            </.link>
+      <!-- Full viewport width stores page -->
+      <div class="w-screen min-h-screen bg-base-100" style="margin-left: calc(-50vw + 50%); margin-right: calc(-50vw + 50%); margin-top: -9rem; padding-top: 0;">
+        <!-- Ultra Thin Header Section -->
+        <div class="relative w-full h-12 bg-gradient-to-r from-primary/10 to-secondary/10">
+          <div class="relative z-10 flex items-center justify-between h-full px-4">
+            <div class="flex items-center space-x-3">
+              <div class="text-xl">
+                🏪
+              </div>
+              <h1 class="text-sm font-semibold text-primary">
+                Browse Stores
+              </h1>
+              <span class="text-xs text-base-content/60">
+                <%= length(@stores) %> stores
+              </span>
+            </div>
+            <div class="text-xs text-base-content/70">
+              Find amazing products from creators around the world
+            </div>
           </div>
         </div>
+
+        <!-- Breadcrumbs -->
+        <div class="w-full bg-base-100">
+          <div class="px-4 py-2">
+            <nav class="text-xs breadcrumbs">
+              <ul>
+                <li><a href="/" class="link link-hover">Home</a></li>
+                <li>Stores</li>
+              </ul>
+            </nav>
+          </div>
+        </div>
+
+      <!-- Search Section -->
+      <div class="w-full py-4">
 
         <div class="mb-8 px-4">
           <form phx-change="search" class="max-w-lg mx-auto">
@@ -303,6 +309,7 @@ defmodule ShompWeb.StoreLive.Index do
           </div>
         <% end %>
       </div>
+      </div>
     </Layouts.app>
     """
   end
@@ -319,7 +326,7 @@ defmodule ShompWeb.StoreLive.Index do
       # Try large image
       product.image_large && product.image_large != "" -> product.image_large
       # Try additional images if available
-      product.additional_images && length(product.additional_images) > 0 -> 
+      product.additional_images && length(product.additional_images) > 0 ->
         List.first(product.additional_images)
       # No image available
       true -> nil
