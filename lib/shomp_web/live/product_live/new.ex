@@ -69,6 +69,18 @@ defmodule ShompWeb.ProductLive.New do
             phx-change="type_changed"
           />
 
+          <!-- Quantity Available (only for physical products) -->
+          <div id="quantity-section" class="hidden" phx-hook="ShowHideOnTypeChange" data-show-on="physical">
+            <.input
+              field={@form[:quantity]}
+              type="number"
+              label="Quantity Available"
+              placeholder="Enter how many items you have in stock"
+              min="0"
+              step="1"
+            />
+          </div>
+
           <!-- Category Selection Section -->
           <div class="space-y-4">
             <h3 class="text-lg font-medium text-gray-900">Product Categories</h3>
@@ -250,9 +262,12 @@ defmodule ShompWeb.ProductLive.New do
             progress: &handle_progress/3
           )
 
-        {:ok, assign_form(socket, changeset, store_options, stores, physical_categories, custom_categories)
+        socket = assign_form(socket, changeset, store_options, stores, physical_categories, custom_categories)
           |> assign(:filtered_category_options, physical_categories)
-          |> assign(:uploaded_images, [])}
+          |> assign(:uploaded_images, [])
+          |> push_event("js", %{exec: JS.show(to: "#quantity-section")})
+
+        {:ok, socket}
     end
   end
 
@@ -285,7 +300,15 @@ defmodule ShompWeb.ProductLive.New do
       Categories.get_main_category_options()
     end
 
-    {:noreply, assign(socket, filtered_category_options: filtered_category_options)}
+    # Show/hide quantity section based on product type
+    quantity_js = if product_type == "physical" do
+      JS.show(to: "#quantity-section")
+    else
+      JS.hide(to: "#quantity-section")
+    end
+
+    socket = assign(socket, filtered_category_options: filtered_category_options)
+    {:noreply, push_event(socket, "js", %{exec: quantity_js})}
   end
 
   def handle_event("cancel-upload", %{"ref" => ref}, socket) do

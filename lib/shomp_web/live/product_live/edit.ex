@@ -11,33 +11,33 @@ defmodule ShompWeb.ProductLive.Edit do
   def mount(%{"id" => id}, _session, socket) do
     user = socket.assigns.current_scope.user
     product = Products.get_product_with_store!(id)
-    
+
     # Check if user owns the store
     if product.store.user_id == user.id do
       changeset = Products.change_product(product)
-      
+
       # Load categories based on current product type
       filtered_category_options = if product.type do
         Categories.get_categories_by_type(product.type)
       else
         []
       end
-      
+
       # Load custom categories for the store
       custom_category_options = StoreCategories.get_store_category_options_with_default(product.store_id)
-      
+
       # Configure uploads with auto upload and progress handler
       socket = socket
-      |> allow_upload(:product_images, 
+      |> allow_upload(:product_images,
           accept: ~w(.jpg .jpeg .png .gif .webp),
           max_entries: 10,
           max_file_size: 10_000_000,
           auto_upload: true,
           progress: &handle_progress/3
         )
-      
-      {:ok, assign(socket, 
-        product: product, 
+
+      {:ok, assign(socket,
+        product: product,
         form: to_form(changeset),
         filtered_category_options: filtered_category_options,
         custom_category_options: custom_category_options
@@ -97,6 +97,18 @@ defmodule ShompWeb.ProductLive.Edit do
             phx-change="type_changed"
           />
 
+          <!-- Quantity Available (only for physical products) -->
+          <div id="quantity-section" class={if @product.type == "physical", do: "", else: "hidden"}>
+            <.input
+              field={@form[:quantity]}
+              type="number"
+              label="Quantity Available"
+              placeholder="Enter how many items you have in stock"
+              min="0"
+              step="1"
+            />
+          </div>
+
           <.input
             field={@form[:category_id]}
             type="select"
@@ -127,14 +139,14 @@ defmodule ShompWeb.ProductLive.Edit do
                 <% end %> image(s)
               </span>
             </div>
-            
+
             <!-- Current Images Gallery -->
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               <!-- Primary Image -->
               <%= if @product.image_original do %>
                 <div class="relative group">
-                  <img 
-                    src={@product.image_original} 
+                  <img
+                    src={@product.image_original}
                     alt="Primary image"
                     class="w-full h-32 object-cover rounded-lg border-2 border-blue-500 transition-all duration-200"
                   />
@@ -143,7 +155,7 @@ defmodule ShompWeb.ProductLive.Edit do
                   </div>
                   <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 rounded-lg flex items-center justify-center">
                     <div class="opacity-0 group-hover:opacity-100 transition-opacity duration-200 space-x-2">
-                      <button 
+                      <button
                         type="button"
                         phx-click="remove_image"
                         phx-value-index="primary"
@@ -159,19 +171,19 @@ defmodule ShompWeb.ProductLive.Edit do
                   </div>
                 </div>
               <% end %>
-              
+
               <!-- Additional Images -->
               <%= for {image_url, index} <- Enum.with_index(@product.additional_images || []) do %>
                 <div class="relative group">
-                  <img 
-                    src={image_url} 
+                  <img
+                    src={image_url}
                     alt="Product image #{index + 2}"
                     class="w-full h-32 object-cover rounded-lg border-2 border-gray-200 transition-all duration-200"
                     onerror="this.style.border='3px solid red'; console.log('Failed to load:', this.src);"
                   />
                   <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 rounded-lg flex items-center justify-center">
                     <div class="opacity-0 group-hover:opacity-100 transition-opacity duration-200 space-x-2">
-                      <button 
+                      <button
                         type="button"
                         phx-click="make_primary"
                         phx-value-index={index}
@@ -182,7 +194,7 @@ defmodule ShompWeb.ProductLive.Edit do
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
                         </svg>
                       </button>
-                      <button 
+                      <button
                         type="button"
                         phx-click="remove_image"
                         phx-value-index={index}
@@ -198,7 +210,7 @@ defmodule ShompWeb.ProductLive.Edit do
                   </div>
                 </div>
               <% end %>
-              
+
               <!-- Add New Image Card -->
               <%= if (if @product.image_original, do: 1, else: 0) + length(@product.additional_images || []) < 10 do %>
                 <label class="relative border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 transition-colors cursor-pointer">
@@ -212,7 +224,7 @@ defmodule ShompWeb.ProductLive.Edit do
                 </label>
               <% end %>
             </div>
-            
+
             <!-- Remove All Images Button -->
             <%= if @product.image_original || length(@product.additional_images || []) > 0 do %>
               <div class="mt-4 flex justify-center">
@@ -229,7 +241,7 @@ defmodule ShompWeb.ProductLive.Edit do
                 </button>
               </div>
             <% end %>
-            
+
             <!-- Upload Status -->
             <%= if @uploads.product_images.entries != [] do %>
               <div class="bg-blue-50 p-4 rounded-lg">
@@ -249,7 +261,7 @@ defmodule ShompWeb.ProductLive.Edit do
                 <% end %>
               </div>
             <% end %>
-            
+
             <!-- No Images State -->
             <%= if !@product.image_thumb and length(@product.additional_images || []) == 0 do %>
               <div class="text-center py-12 border-2 border-dashed border-gray-300 rounded-lg">
@@ -263,7 +275,7 @@ defmodule ShompWeb.ProductLive.Edit do
                 </div>
               </div>
             <% end %>
-            
+
             <div class="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
               <p><strong>Tips:</strong></p>
               <ul class="list-disc list-inside space-y-1 mt-1">
@@ -279,7 +291,7 @@ defmodule ShompWeb.ProductLive.Edit do
             <!-- Digital Product File Upload -->
             <div class="space-y-4">
               <h3 class="text-lg font-medium text-gray-900">Digital Product File</h3>
-              
+
               <%= if @product.file_path do %>
                 <div class="bg-blue-50 p-3 rounded-lg">
                   <p class="text-sm text-blue-700">
@@ -287,7 +299,7 @@ defmodule ShompWeb.ProductLive.Edit do
                   </p>
                 </div>
               <% end %>
-              
+
               <.file_upload_input required={false} />
               <p class="text-sm text-gray-600">
                 Upload a new file to replace the current one, or leave empty to keep the existing file.
@@ -299,7 +311,7 @@ defmodule ShompWeb.ProductLive.Edit do
             <.button phx-disable-with="Saving..." class="btn btn-primary flex-1">
               Save Changes
             </.button>
-            
+
             <.link
               navigate={~p"/stores/#{@product.store.slug}/products/#{@product.id}"}
               class="btn btn-secondary flex-1"
@@ -307,7 +319,7 @@ defmodule ShompWeb.ProductLive.Edit do
               View Product
             </.link>
           </div>
-          
+
           <div class="mt-6 pt-6 border-t border-base-300">
             <button
               type="button"
@@ -338,10 +350,10 @@ defmodule ShompWeb.ProductLive.Edit do
     # Handle other validation events (like file uploads)
     IO.puts("=== VALIDATE EVENT ===")
     IO.puts("Upload errors: #{inspect(upload_errors(socket.assigns.uploads.product_images))}")
-    
+
     # Check for upload errors
     errors = upload_errors(socket.assigns.uploads.product_images)
-    
+
     if length(errors) > 0 do
       error_messages = Enum.map(errors, fn
         :too_large -> "File too large (max 10MB)"
@@ -349,8 +361,8 @@ defmodule ShompWeb.ProductLive.Edit do
         :too_many_files -> "Too many files selected"
         other -> "Upload error: #{other}"
       end)
-      
-      {:noreply, 
+
+      {:noreply,
        socket
        |> put_flash(:error, "Upload failed: #{Enum.join(error_messages, ", ")}")}
     else
@@ -365,8 +377,16 @@ defmodule ShompWeb.ProductLive.Edit do
       # If no type selected, show all categories
       Categories.get_main_category_options()
     end
-    
-    {:noreply, assign(socket, filtered_category_options: filtered_category_options)}
+
+    # Show/hide quantity section based on product type
+    quantity_js = if product_type == "physical" do
+      JS.show(to: "#quantity-section")
+    else
+      JS.hide(to: "#quantity-section")
+    end
+
+    socket = assign(socket, filtered_category_options: filtered_category_options)
+    {:noreply, push_event(socket, "js", %{exec: quantity_js})}
   end
 
   def handle_event("cancel-upload", %{"ref" => ref}, socket) do
@@ -385,7 +405,7 @@ defmodule ShompWeb.ProductLive.Edit do
     IO.puts("Entry: #{entry.client_name}")
     IO.puts("Progress: #{entry.progress}%")
     IO.puts("Done: #{entry.done?}")
-    
+
     if entry.done? do
       # Process the completed upload immediately
       process_completed_entry(entry, socket)
@@ -396,7 +416,7 @@ defmodule ShompWeb.ProductLive.Edit do
 
   defp process_completed_entry(entry, socket) do
     IO.puts("Processing completed entry: #{entry.client_name}")
-    
+
     # Use consume_uploaded_entries to get the file path
     uploaded_files = consume_uploaded_entries(socket, :product_images, fn meta, upload_entry ->
       if upload_entry.ref == entry.ref do
@@ -406,12 +426,12 @@ defmodule ShompWeb.ProductLive.Edit do
           path: meta.path,
           content_type: upload_entry.client_type
         }
-        
+
         case Shomp.Uploads.store_product_image(temp_upload, socket.assigns.product.id) do
           {:ok, image_url} ->
             IO.puts("Image stored successfully: #{image_url}")
             image_url
-          
+
           {:error, reason} ->
             IO.puts("Failed to store image: #{inspect(reason)}")
             nil
@@ -420,16 +440,16 @@ defmodule ShompWeb.ProductLive.Edit do
         nil
       end
     end)
-    
+
     # Filter out failed uploads
     valid_image_urls = Enum.filter(uploaded_files, & &1)
-    
+
     if length(valid_image_urls) > 0 do
       image_url = List.first(valid_image_urls)
-      
+
       # Update the product with the new image
       product = socket.assigns.product
-      
+
       update_params = if product.image_original == nil do
         # Make this the primary image - populate all size fields
         %{
@@ -447,29 +467,29 @@ defmodule ShompWeb.ProductLive.Edit do
           "additional_images" => current_additional ++ [image_url]
         }
       end
-      
+
       IO.puts("=== UPDATING PRODUCT WITH IMAGE ===")
       IO.puts("Update params: #{inspect(update_params)}")
-      
+
       case Products.update_product(product, update_params) do
         {:ok, updated_product} ->
           IO.puts("Product updated successfully!")
           IO.puts("Updated product additional_images: #{inspect(updated_product.additional_images)}")
-          
-          {:noreply, 
+
+          {:noreply,
            socket
            |> assign(product: updated_product)
            |> put_flash(:info, "Image added successfully!")}
-        
+
         {:error, changeset} ->
           IO.puts("Failed to update product: #{inspect(changeset.errors)}")
-          
-          {:noreply, 
+
+          {:noreply,
            socket
            |> put_flash(:error, "Failed to save image")}
       end
     else
-      {:noreply, 
+      {:noreply,
        socket
        |> put_flash(:error, "Failed to process image")}
     end
@@ -485,7 +505,7 @@ defmodule ShompWeb.ProductLive.Edit do
 
   def handle_event("remove_image", %{"index" => "primary"}, socket) do
     product = socket.assigns.product
-    
+
     # Remove primary image by setting ALL image fields to nil
     update_params = %{
       "image_original" => nil,
@@ -495,16 +515,16 @@ defmodule ShompWeb.ProductLive.Edit do
       "image_extra_large" => nil,
       "image_ultra" => nil
     }
-    
+
     case Products.update_product(product, update_params) do
       {:ok, updated_product} ->
-        {:noreply, 
+        {:noreply,
          socket
          |> assign(product: updated_product)
          |> put_flash(:info, "Primary image removed successfully")}
-      
+
       {:error, _changeset} ->
-        {:noreply, 
+        {:noreply,
          socket
          |> put_flash(:error, "Failed to remove image")}
     end
@@ -513,20 +533,20 @@ defmodule ShompWeb.ProductLive.Edit do
   def handle_event("remove_image", %{"index" => index}, socket) do
     product = socket.assigns.product
     index = String.to_integer(index)
-    
+
     # Remove image from additional_images array
     current_additional = product.additional_images || []
     updated_additional = List.delete_at(current_additional, index)
-    
+
     case Products.update_product(product, %{"additional_images" => updated_additional}) do
       {:ok, updated_product} ->
-        {:noreply, 
+        {:noreply,
          socket
          |> assign(product: updated_product)
          |> put_flash(:info, "Image removed successfully")}
-      
+
       {:error, _changeset} ->
-        {:noreply, 
+        {:noreply,
          socket
          |> put_flash(:error, "Failed to remove image")}
     end
@@ -534,7 +554,7 @@ defmodule ShompWeb.ProductLive.Edit do
 
   def handle_event("remove_all_images", _params, socket) do
     product = socket.assigns.product
-    
+
     # Remove ALL image fields
     update_params = %{
       "image_original" => nil,
@@ -545,16 +565,16 @@ defmodule ShompWeb.ProductLive.Edit do
       "image_ultra" => nil,
       "additional_images" => []
     }
-    
+
     case Products.update_product(product, update_params) do
       {:ok, updated_product} ->
-        {:noreply, 
+        {:noreply,
          socket
          |> assign(product: updated_product)
          |> put_flash(:info, "All images removed successfully")}
-      
+
       {:error, _changeset} ->
-        {:noreply, 
+        {:noreply,
          socket
          |> put_flash(:error, "Failed to remove images")}
     end
@@ -563,23 +583,23 @@ defmodule ShompWeb.ProductLive.Edit do
   def handle_event("make_primary", %{"index" => index}, socket) do
     product = socket.assigns.product
     index = String.to_integer(index)
-    
+
     additional_images = product.additional_images || []
-    
+
     if index < length(additional_images) do
       # Get the image to make primary
       new_primary_url = Enum.at(additional_images, index)
-      
+
       # Remove from additional images
       updated_additional = List.delete_at(additional_images, index)
-      
+
       # Add current primary to additional images if it exists
       final_additional = if product.image_original do
         [product.image_original | updated_additional]
       else
         updated_additional
       end
-      
+
       # Update the product - Note: We're using the original URL for all sizes
       # In a real app, you'd want to regenerate sizes from the original
       update_params = %{
@@ -592,16 +612,16 @@ defmodule ShompWeb.ProductLive.Edit do
         "additional_images" => final_additional,
         "primary_image_index" => 0
       }
-      
+
       case Products.update_product(product, update_params) do
         {:ok, updated_product} ->
-          {:noreply, 
+          {:noreply,
            socket
            |> assign(product: updated_product)
            |> put_flash(:info, "Primary image updated successfully")}
-        
+
         {:error, _changeset} ->
-          {:noreply, 
+          {:noreply,
            socket
            |> put_flash(:error, "Failed to update primary image")}
       end
@@ -614,44 +634,44 @@ defmodule ShompWeb.ProductLive.Edit do
     IO.puts("=== SAVE EVENT TRIGGERED (EDIT) ===")
     IO.puts("Product params: #{inspect(product_params)}")
     IO.puts("Uploads available: #{inspect(socket.assigns[:uploads])}")
-    
+
     # Process any new image uploads automatically
     new_image_urls = consume_uploaded_entries(socket, :product_images, fn meta, entry ->
       IO.puts("Processing uploaded file: #{entry.client_name}")
       IO.puts("Uploaded to: #{meta.path}")
-      
+
       # Create a temporary upload structure for our existing upload system
       temp_upload = %{
         filename: entry.client_name,
         path: meta.path,
         content_type: entry.client_type
       }
-      
+
       # Store the image using our upload system
       case Shomp.Uploads.store_product_image(temp_upload, socket.assigns.product.id) do
         {:ok, image_url} ->
           IO.puts("Image stored successfully: #{image_url}")
           image_url  # Return the image URL
-        
+
         {:error, reason} ->
           IO.puts("Failed to store image: #{inspect(reason)}")
           nil
       end
     end)
-    
+
     # Filter out failed uploads
     new_image_urls = Enum.filter(new_image_urls, & &1)
-    
+
     # Prepare final params
     final_params = if length(new_image_urls) > 0 do
       product = socket.assigns.product
-      
+
       if product.image_original == nil do
         # No primary image yet, make the first new image the primary
         first_image_url = List.first(new_image_urls)
         remaining_images = Enum.drop(new_image_urls, 1)
         current_additional = product.additional_images || []
-        
+
         Map.merge(product_params, %{
           "image_original" => first_image_url,
           "additional_images" => current_additional ++ remaining_images
@@ -666,7 +686,7 @@ defmodule ShompWeb.ProductLive.Edit do
     else
       product_params
     end
-    
+
     case Products.update_product(socket.assigns.product, final_params) do
       {:ok, product} ->
         flash_message = if length(new_image_urls) > 0 do
@@ -674,7 +694,7 @@ defmodule ShompWeb.ProductLive.Edit do
         else
           "Product updated successfully!"
         end
-        
+
         {:noreply,
          socket
          |> assign(product: product)  # Update the product in the socket
@@ -718,7 +738,7 @@ defmodule ShompWeb.ProductLive.Edit do
           }
         end
         {:ok, uploaded_files}
-      
+
       _ ->
         # No uploads configured, try to get from form data
         {:ok, []}
@@ -732,24 +752,24 @@ defmodule ShompWeb.ProductLive.Edit do
   defp process_uploads(params, product_params, product_id) do
     # Process image uploads from LiveView uploads
     image_params = process_image_uploads_from_uploads(product_id)
-    
+
     # Process file uploads for digital products
     file_params = if product_params["type"] == "digital" do
       process_file_uploads(params, product_id)
     else
       %{}
     end
-    
+
     # Merge all processed params
     Map.merge(product_params, Map.merge(image_params, file_params))
   end
-  
+
   defp process_image_uploads_from_uploads(_product_id) do
     # This will be called from the save event, so we need to get uploads from the socket
     # For now, return empty params - we'll handle this in the save event
     %{}
   end
-  
+
   defp process_file_uploads(params, product_id) do
     case params do
       %{"product_file" => file} when is_map(file) ->
@@ -763,11 +783,11 @@ defmodule ShompWeb.ProductLive.Edit do
         %{}
     end
   end
-  
+
   defp process_single_image(upload, product_id) do
     # Get the first upload from the list
     case List.first(upload) do
-      nil -> 
+      nil ->
         {:error, "No upload provided"}
       first_upload ->
         # Use the actual product ID for updates
@@ -777,7 +797,7 @@ defmodule ShompWeb.ProductLive.Edit do
         end
     end
   end
-  
+
   defp process_digital_file(upload, product_id) do
     # Use the actual product ID for updates
     case Shomp.Uploads.store_product_file(upload, product_id) do
@@ -792,10 +812,10 @@ defmodule ShompWeb.ProductLive.Edit do
       "original" ->
         # Delete the original image and all variants
         case Shomp.Uploads.delete_product_image(product.id) do
-          {:ok, _} -> 
+          {:ok, _} ->
             # Return the product with image fields cleared
             {:ok, %{product | image_original: nil, image_thumb: nil, image_medium: nil, image_large: nil, image_extra_large: nil, image_ultra: nil}}
-          {:error, reason} -> 
+          {:error, reason} ->
             {:error, reason}
         end
       _ ->
@@ -806,14 +826,14 @@ defmodule ShompWeb.ProductLive.Edit do
   # Helper function to get all images for a product
   defp get_all_images(product) do
     images = []
-    
+
     # Add primary image if it exists (use thumbnail for display)
     images = if product.image_thumb do
       [product.image_thumb | images]
     else
       images
     end
-    
+
     # Add additional images (these are already thumbnails)
     additional = product.additional_images || []
     images ++ additional

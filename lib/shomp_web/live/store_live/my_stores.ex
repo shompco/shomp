@@ -205,7 +205,9 @@ defmodule ShompWeb.StoreLive.MyStores do
                             </p>
                             <div class="flex items-center justify-between text-xs text-base-content/60">
                               <span class="capitalize"><%= product.type %></span>
-                              <span class="text-primary">Active</span>
+                              <span class={if product.quantity == 0 && product.type == "physical", do: "text-error", else: "text-primary"}>
+                                <%= if product.quantity == 0 && product.type == "physical", do: "Sold Out", else: "Active" %>
+                              </span>
                             </div>
                           </div>
                         </div>

@@ -184,6 +184,12 @@ defmodule ShompWeb.ProductLive.Show do
                     class="w-full h-full object-cover transition-opacity duration-500"
                     id="main-product-image"
                   />
+
+                  <%= if @product.quantity == 0 && @product.type == "physical" do %>
+                    <div class="absolute bottom-4 right-4 bg-orange-200 text-orange-800 px-4 py-2 rounded-full text-lg font-bold shadow-lg">
+                      SOLD OUT
+                    </div>
+                  <% end %>
                 </div>
 
                 <!-- Navigation Buttons - Below Image -->
@@ -270,9 +276,24 @@ defmodule ShompWeb.ProductLive.Show do
                 <%= @product.title %>
               </h1>
 
+
               <div class="text-3xl lg:text-4xl font-bold text-primary">
                 $<%= @product.price %>
               </div>
+
+              <%= if @product.type == "physical" do %>
+                <div class="text-lg text-base-content/70">
+                  <%= if @product.quantity > 0 do %>
+                    <span class="text-green-600 font-medium">
+                      <%= @product.quantity %> available
+                    </span>
+                  <% else %>
+                    <span class="text-orange-600 font-medium">
+                      Out of stock
+                    </span>
+                  <% end %>
+                </div>
+              <% end %>
             </div>
 
             <!-- Category Information -->
@@ -343,24 +364,44 @@ defmodule ShompWeb.ProductLive.Show do
 
             <!-- Action Buttons -->
             <div class="space-y-4">
-              <button
-                phx-click="buy_now"
-                phx-disable-with="Creating checkout..."
-                class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-8 rounded-2xl text-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1"
-              >
-                Buy Now - $<%= calculate_total_price(@product, @donate) %>
-              </button>
+              <%= if @product.quantity == 0 && @product.type == "physical" do %>
+                <button
+                  disabled
+                  title="This product is sold out"
+                  class="w-full bg-gray-400 text-gray-600 font-bold py-4 px-8 rounded-2xl text-lg shadow-lg cursor-not-allowed opacity-60"
+                >
+                  SOLD OUT - $<%= calculate_total_price(@product, @donate) %>
+                </button>
+              <% else %>
+                <button
+                  phx-click="buy_now"
+                  phx-disable-with="Creating checkout..."
+                  class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-8 rounded-2xl text-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1"
+                >
+                  Buy Now - $<%= calculate_total_price(@product, @donate) %>
+                </button>
+              <% end %>
 
               <%= if @current_scope && @current_scope.user do %>
-                <button
-                  phx-click="add_to_cart"
-                  phx-value-product_id={@product.id}
-                  phx-value-store_id={@product.store_id}
-                  phx-disable-with="Adding to cart..."
-                  class="w-full bg-base-300 hover:bg-base-400 text-base-content font-semibold py-3 px-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-200"
-                >
-                  🛒 Add to Cart
-                </button>
+                <%= if @product.quantity == 0 && @product.type == "physical" do %>
+                  <button
+                    disabled
+                    title="This product is sold out"
+                    class="w-full bg-gray-300 text-gray-500 font-semibold py-3 px-6 rounded-2xl shadow-lg cursor-not-allowed opacity-60"
+                  >
+                    🛒 Add to Cart (Sold Out)
+                  </button>
+                <% else %>
+                  <button
+                    phx-click="add_to_cart"
+                    phx-value-product_id={@product.id}
+                    phx-value-store_id={@product.store_id}
+                    phx-disable-with="Adding to cart..."
+                    class="w-full bg-base-300 hover:bg-base-400 text-base-content font-semibold py-3 px-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-200"
+                  >
+                    🛒 Add to Cart
+                  </button>
+                <% end %>
               <% end %>
 
               <%= if @current_scope && @current_scope.user && @current_scope.user.id == @product.store.user_id do %>

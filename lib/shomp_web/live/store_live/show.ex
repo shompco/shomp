@@ -290,6 +290,11 @@ defmodule ShompWeb.StoreLive.Show do
                                 View
                               </div>
                             </div>
+                            <%= if product.quantity == 0 && product.type == "physical" do %>
+                              <div class="mt-2 text-center">
+                                <span class="text-xs text-red-300 font-medium bg-red-900/20 px-2 py-1 rounded">SOLD OUT</span>
+                              </div>
+                            <% end %>
                           </div>
                         </div>
 
@@ -383,6 +388,11 @@ defmodule ShompWeb.StoreLive.Show do
                                   View
                                 </div>
                               </div>
+                              <%= if product.quantity == 0 && product.type == "physical" do %>
+                                <div class="mt-2 text-center">
+                                  <span class="text-xs text-red-300 font-medium bg-red-900/20 px-2 py-1 rounded">SOLD OUT</span>
+                                </div>
+                              <% end %>
                             </div>
                           </div>
 
