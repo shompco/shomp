@@ -72,7 +72,7 @@ defmodule ShompWeb.ProductLive.New do
           <!-- Category Selection Section -->
           <div class="space-y-4">
             <h3 class="text-lg font-medium text-gray-900">Product Categories</h3>
-            
+
             <.input
               field={@form[:category_id]}
               type="select"
@@ -89,7 +89,7 @@ defmodule ShompWeb.ProductLive.New do
               options={@custom_category_options}
               prompt="Select a store category to organize your products"
             />
-            
+
             <div class="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
               <p><strong>Platform Category:</strong> Required. This helps customers discover your product across the platform.</p>
               <p><strong>Store Category:</strong> Optional. Create custom categories in your store settings to organize products your way.</p>
@@ -100,9 +100,9 @@ defmodule ShompWeb.ProductLive.New do
           <div class="space-y-4">
             <h3 class="text-lg font-medium text-gray-900">Product Images</h3>
             <p class="text-sm text-gray-600">Upload multiple images to showcase your product. The first image will be the primary image.</p>
-            
+
             <.multiple_image_upload_input uploads={@uploads} />
-            
+
             <!-- Image Preview and Reordering -->
             <%= if @uploaded_images && length(@uploaded_images) > 0 do %>
               <div class="space-y-3">
@@ -110,24 +110,24 @@ defmodule ShompWeb.ProductLive.New do
                 <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
                   <%= for {image, index} <- Enum.with_index(@uploaded_images) do %>
                     <div class="relative group">
-                      <img 
-                        src={image.image_url} 
+                      <img
+                        src={image.image_url}
                         alt="Product image #{index + 1}"
                         class={"w-full h-24 object-cover rounded-lg border-2 transition-all duration-200 #{if index == 0, do: "border-blue-500", else: "border-gray-200"}"}
                       />
-                      
+
                       <!-- Primary Image Badge -->
                       <%= if index == 0 do %>
                         <div class="absolute top-1 left-1 bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
                           Primary
                         </div>
                       <% end %>
-                      
+
                       <!-- Reorder Controls -->
                       <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 rounded-lg flex items-center justify-center">
                         <div class="opacity-0 group-hover:opacity-100 transition-opacity duration-200 space-x-1">
                           <%= if index > 0 do %>
-                            <button 
+                            <button
                               type="button"
                               phx-click="move_image_up"
                               phx-value-index={index}
@@ -138,7 +138,7 @@ defmodule ShompWeb.ProductLive.New do
                             </button>
                           <% end %>
                           <%= if index < length(@uploaded_images) - 1 do %>
-                            <button 
+                            <button
                               type="button"
                               phx-click="move_image_down"
                               phx-value-index={index}
@@ -150,9 +150,9 @@ defmodule ShompWeb.ProductLive.New do
                           <% end %>
                         </div>
                       </div>
-                      
+
                       <!-- Remove Button -->
-                      <button 
+                      <button
                         type="button"
                         phx-click="remove_image"
                         phx-value-index={index}
@@ -187,28 +187,40 @@ defmodule ShompWeb.ProductLive.New do
   end
 
   @impl true
-  def mount(_params, _session, socket) do
+  def mount(params, _session, socket) do
     user = socket.assigns.current_scope.user
-    
+
     # Get the user's stores
     stores = Stores.get_stores_by_user(user.id)
-    
+
     case stores do
       [] ->
         {:ok,
          socket
          |> put_flash(:error, "You need to create a store first!")
          |> push_navigate(to: ~p"/stores/new")}
-      
+
       _ ->
         # Create store options for the dropdown
-        store_options = Enum.map(stores, fn store -> 
+        store_options = Enum.map(stores, fn store ->
           {store.name, store.store_id}
         end)
-        
-        # Pre-select the first store if only one exists
-        selected_store_id = if length(stores) == 1, do: List.first(stores).store_id, else: nil
-        
+
+        # Pre-select store based on URL parameter or first store if only one exists
+        selected_store_id = cond do
+          # If store_id is provided in URL params, use that
+          params["store_id"] && params["store_id"] != "" ->
+            # Verify the store belongs to the user
+            case Enum.find(stores, fn store -> store.store_id == params["store_id"] end) do
+              nil -> if length(stores) == 1, do: List.first(stores).store_id, else: nil
+              store -> store.store_id
+            end
+          # If only one store exists, pre-select it
+          length(stores) == 1 -> List.first(stores).store_id
+          # Otherwise, no pre-selection
+          true -> nil
+        end
+
         # Default to Physical Product and load physical categories
         changeset = Products.change_product_creation(%Products.Product{})
         changeset = if selected_store_id do
@@ -217,28 +229,28 @@ defmodule ShompWeb.ProductLive.New do
           changeset
         end
         changeset = Ecto.Changeset.put_change(changeset, :type, "physical")
-        
+
         # Load physical categories by default
         physical_categories = Categories.get_categories_by_type("physical")
-        
+
         # Load custom categories for selected store
         custom_categories = if selected_store_id do
           StoreCategories.get_store_category_options_with_default(selected_store_id)
         else
           [{"Select Store First", nil}]
         end
-        
+
         # Configure uploads
         socket = socket
-        |> allow_upload(:product_images, 
+        |> allow_upload(:product_images,
             accept: ~w(.jpg .jpeg .png .gif .webp),
             max_entries: 10,
             max_file_size: 10_000_000,
             auto_upload: true,
             progress: &handle_progress/3
           )
-        
-        {:ok, assign_form(socket, changeset, store_options, stores, physical_categories, custom_categories) 
+
+        {:ok, assign_form(socket, changeset, store_options, stores, physical_categories, custom_categories)
           |> assign(:filtered_category_options, physical_categories)
           |> assign(:uploaded_images, [])}
     end
@@ -261,7 +273,7 @@ defmodule ShompWeb.ProductLive.New do
     else
       [{"Select Store First", nil}]
     end
-    
+
     {:noreply, assign(socket, custom_category_options: custom_categories)}
   end
 
@@ -272,7 +284,7 @@ defmodule ShompWeb.ProductLive.New do
       # If no type selected, show all categories
       Categories.get_main_category_options()
     end
-    
+
     {:noreply, assign(socket, filtered_category_options: filtered_category_options)}
   end
 
@@ -291,7 +303,7 @@ defmodule ShompWeb.ProductLive.New do
     IO.puts("Progress: #{entry.progress}%")
     IO.puts("Done: #{entry.done?}")
     IO.puts("Current uploaded_images count: #{length(socket.assigns[:uploaded_images] || [])}")
-    
+
     if entry.done? do
       # Process the completed upload immediately
       process_completed_entry(entry, socket)
@@ -302,7 +314,7 @@ defmodule ShompWeb.ProductLive.New do
 
   defp process_completed_entry(entry, socket) do
     IO.puts("Processing completed entry: #{entry.client_name}")
-    
+
     # Use consume_uploaded_entries to get the file path
     uploaded_files = consume_uploaded_entries(socket, :product_images, fn meta, upload_entry ->
       if upload_entry.ref == entry.ref do
@@ -312,10 +324,10 @@ defmodule ShompWeb.ProductLive.New do
           path: meta.path,
           content_type: upload_entry.client_type
         }
-        
+
         # Generate a temporary product ID for storage
         temp_product_id = :crypto.strong_rand_bytes(16) |> Base.encode64()
-        
+
         case Shomp.Uploads.store_product_image(temp_upload, temp_product_id) do
           {:ok, image_url} ->
             IO.puts("Image stored successfully: #{image_url}")
@@ -324,7 +336,7 @@ defmodule ShompWeb.ProductLive.New do
               filename: upload_entry.client_name,
               temp_id: temp_product_id
             }
-          
+
           {:error, reason} ->
             IO.puts("Failed to store image: #{inspect(reason)}")
             nil
@@ -333,20 +345,20 @@ defmodule ShompWeb.ProductLive.New do
         nil
       end
     end)
-    
+
     # Filter out failed uploads
     valid_images = Enum.filter(uploaded_files, & &1)
-    
+
     if length(valid_images) > 0 do
       # Add the new images to the existing images
       current_images = socket.assigns.uploaded_images || []
       all_images = current_images ++ valid_images
-      
+
       IO.puts("Auto-uploaded #{length(valid_images)} image(s). Total images: #{length(all_images)}")
       IO.puts("Valid images: #{inspect(valid_images)}")
       IO.puts("All images after update: #{inspect(all_images)}")
-      
-      {:noreply, 
+
+      {:noreply,
        socket
        |> put_flash(:info, "Image '#{entry.client_name}' uploaded successfully!")
        |> assign(uploaded_images: all_images)}
@@ -392,65 +404,65 @@ defmodule ShompWeb.ProductLive.New do
     IO.puts("Pre-uploaded files: #{inspect(socket.assigns[:uploaded_files])}")
     IO.puts("Socket assigns keys: #{inspect(Map.keys(socket.assigns))}")
     IO.puts("Uploaded images in socket: #{inspect(socket.assigns[:uploaded_images])}")
-    
+
     # Create the product first
     case Products.create_product(product_params) do
       {:ok, product} ->
         IO.puts("Product created successfully, now processing uploaded files...")
-        
+
         # Use the pre-uploaded images from socket state
         uploaded_images = socket.assigns.uploaded_images || []
         IO.puts("Using pre-uploaded images: #{length(uploaded_images)} images found")
         IO.puts("Uploaded images details: #{inspect(uploaded_images)}")
-        
+
         uploaded_image_data = Enum.map(uploaded_images, fn image ->
           %{
             "image_original" => image.image_url
           }
         end)
-        
+
         # Update product with image paths if any were processed
         case uploaded_image_data do
           [first_image | _] when is_map(first_image) and map_size(first_image) > 0 ->
             # First image becomes the primary image
             primary_image_data = first_image
-            
+
             # Additional images go to additional_images array (image URLs from uploaded_images)
             additional_images = Enum.drop(uploaded_images, 1)
             |> Enum.map(fn img -> img.image_url end)
-            
+
             # Combine primary image with additional images
             final_image_data = Map.put(primary_image_data, "additional_images", additional_images)
             final_image_data = Map.put(final_image_data, "primary_image_index", 0)
-            
+
             IO.puts("Final image data: #{inspect(final_image_data)}")
             IO.puts("Additional images: #{inspect(additional_images)}")
-            
+
             case Products.update_product(product, final_image_data) do
               {:ok, updated_product} ->
                 IO.puts("Product updated with multiple images successfully!")
                 IO.puts("Updated product additional_images: #{inspect(updated_product.additional_images)}")
                 store = Enum.find(socket.assigns.stores, fn s -> s.store_id == product.store_id end)
-                
+
                 {:noreply,
                  socket
                  |> put_flash(:info, "Product created with #{length(uploaded_image_data)} images successfully!")
                  |> push_navigate(to: ~p"/stores/#{store.slug}")}
-              
+
               {:error, changeset} ->
                 IO.puts("Failed to update product with images: #{inspect(changeset.errors)}")
                 store = Enum.find(socket.assigns.stores, fn s -> s.store_id == product.store_id end)
-                
+
                 {:noreply,
                  socket
                  |> put_flash(:warning, "Product created but image update failed")
                  |> push_navigate(to: ~p"/stores/#{store.slug}")}
             end
-          
+
           _ ->
             IO.puts("No images to process, product created without images")
             store = Enum.find(socket.assigns.stores, fn s -> s.store_id == product.store_id end)
-            
+
             {:noreply,
              socket
              |> put_flash(:info, "Product created successfully!")
@@ -465,9 +477,9 @@ defmodule ShompWeb.ProductLive.New do
 
   defp assign_form(socket, %Ecto.Changeset{} = changeset, store_options, stores, filtered_category_options, custom_category_options) do
     form = to_form(changeset, as: "product")
-    assign(socket, 
-      form: form, 
-      store_options: store_options, 
+    assign(socket,
+      form: form,
+      store_options: store_options,
       stores: stores,
       filtered_category_options: filtered_category_options,
       custom_category_options: custom_category_options,

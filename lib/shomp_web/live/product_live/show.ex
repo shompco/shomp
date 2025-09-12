@@ -29,8 +29,6 @@ defmodule ShompWeb.ProductLive.Show do
     if product.store.slug == store_slug do
       # Fetch reviews for this product
       reviews = Shomp.Reviews.get_product_reviews(id)
-
-      # Get referrer from params or default to store
       referrer = params["referrer"] || "store"
 
       {:ok, assign(socket, product: product, reviews: reviews, current_image: product.image_original, current_image_index: nil, donate: true, referrer: referrer)}
@@ -74,9 +72,7 @@ defmodule ShompWeb.ProductLive.Show do
                 # Fetch reviews for this product
                 reviews = Shomp.Reviews.get_product_reviews(product.id)
 
-                # Get referrer from params or default to store_category
                 referrer = params["referrer"] || "store_category"
-
                 {:ok, assign(socket, product: product, reviews: reviews, current_image: product.image_original, current_image_index: nil, donate: true, referrer: referrer)}
             end
         end
@@ -113,9 +109,7 @@ defmodule ShompWeb.ProductLive.Show do
             IO.puts("Product image_original: #{inspect(product.image_original)}")
             IO.puts("=====================")
 
-            # Get referrer from params or default to store
             referrer = params["referrer"] || "store"
-
             {:ok, assign(socket, product: product, reviews: reviews, current_image: product.image_original, current_image_index: nil, donate: true, referrer: referrer)}
         end
     end
@@ -130,41 +124,19 @@ defmodule ShompWeb.ProductLive.Show do
       <div class="w-full px-4 sm:px-6 lg:px-8 py-6">
         <!-- Back Button -->
         <div class="mb-4">
-          <%= case Map.get(assigns, :referrer, "store") do %>
-            <% "category" -> %>
-              <!-- From main categories page -->
-              <.link
-                navigate={~p"/categories/#{@product.category.slug}"}
-                class="inline-flex items-center text-sm text-primary hover:text-primary-focus transition-colors duration-200"
-              >
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                </svg>
-                Back to <%= @product.category.name %>
-              </.link>
-            <% "store_category" -> %>
-              <!-- From store category page -->
-              <.link
-                navigate={~p"/stores/#{@product.store.slug}/#{@product.custom_category.slug}"}
-                class="inline-flex items-center text-sm text-primary hover:text-primary-focus transition-colors duration-200"
-              >
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                </svg>
-                Back to <%= @product.custom_category.name %>
-              </.link>
-            <% _ -> %>
-              <!-- From store page -->
-              <.link
-                navigate={~p"/stores/#{@product.store.slug}"}
-                class="inline-flex items-center text-sm text-primary hover:text-primary-focus transition-colors duration-200"
-              >
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                </svg>
-                Back to <%= @product.store.name %>
-              </.link>
-          <% end %>
+          <button
+            onclick="history.back()"
+            class="inline-flex items-center text-sm text-primary hover:text-primary-focus transition-colors duration-200"
+          >
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+            <%= case Map.get(assigns, :referrer, "store") do %>
+              <% "category" -> %>Back to All Categories
+              <% "store_category" -> %>Back to <%= @product.custom_category.name %>
+              <% _ -> %>Back to All Stores
+            <% end %>
+          </button>
         </div>
 
         <!-- Breadcrumb Navigation -->

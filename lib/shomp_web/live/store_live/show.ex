@@ -88,12 +88,13 @@ defmodule ShompWeb.StoreLive.Show do
       <!-- Category Listing Page -->
       <div class="w-full px-4 py-8">
         <div class="mb-8">
-          <nav class="flex items-center space-x-2 text-sm text-gray-500 mb-6">
-            <.link navigate={~p"/"} class="hover:text-gray-700">Home</.link>
-            <span>/</span>
-            <.link navigate={~p"/stores/#{@store.slug}"} class="hover:text-gray-700"><%= @store.name %></.link>
-            <span>/</span>
-            <span class="text-gray-900 font-medium"><%= @category.name %></span>
+          <nav class="text-xs breadcrumbs mb-6">
+            <ul>
+              <li><a href="/" class="link link-hover">Home</a></li>
+              <li><a href="/stores" class="link link-hover">Stores</a></li>
+              <li><a href={"/stores/#{@store.slug}"} class="link link-hover"><%= @store.name %></a></li>
+              <li><%= @category.name %></li>
+            </ul>
           </nav>
 
           <h1 class="text-4xl font-bold text-gray-900 mb-4">
@@ -119,7 +120,7 @@ defmodule ShompWeb.StoreLive.Show do
             </div>
             <%= if @current_scope && @current_scope.user && @current_scope.user.id == @store.user_id do %>
               <.link
-                navigate={~p"/dashboard/products/new"}
+                navigate={~p"/dashboard/products/new?store_id=#{@store.store_id}"}
                 class="btn btn-primary"
               >
                 Add Products to This Category
@@ -159,14 +160,27 @@ defmodule ShompWeb.StoreLive.Show do
               </div>
               <!-- Add Product Button for Store Owner -->
               <%= if @current_scope && @current_scope.user && @current_scope.user.id == @store.user_id do %>
-                <.link
-                  navigate={~p"/dashboard/products/new"}
-                  class="bg-primary hover:bg-primary-focus text-primary-content text-xs font-semibold px-2 py-1 rounded transition-all duration-200"
-                >
-                  + Add
-                </.link>
+              <.link
+                navigate={~p"/dashboard/products/new?store_id=#{@store.store_id}"}
+                class="bg-primary hover:bg-primary-focus text-primary-content text-xs font-semibold px-2 py-1 rounded transition-all duration-200"
+              >
+                + Add
+              </.link>
               <% end %>
             </div>
+          </div>
+        </div>
+
+        <!-- Breadcrumbs -->
+        <div class="w-full bg-base-100">
+          <div class="px-4 py-2">
+            <nav class="text-xs breadcrumbs">
+              <ul>
+                <li><a href="/" class="link link-hover">Home</a></li>
+                <li><a href="/stores" class="link link-hover">Stores</a></li>
+                <li><%= @store.name %></li>
+              </ul>
+            </nav>
           </div>
         </div>
 
@@ -194,7 +208,7 @@ defmodule ShompWeb.StoreLive.Show do
                     </.link>
 
                     <.link
-                      navigate={~p"/dashboard/products/new"}
+                      navigate={~p"/dashboard/products/new?store_id=#{@store.store_id}"}
                       class="btn btn-secondary btn-lg text-lg px-8 py-4 ml-4"
                     >
                       Add Product
@@ -313,7 +327,7 @@ defmodule ShompWeb.StoreLive.Show do
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
                       <%= for {product, index} <- Enum.with_index(Enum.take(Map.get(@products_by_category, category), 6)) do %>
                         <a
-                          href={get_product_url(product) <> "?referrer=store_category"}
+                          href={get_product_url(product) <> "?referrer=store"}
                           class="group relative aspect-square overflow-hidden rounded-lg bg-base-200 hover:shadow-2xl transition-all duration-500 hover:scale-105"
                           style={"animation-delay: #{index * 50}ms"}
                         >
