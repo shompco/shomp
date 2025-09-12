@@ -16,7 +16,7 @@ defmodule ShompWeb.PurchaseDetailsLive.Show do
         {:ok,
          socket
          |> put_flash(:error, "Purchase not found")
-         |> push_navigate(to: ~p"/purchases")}
+         |> push_navigate(to: ~p"/dashboard/purchases")}
 
       universal_order ->
         # Verify this user made this purchase
@@ -24,7 +24,7 @@ defmodule ShompWeb.PurchaseDetailsLive.Show do
           {:ok,
            socket
            |> put_flash(:error, "You don't have access to this purchase")
-           |> push_navigate(to: ~p"/purchases")}
+           |> push_navigate(to: ~p"/dashboard/purchases")}
         else
           # Preload the necessary associations
           universal_order = universal_order
@@ -53,6 +53,9 @@ defmodule ShompWeb.PurchaseDetailsLive.Show do
           # Manually set the order items
           universal_order = %{universal_order | universal_order_items: order_items}
 
+          # Subscribe to universal order updates
+          Phoenix.PubSub.subscribe(Shomp.PubSub, "universal_orders")
+
           socket =
             socket
             |> assign(:universal_order, universal_order)
@@ -73,7 +76,7 @@ defmodule ShompWeb.PurchaseDetailsLive.Show do
             Purchase #<%= @universal_order.universal_order_id %>
             <:subtitle>Your purchase details</:subtitle>
             <:actions>
-              <.link href={~p"/purchases"} class="btn btn-outline">
+              <.link href={~p"/dashboard/purchases"} class="btn btn-outline">
                 ← Back to Purchases
               </.link>
             </:actions>
@@ -206,5 +209,33 @@ defmodule ShompWeb.PurchaseDetailsLive.Show do
       </div>
     </Layouts.app>
     """
+  end
+
+  @impl true
+  def handle_info(%{event: "universal_order_updated", payload: updated_order}, socket) do
+    current_order = socket.assigns.universal_order
+
+    # Only update if this is the same order we're viewing
+    if updated_order.id == current_order.id do
+      IO.puts("=== PURCHASE DETAILS: Received order update via PubSub ===")
+      IO.puts("Order ID: #{updated_order.universal_order_id}")
+      IO.puts("New shipping status: #{updated_order.shipping_status}")
+      IO.puts("Tracking number: #{updated_order.tracking_number}")
+      IO.puts("Carrier: #{updated_order.carrier}")
+
+      # Preserve the order items from the current order since the updated order may not have them preloaded
+      updated_order_with_items = %{updated_order | universal_order_items: current_order.universal_order_items}
+
+      {:noreply, assign(socket, :universal_order, updated_order_with_items)}
+    else
+      # Not our order, ignore
+      {:noreply, socket}
+    end
+  end
+
+  # Catch-all for other PubSub messages
+  @impl true
+  def handle_info(_message, socket) do
+    {:noreply, socket}
   end
 end

@@ -328,19 +328,23 @@ defmodule ShompWeb.UniversalOrderLive.Show do
   end
 
   @impl true
-  def handle_event("update_status", %{"shipping_status" => status, "tracking_number" => tracking, "carrier" => carrier}, socket) do
+  def handle_event("update_status", params, socket) do
     IO.puts("=== UPDATE STATUS EVENT ===")
+    IO.puts("Params: #{inspect(params)}")
+
+    universal_order = socket.assigns.universal_order
+    status = params["shipping_status"]
+    tracking = params["tracking_number"] || ""
+    carrier = params["carrier"] || ""
+
     IO.puts("Status: #{status}")
     IO.puts("Tracking: #{tracking}")
     IO.puts("Carrier: #{carrier}")
 
-    universal_order = socket.assigns.universal_order
-
-    attrs = %{
-      shipping_status: status,
-      tracking_number: tracking,
-      carrier: carrier
-    }
+    # Build attrs based on what's provided
+    attrs = %{shipping_status: status}
+    attrs = if tracking != "", do: Map.put(attrs, :tracking_number, tracking), else: attrs
+    attrs = if carrier != "", do: Map.put(attrs, :carrier, carrier), else: attrs
 
     case UniversalOrders.update_universal_order(universal_order, attrs) do
       {:ok, updated_order} ->
@@ -351,14 +355,16 @@ defmodule ShompWeb.UniversalOrderLive.Show do
         })
 
         status_form = to_form(%{"shipping_status" => updated_order.shipping_status}, as: :status)
+        show_tracking = updated_order.shipping_status in ["label_printed", "shipped"]
 
         {:noreply,
          socket
          |> put_flash(:info, "Order status updated successfully")
          |> assign(:universal_order, updated_order)
-         |> assign(:status_form, status_form)}
+         |> assign(:status_form, status_form)
+         |> assign(:show_tracking_input, show_tracking)}
 
-      {:error, changeset} ->
+      {:error, _changeset} ->
         {:noreply, put_flash(socket, :error, "Failed to update order status")}
     end
   end

@@ -215,8 +215,8 @@ defmodule ShompWeb.DownloadLive.Purchases do
                     <div class="text-sm text-base-content/70">
                       <%= length(order.universal_order_items) %> item<%= if length(order.universal_order_items) != 1, do: "s", else: "" %>
                     </div>
-                    <a href={~p"/dashboard/orders/#{order.universal_order_id}"} class="btn btn-primary btn-sm">
-                      View Order Details
+                    <a href={~p"/dashboard/purchases/#{order.universal_order_id}"} class="btn btn-primary btn-sm">
+                      View Purchase Details
                     </a>
                   </div>
                 </li>
