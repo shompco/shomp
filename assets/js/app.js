@@ -31,6 +31,32 @@ import "./upload_preview.js"
 // Import image carousel functionality
 import "./image_carousel.js"
 
+// Digital file upload hook
+const DigitalFileUpload = {
+  mounted() {
+    console.log('DigitalFileUpload mounted')
+    this.updateDisabledState()
+  },
+  
+  updated() {
+    console.log('DigitalFileUpload updated')
+    this.updateDisabledState()
+  },
+  
+  updateDisabledState() {
+    const productType = this.el.getAttribute('data-product-type')
+    console.log('Product type:', productType)
+    const fileInput = this.el.querySelector('input[type="file"]')
+    console.log('File input found:', fileInput)
+    if (fileInput) {
+      const shouldDisable = productType !== 'digital'
+      console.log('Should disable:', shouldDisable)
+      fileInput.disabled = shouldDisable
+      console.log('File input disabled state:', fileInput.disabled)
+    }
+  }
+}
+
 // Custom hooks for real-time features
 const VoteUpdates = {
   mounted() {
@@ -163,9 +189,52 @@ const UsCitizenshipValidation = {
 // Show/Hide on Type Change hook
 const ShowHideOnTypeChange = {
   mounted() {
-    // This hook is now handled by server-side JavaScript execution
-    // The hook is kept for compatibility but the actual functionality
-    // is handled by the type_changed event in the LiveView
+    // This hook handles showing/hiding sections based on product type
+    this.initializeSections()
+  },
+  
+  updated() {
+    // Re-initialize after LiveView updates
+    this.initializeSections()
+  },
+  
+  initializeSections() {
+    const typeSelect = document.querySelector('select[name*="type"]')
+    if (typeSelect) {
+      // Remove existing listener to avoid duplicates
+      typeSelect.removeEventListener('change', this.handleTypeChange)
+      typeSelect.addEventListener('change', this.handleTypeChange.bind(this))
+      
+      // Initialize on mount
+      this.toggleSections(typeSelect.value)
+    }
+  },
+  
+  handleTypeChange(e) {
+    const selectedType = e.target.value
+    this.toggleSections(selectedType)
+  },
+  
+  toggleSections(type) {
+    // Show/hide quantity section
+    const quantitySection = document.getElementById('quantity-section')
+    if (quantitySection) {
+      if (type === 'physical') {
+        quantitySection.classList.remove('hidden')
+      } else {
+        quantitySection.classList.add('hidden')
+      }
+    }
+    
+    // Show/hide digital file upload section
+    const digitalFileSection = document.getElementById('digital-file-section')
+    if (digitalFileSection) {
+      if (type === 'digital') {
+        digitalFileSection.classList.remove('hidden')
+      } else {
+        digitalFileSection.classList.add('hidden')
+      }
+    }
   }
 }
 
@@ -178,7 +247,8 @@ const liveSocket = new LiveSocket("/live", Socket, {
     VoteUpdates,
     FileUploadHook,
     CartDonationHook,
-    UsCitizenshipValidation
+    UsCitizenshipValidation,
+    DigitalFileUpload
   },
 })
 

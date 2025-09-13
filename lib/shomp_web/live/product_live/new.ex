@@ -64,10 +64,116 @@ defmodule ShompWeb.ProductLive.New do
               {"Physical Product", "physical"},
               {"Digital Product", "digital"}
             ]}
-            value="physical"
             required
             phx-change="type_changed"
           />
+
+          <!-- Digital Product File Upload -->
+          <%= if @product_type == "digital" do %>
+            <div class="space-y-4">
+              <h3 class="text-lg font-medium text-gray-900">Digital Product File</h3>
+
+              <!-- Success Confirmation -->
+              <%= if @uploaded_digital_file do %>
+                <div class="p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <div class="flex items-center space-x-2">
+                    <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                    </svg>
+                    <div>
+                      <p class="text-sm font-medium text-green-800">
+                        File uploaded successfully!
+                      </p>
+                      <p class="text-xs text-green-600">
+                        <%= @uploaded_digital_file.filename %> (<%= @uploaded_digital_file.file_type |> String.upcase() %>)
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      phx-click="remove_digital_file"
+                      class="ml-auto text-green-600 hover:text-green-800 text-sm font-medium"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              <% end %>
+
+              <!-- File Upload Input -->
+              <%= if !@uploaded_digital_file do %>
+                <div class="space-y-2">
+                  <label class="block text-sm font-medium text-gray-700">
+                    Product File (Required for Digital Products)
+                  </label>
+
+                  <div class="flex items-center space-x-4">
+                    <.live_file_input
+                      upload={@uploads.digital_file}
+                      class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    />
+                  </div>
+
+                  <p class="text-xs text-gray-500">
+                    Supported formats: PDF, ZIP, MP4 (Max: 300MB)
+                  </p>
+
+                  <!-- Upload Progress -->
+                  <%= for entry <- @uploads.digital_file.entries do %>
+                    <div class="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg border">
+                      <div class="flex-1">
+                        <div class="flex items-center space-x-2">
+                          <div class="w-4 h-4">
+                            <%= if entry.progress == 100 do %>
+                              <div class="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                                <svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                                </svg>
+                              </div>
+                            <% else %>
+                              <div class="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                            <% end %>
+                          </div>
+                          <span class="text-sm font-medium text-gray-900"><%= entry.client_name %></span>
+                          <span class="text-xs text-gray-500">(<%= entry.client_size %> bytes)</span>
+                        </div>
+
+                        <%= if entry.progress < 100 do %>
+                          <div class="mt-2">
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                              <div class="bg-blue-600 h-2 rounded-full" style={"width: #{entry.progress}%"}>
+                              </div>
+                            </div>
+                            <div class="text-xs text-gray-500 mt-1">Uploading... <%= entry.progress %>%</div>
+                          </div>
+                        <% end %>
+                      </div>
+
+                      <button
+                        type="button"
+                        phx-click="cancel-upload"
+                        phx-value-ref={entry.ref}
+                        class="text-red-600 hover:text-red-800 text-sm font-medium"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  <% end %>
+
+                  <!-- Error Messages -->
+                  <%= for {ref, error} <- @uploads.digital_file.errors do %>
+                    <div class="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <div class="flex items-center space-x-2">
+                        <svg class="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                          <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                        </svg>
+                        <span class="text-sm text-red-700"><%= error %></span>
+                      </div>
+                    </div>
+                  <% end %>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
 
           <!-- Quantity Available (only for physical products) -->
           <div id="quantity-section" class="hidden" phx-hook="ShowHideOnTypeChange" data-show-on="physical">
@@ -181,14 +287,6 @@ defmodule ShompWeb.ProductLive.New do
             <% end %>
           </div>
 
-          <%= if @form[:type].value == "digital" do %>
-            <!-- Digital Product File Upload -->
-            <div class="space-y-4">
-              <h3 class="text-lg font-medium text-gray-900">Digital Product File</h3>
-              <.file_upload_input required={true} />
-            </div>
-          <% end %>
-
           <.button phx-disable-with="Creating product..." class="btn btn-primary w-full">
             Create Product
           </.button>
@@ -261,10 +359,19 @@ defmodule ShompWeb.ProductLive.New do
             auto_upload: true,
             progress: &handle_progress/3
           )
+        |> allow_upload(:digital_file,
+            accept: ~w(.pdf .zip .mp4),
+            max_entries: 1,
+            max_file_size: 300_000_000,
+            auto_upload: true,
+            progress: &handle_progress/3
+          )
 
         socket = assign_form(socket, changeset, store_options, stores, physical_categories, custom_categories)
           |> assign(:filtered_category_options, physical_categories)
           |> assign(:uploaded_images, [])
+          |> assign(:uploaded_digital_file, nil)
+          |> assign(:product_type, "physical")
           |> push_event("js", %{exec: "document.getElementById('quantity-section').classList.remove('hidden')"})
 
         {:ok, socket}
@@ -293,6 +400,8 @@ defmodule ShompWeb.ProductLive.New do
   end
 
   def handle_event("type_changed", %{"product" => %{"type" => product_type}}, socket) do
+    IO.inspect(product_type, label: "Type changed to")
+
     filtered_category_options = if product_type && product_type != "" do
       Categories.get_categories_by_type(product_type)
     else
@@ -300,22 +409,35 @@ defmodule ShompWeb.ProductLive.New do
       Categories.get_main_category_options()
     end
 
-    # Show/hide quantity section based on product type
-    socket = if product_type == "physical" do
-      socket
-      |> assign(filtered_category_options: filtered_category_options)
-      |> push_event("js", %{exec: "document.getElementById('quantity-section').classList.remove('hidden')"})
-    else
-      socket
-      |> assign(filtered_category_options: filtered_category_options)
-      |> push_event("js", %{exec: "document.getElementById('quantity-section').classList.add('hidden')"})
-    end
+    # Update the form with the new type
+    changeset = socket.assigns.form.source
+    |> Ecto.Changeset.put_change(:type, product_type)
+    |> Map.put(:action, :validate)
 
-    {:noreply, socket}
+    form = to_form(changeset, as: "product")
+
+    {:noreply,
+     socket
+     |> assign(form: form, filtered_category_options: filtered_category_options, product_type: product_type)}
   end
 
   def handle_event("cancel-upload", %{"ref" => ref}, socket) do
-    {:noreply, cancel_upload(socket, :product_images, ref)}
+    # Check if the ref belongs to product_images or digital_file
+    product_image_refs = Enum.map(socket.assigns.uploads.product_images.entries, & &1.ref)
+    digital_file_refs = Enum.map(socket.assigns.uploads.digital_file.entries, & &1.ref)
+
+    cond do
+      ref in product_image_refs ->
+        {:noreply, cancel_upload(socket, :product_images, ref)}
+      ref in digital_file_refs ->
+        {:noreply, cancel_upload(socket, :digital_file, ref)}
+      true ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("remove_digital_file", _params, socket) do
+    {:noreply, assign(socket, uploaded_digital_file: nil)}
   end
 
   def handle_event("upload_images", _params, socket) do
@@ -324,74 +446,178 @@ defmodule ShompWeb.ProductLive.New do
   end
 
   def handle_progress(:product_images, entry, socket) do
-    IO.puts("=== UPLOAD PROGRESS ===")
-    IO.puts("Entry: #{entry.client_name}")
-    IO.puts("Progress: #{entry.progress}%")
-    IO.puts("Done: #{entry.done?}")
-    IO.puts("Current uploaded_images count: #{length(socket.assigns[:uploaded_images] || [])}")
-
     if entry.done? do
-      # Process the completed upload immediately
-      process_completed_entry(entry, socket)
+      process_image_upload(entry, socket)
     else
       {:noreply, socket}
     end
   end
 
-  defp process_completed_entry(entry, socket) do
-    IO.puts("Processing completed entry: #{entry.client_name}")
+  def handle_progress(:digital_file, entry, socket) do
+    if entry.done? do
+      process_digital_file_upload(entry, socket)
+    else
+      {:noreply, socket}
+    end
+  end
 
-    # Use consume_uploaded_entries to get the file path
-    uploaded_files = consume_uploaded_entries(socket, :product_images, fn meta, upload_entry ->
-      if upload_entry.ref == entry.ref do
-        # Create a temporary upload structure
-        temp_upload = %{
-          filename: upload_entry.client_name,
-          path: meta.path,
-          content_type: upload_entry.client_type
-        }
-
-        # Generate a temporary product ID for storage
-        temp_product_id = :crypto.strong_rand_bytes(16) |> Base.encode64()
-
-        case Shomp.Uploads.store_product_image(temp_upload, temp_product_id) do
-          {:ok, image_url} ->
-            IO.puts("Image stored successfully: #{image_url}")
-            %{
-              image_url: image_url,
-              filename: upload_entry.client_name,
-              temp_id: temp_product_id
-            }
-
-          {:error, reason} ->
-            IO.puts("Failed to store image: #{inspect(reason)}")
-            nil
-        end
-      else
-        nil
-      end
-    end)
-
-    # Filter out failed uploads
-    valid_images = Enum.filter(uploaded_files, & &1)
-
-    if length(valid_images) > 0 do
-      # Add the new images to the existing images
+  defp process_image_upload(entry, socket) do
+    with {:ok, temp_upload} <- create_temp_upload(entry, socket, :product_images),
+         {:ok, image_url} <- store_image_to_r2(temp_upload) do
       current_images = socket.assigns.uploaded_images || []
-      all_images = current_images ++ valid_images
-
-      IO.puts("Auto-uploaded #{length(valid_images)} image(s). Total images: #{length(all_images)}")
-      IO.puts("Valid images: #{inspect(valid_images)}")
-      IO.puts("All images after update: #{inspect(all_images)}")
+      new_image = %{
+        image_url: image_url,
+        filename: entry.client_name,
+        temp_id: generate_temp_id()
+      }
 
       {:noreply,
        socket
        |> put_flash(:info, "Image '#{entry.client_name}' uploaded successfully!")
-       |> assign(uploaded_images: all_images)}
+       |> assign(uploaded_images: current_images ++ [new_image])}
     else
-      IO.puts("No valid images to add to socket state")
-      {:noreply, put_flash(socket, :error, "Failed to process uploaded image")}
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, "Failed to upload image: #{reason}")}
     end
+  end
+
+  defp process_digital_file_upload(entry, socket) do
+    IO.inspect(entry, label: "Processing digital file entry")
+
+    # Upload directly to R2 without temp storage
+    case upload_directly_to_r2(entry, socket) do
+      {:ok, file_url} ->
+        IO.inspect(file_url, label: "Successfully stored to R2")
+        file_type = determine_file_type(entry.client_name)
+        digital_file = %{
+          file_url: file_url,
+          filename: entry.client_name,
+          file_type: file_type,
+          temp_id: generate_temp_id()
+        }
+
+        {:noreply,
+         socket
+         |> put_flash(:info, "Digital file '#{entry.client_name}' uploaded successfully!")
+         |> assign(uploaded_digital_file: digital_file)}
+      {:error, reason} ->
+        IO.inspect(reason, label: "R2 upload failed")
+        {:noreply, put_flash(socket, :error, "Failed to upload digital file: #{inspect(reason)}")}
+    end
+  end
+
+  defp create_temp_upload(entry, socket, upload_type) do
+    IO.puts("=== CREATE TEMP UPLOAD DEBUG ===")
+    IO.puts("Entry ref: #{entry.ref}")
+    IO.puts("Upload type: #{upload_type}")
+    IO.puts("Socket assigns keys: #{inspect(Map.keys(socket.assigns))}")
+
+    uploaded_files = consume_uploaded_entries(socket, upload_type, fn meta, upload_entry ->
+      IO.puts("Processing upload entry: ref=#{upload_entry.ref}, client_name=#{upload_entry.client_name}")
+      if upload_entry.ref == entry.ref do
+        IO.puts("✅ Found matching entry")
+        {:ok, %{
+          filename: upload_entry.client_name,
+          path: meta.path,
+          content_type: upload_entry.client_type
+        }}
+      else
+        IO.puts("❌ Entry ref mismatch: expected #{entry.ref}, got #{upload_entry.ref}")
+        {:error, :not_found}
+      end
+    end)
+
+    IO.puts("Uploaded files result: #{inspect(uploaded_files)}")
+    IO.puts("================================")
+
+    case uploaded_files do
+      [temp_upload] when is_map(temp_upload) ->
+        IO.puts("✅ Successfully created temp upload: #{inspect(temp_upload)}")
+        {:ok, temp_upload}
+      [] ->
+        IO.puts("❌ No uploaded files found")
+        {:error, "No uploaded files found"}
+      [error_result] ->
+        IO.puts("❌ Upload error: #{inspect(error_result)}")
+        {:error, "Upload error: #{inspect(error_result)}"}
+      other ->
+        IO.puts("❌ Unexpected result: #{inspect(other)}")
+        {:error, "Unexpected upload result: #{inspect(other)}"}
+    end
+  end
+
+  defp store_image_to_r2(temp_upload) do
+    temp_product_id = generate_temp_id()
+    Shomp.Uploads.store_product_image(temp_upload, temp_product_id)
+  end
+
+  defp upload_directly_to_r2(entry, socket) do
+    IO.puts("=== DIRECT R2 UPLOAD DEBUG ===")
+    IO.puts("Entry: #{inspect(entry)}")
+
+    # Get the file data directly from the upload entry and read content before consuming
+    case consume_uploaded_entries(socket, :digital_file, fn meta, upload_entry ->
+      if upload_entry.ref == entry.ref do
+        IO.puts("✅ Found matching entry for direct upload")
+
+        # Read the file content before it gets consumed
+        file_content = if File.exists?(meta.path) do
+          File.read!(meta.path)
+        else
+          IO.puts("❌ File not found at path: #{meta.path}")
+          {:error, "File not found"}
+        end
+
+        case file_content do
+          {:error, reason} -> {:error, reason}
+          content when is_binary(content) ->
+            {:ok, %{
+              filename: upload_entry.client_name,
+              path: meta.path,
+              content_type: upload_entry.client_type,
+              content: content
+            }}
+        end
+      else
+        {:error, :not_found}
+      end
+    end) do
+      [upload_data] when is_map(upload_data) ->
+        IO.puts("✅ Got upload data: #{inspect(upload_data)}")
+        temp_product_id = generate_temp_id()
+
+        # Upload directly to R2
+        Shomp.Uploads.store_digital_file(upload_data, temp_product_id)
+      other ->
+        IO.puts("❌ Failed to get upload data: #{inspect(other)}")
+        {:error, "Failed to get upload data"}
+    end
+  end
+
+  defp store_digital_file_to_r2(temp_upload) do
+    temp_product_id = generate_temp_id()
+
+    # Debug R2 config
+    r2_config = Application.get_env(:shomp, :upload)[:r2]
+    IO.inspect(r2_config, label: "R2 config loaded")
+
+    Shomp.Uploads.store_digital_file(temp_upload, temp_product_id)
+  end
+
+  defp determine_file_type(filename) do
+    filename
+    |> Path.extname()
+    |> String.downcase()
+    |> case do
+      ".pdf" -> "pdf"
+      ".zip" -> "zip"
+      ".mp4" -> "mp4"
+      _ -> "unknown"
+    end
+  end
+
+  defp generate_temp_id do
+    :crypto.strong_rand_bytes(16) |> Base.encode64()
   end
 
   def handle_event("move_image_up", %{"index" => index}, socket) do
@@ -423,82 +649,99 @@ defmodule ShompWeb.ProductLive.New do
     {:noreply, assign(socket, uploaded_images: new_images)}
   end
 
-  def handle_event("save", %{"product" => product_params} = params, socket) do
-    IO.puts("=== SAVE EVENT TRIGGERED ===")
+  def handle_event("save", %{"product" => product_params}, socket) do
+    IO.puts("=== SAVE EVENT DEBUG ===")
     IO.puts("Product params: #{inspect(product_params)}")
-    IO.puts("Full params: #{inspect(params)}")
-    IO.puts("Pre-uploaded files: #{inspect(socket.assigns[:uploaded_files])}")
-    IO.puts("Socket assigns keys: #{inspect(Map.keys(socket.assigns))}")
-    IO.puts("Uploaded images in socket: #{inspect(socket.assigns[:uploaded_images])}")
+    IO.puts("Uploaded digital file: #{inspect(socket.assigns.uploaded_digital_file)}")
+    IO.puts("Uploaded images: #{inspect(socket.assigns.uploaded_images)}")
 
-    # Create the product first
-    case Products.create_product(product_params) do
-      {:ok, product} ->
-        IO.puts("Product created successfully, now processing uploaded files...")
+    # Build file data and merge with product params
+    file_data = build_file_data(socket.assigns)
+    IO.puts("File data: #{inspect(file_data)}")
 
-        # Use the pre-uploaded images from socket state
-        uploaded_images = socket.assigns.uploaded_images || []
-        IO.puts("Using pre-uploaded images: #{length(uploaded_images)} images found")
-        IO.puts("Uploaded images details: #{inspect(uploaded_images)}")
+    # Merge file data with product params
+    complete_params = Map.merge(product_params, file_data)
+    IO.puts("Complete params: #{inspect(complete_params)}")
 
-        uploaded_image_data = Enum.map(uploaded_images, fn image ->
-          %{
-            "image_original" => image.image_url
-          }
-        end)
+    with {:ok, product} <- Products.create_product(complete_params) do
+      store = find_store_by_id(socket.assigns.stores, product.store_id)
+      success_message = build_success_message(socket.assigns)
 
-        # Update product with image paths if any were processed
-        case uploaded_image_data do
-          [first_image | _] when is_map(first_image) and map_size(first_image) > 0 ->
-            # First image becomes the primary image
-            primary_image_data = first_image
-
-            # Additional images go to additional_images array (image URLs from uploaded_images)
-            additional_images = Enum.drop(uploaded_images, 1)
-            |> Enum.map(fn img -> img.image_url end)
-
-            # Combine primary image with additional images
-            final_image_data = Map.put(primary_image_data, "additional_images", additional_images)
-            final_image_data = Map.put(final_image_data, "primary_image_index", 0)
-
-            IO.puts("Final image data: #{inspect(final_image_data)}")
-            IO.puts("Additional images: #{inspect(additional_images)}")
-
-            case Products.update_product(product, final_image_data) do
-              {:ok, updated_product} ->
-                IO.puts("Product updated with multiple images successfully!")
-                IO.puts("Updated product additional_images: #{inspect(updated_product.additional_images)}")
-                store = Enum.find(socket.assigns.stores, fn s -> s.store_id == product.store_id end)
-
-                {:noreply,
-                 socket
-                 |> put_flash(:info, "Product created with #{length(uploaded_image_data)} images successfully!")
-                 |> push_navigate(to: ~p"/stores/#{store.slug}")}
-
-              {:error, changeset} ->
-                IO.puts("Failed to update product with images: #{inspect(changeset.errors)}")
-                store = Enum.find(socket.assigns.stores, fn s -> s.store_id == product.store_id end)
-
-                {:noreply,
-                 socket
-                 |> put_flash(:warning, "Product created but image update failed")
-                 |> push_navigate(to: ~p"/stores/#{store.slug}")}
-            end
-
-          _ ->
-            IO.puts("No images to process, product created without images")
-            store = Enum.find(socket.assigns.stores, fn s -> s.store_id == product.store_id end)
-
-            {:noreply,
-             socket
-             |> put_flash(:info, "Product created successfully!")
-             |> push_navigate(to: ~p"/stores/#{store.slug}")}
-        end
-
+      {:noreply,
+       socket
+       |> put_flash(:info, success_message)
+       |> push_navigate(to: ~p"/stores/#{store.slug}")}
+    else
       {:error, %Ecto.Changeset{} = changeset} ->
-        IO.puts("Product creation failed: #{inspect(changeset.errors)}")
         {:noreply, assign_form(socket, changeset, socket.assigns.store_options, socket.assigns.stores, socket.assigns.filtered_category_options, socket.assigns.custom_category_options)}
+
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, "Failed to create product: #{reason}")}
     end
+  end
+
+  defp update_product_with_files(product, socket) do
+    file_data = build_file_data(socket.assigns)
+
+    if map_size(file_data) > 0 do
+      Products.update_product(product, file_data)
+    else
+      {:ok, product}
+    end
+  end
+
+  defp build_file_data(assigns) do
+    image_data = build_image_data(assigns.uploaded_images || [])
+    digital_data = build_digital_data(assigns.uploaded_digital_file)
+
+    IO.puts("=== BUILD FILE DATA DEBUG ===")
+    IO.puts("Image data: #{inspect(image_data)}")
+    IO.puts("Digital data: #{inspect(digital_data)}")
+
+    final_data = Map.merge(image_data, digital_data)
+    IO.puts("Final file data: #{inspect(final_data)}")
+    final_data
+  end
+
+  defp build_image_data([]), do: %{}
+  defp build_image_data([first_image | additional_images]) do
+    additional_urls = Enum.map(additional_images, & &1.image_url)
+
+    %{
+      "image_original" => first_image.image_url,
+      "additional_images" => additional_urls,
+      "primary_image_index" => 0
+    }
+  end
+
+  defp build_digital_data(nil), do: %{}
+  defp build_digital_data(digital_file) do
+    IO.puts("=== BUILD DIGITAL DATA DEBUG ===")
+    IO.puts("Digital file: #{inspect(digital_file)}")
+    %{
+      "digital_file_url" => digital_file.file_url,
+      "digital_file_type" => digital_file.file_type
+    }
+  end
+
+  defp build_success_message(assigns) do
+    image_count = length(assigns.uploaded_images || [])
+    has_digital = assigns.uploaded_digital_file != nil
+
+    cond do
+      image_count > 0 and has_digital ->
+        "Product created with #{image_count} images and digital file!"
+      image_count > 0 ->
+        "Product created with #{image_count} images!"
+      has_digital ->
+        "Product created with digital file!"
+      true ->
+        "Product created successfully!"
+    end
+  end
+
+  defp find_store_by_id(stores, store_id) do
+    Enum.find(stores, fn store -> store.store_id == store_id end)
   end
 
   defp assign_form(socket, %Ecto.Changeset{} = changeset, store_options, stores, filtered_category_options, custom_category_options) do

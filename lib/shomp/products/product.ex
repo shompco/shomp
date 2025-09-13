@@ -9,6 +9,8 @@ defmodule Shomp.Products.Product do
     field :price, :decimal
     field :type, :string
     field :file_path, :string
+    field :digital_file_url, :string
+    field :digital_file_type, :string
     field :stripe_product_id, :string
     field :store_id, :string  # Reference to store's immutable store_id
     field :store, :map, virtual: true  # Virtual field to hold store data
@@ -40,7 +42,7 @@ defmodule Shomp.Products.Product do
   """
   def changeset(product, attrs) do
     product
-    |> cast(attrs, [:title, :description, :price, :type, :file_path, :store_id, :stripe_product_id, :category_id, :custom_category_id, :slug, :image_original, :image_thumb, :image_medium, :image_large, :image_extra_large, :image_ultra, :additional_images, :primary_image_index, :sold_out, :quantity])
+    |> cast(attrs, [:title, :description, :price, :type, :file_path, :digital_file_url, :digital_file_type, :store_id, :stripe_product_id, :category_id, :custom_category_id, :slug, :image_original, :image_thumb, :image_medium, :image_large, :image_extra_large, :image_ultra, :additional_images, :primary_image_index, :sold_out, :quantity])
     |> validate_required([:title, :price, :type, :store_id])
     |> validate_length(:title, min: 2, max: 200)
     |> validate_length(:description, max: 2000)
@@ -66,12 +68,17 @@ defmodule Shomp.Products.Product do
   defp validate_file_path_for_type(changeset) do
     type = get_change(changeset, :type)
     file_path = get_change(changeset, :file_path)
+    digital_file_url = get_change(changeset, :digital_file_url)
 
-    case {type, file_path} do
-      {"digital", nil} ->
-        add_error(changeset, :file_path, "is required for digital products")
-      {"digital", ""} ->
-        add_error(changeset, :file_path, "is required for digital products")
+    case {type, file_path, digital_file_url} do
+      {"digital", nil, nil} ->
+        add_error(changeset, :digital_file_url, "is required for digital products")
+      {"digital", nil, ""} ->
+        add_error(changeset, :digital_file_url, "is required for digital products")
+      {"digital", "", nil} ->
+        add_error(changeset, :digital_file_url, "is required for digital products")
+      {"digital", "", ""} ->
+        add_error(changeset, :digital_file_url, "is required for digital products")
       _ ->
         changeset
     end
@@ -115,10 +122,10 @@ defmodule Shomp.Products.Product do
       case get_change(acc, field) do
         nil -> acc
         path when is_binary(path) and byte_size(path) > 0 ->
-          if String.starts_with?(path, "/uploads/") do
+          if String.starts_with?(path, "/uploads/") or String.starts_with?(path, "https://") do
             acc
           else
-            add_error(acc, field, "must be a valid upload path")
+            add_error(acc, field, "must be a valid upload path or URL")
           end
         _ ->
           add_error(acc, field, "must be a valid path string")
