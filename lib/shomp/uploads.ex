@@ -219,8 +219,8 @@ defmodule Shomp.Uploads do
                                content_type: upload.content_type) |> ExAws.request(config) do
         {:ok, _} ->
           # Generate public URL
-          # For R2, the endpoint is already the full domain, so we just need to add the bucket and key
-          url = "#{r2_config[:endpoint]}/#{r2_config[:bucket]}/#{key}"
+          # For R2, construct the full URL with https://
+          url = "https://#{r2_config[:endpoint]}/#{r2_config[:bucket]}/#{key}"
           {:ok, url}
         {:error, reason} ->
           {:error, "Failed to upload to R2: #{inspect(reason)}"}
@@ -289,7 +289,7 @@ defmodule Shomp.Uploads do
               IO.puts("Endpoint: #{inspect(r2_config[:endpoint])}")
               IO.puts("Bucket: #{inspect(r2_config[:bucket])}")
               IO.puts("Key: #{inspect(key)}")
-              url = "#{r2_config[:endpoint]}/#{r2_config[:bucket]}/#{key}"
+              url = "https://#{r2_config[:endpoint]}/#{r2_config[:bucket]}/#{key}"
               IO.puts("Generated URL: #{url}")
               {:ok, url}
             {:error, reason} ->

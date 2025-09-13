@@ -37,9 +37,24 @@ defmodule ShompWeb.DownloadController do
     user_id = conn.assigns.current_scope.user.id
 
     case Downloads.process_download(token, user_id) do
-      {:ok, file_path, _download} ->
-        # Serve the file securely
-        serve_file(conn, file_path)
+      {:ok, file_url, _download} ->
+        # Check if it's an R2 URL or local file
+        if String.starts_with?(file_url, "https://") do
+          # Generate signed URL for R2 file
+          case generate_signed_url(file_url) do
+            {:ok, signed_url} ->
+              # Instead of redirecting, fetch the file and serve it directly
+              # This prevents URL sharing and ensures proper download behavior
+              serve_r2_file(conn, signed_url)
+            {:error, reason} ->
+              conn
+              |> put_flash(:error, "Failed to generate download link: #{reason}")
+              |> redirect(to: ~p"/")
+          end
+        else
+          # Serve local file securely
+          serve_file(conn, file_url)
+        end
 
       {:error, :not_found} ->
         conn
@@ -193,6 +208,137 @@ defmodule ShompWeb.DownloadController do
       ".doc" -> "application/msword"
       ".docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
       _ -> "application/octet-stream"
+    end
+  end
+
+  defp generate_signed_url(r2_url) do
+    try do
+      IO.puts("=== SIGNED URL GENERATION DEBUG ===")
+      IO.puts("R2 URL: #{r2_url}")
+
+      # Parse the R2 URL to extract bucket and key
+      # Format: https://endpoint/bucket/key
+      case parse_r2_url(r2_url) do
+        {:ok, bucket, key} ->
+          IO.puts("Parsed - Bucket: #{bucket}, Key: #{key}")
+
+          # Get R2 configuration
+          r2_config = Application.get_env(:shomp, :upload)[:r2]
+          IO.puts("R2 Config: #{inspect(r2_config)}")
+
+          # Configure ExAws for R2
+          config = %{
+            access_key_id: r2_config[:access_key_id],
+            secret_access_key: r2_config[:secret_access_key],
+            region: r2_config[:region] || "auto",
+            host: r2_config[:endpoint],
+            scheme: "https://"
+          }
+          IO.puts("ExAws Config: #{inspect(config)}")
+
+          # Generate signed URL valid for 1 hour
+          expires_in = 3600 # 1 hour in seconds
+
+          case ExAws.S3.presigned_url(config, :get, bucket, key, expires_in: expires_in) do
+            {:ok, signed_url} ->
+              IO.puts("✅ Generated signed URL: #{signed_url}")
+              {:ok, signed_url}
+            {:error, reason} ->
+              IO.puts("❌ Failed to generate signed URL: #{inspect(reason)}")
+              {:error, "Failed to generate signed URL: #{inspect(reason)}"}
+          end
+        {:error, reason} ->
+          IO.puts("❌ Failed to parse R2 URL: #{reason}")
+          {:error, reason}
+      end
+    rescue
+      error ->
+        IO.puts("❌ Exception in signed URL generation: #{inspect(error)}")
+        {:error, "Failed to generate signed URL: #{inspect(error)}"}
+    end
+  end
+
+  defp parse_r2_url(r2_url) do
+    # Parse URL like: https://endpoint/bucket/key
+    case String.split(r2_url, "/") do
+      ["https:", "", _endpoint, bucket | key_parts] ->
+        key = Enum.join(key_parts, "/")
+        {:ok, bucket, key}
+      _ ->
+        {:error, "Invalid R2 URL format"}
+    end
+  end
+
+  defp serve_r2_file(conn, signed_url) do
+    try do
+      IO.puts("=== SERVING R2 FILE DEBUG ===")
+      IO.puts("Signed URL: #{signed_url}")
+
+      # Fetch the file from R2 using the signed URL
+      case Req.get(signed_url, redirect: true) do
+        {:ok, %Req.Response{status: 200, body: body, headers: headers}} ->
+          IO.puts("✅ Successfully fetched file from R2")
+          IO.puts("Body size: #{byte_size(body)} bytes")
+          IO.puts("Headers: #{inspect(headers)}")
+
+          # Extract filename from URL (remove query parameters)
+          filename = signed_url
+          |> String.split("/")
+          |> List.last()
+          |> String.split("?")
+          |> List.first()
+          |> URI.decode()
+
+          IO.puts("Extracted filename: #{filename}")
+          IO.puts("Filename type: #{inspect(filename)}")
+
+          # Extract content type from response headers or guess from filename
+          content_type = get_content_type_from_headers(headers) || get_content_type(filename)
+          IO.puts("Content type: #{content_type}")
+          IO.puts("Content type type: #{inspect(content_type)}")
+
+          # Validate values before setting headers
+          filename_str = if is_binary(filename), do: filename, else: "download.pdf"
+          content_type_str = if is_binary(content_type), do: content_type, else: "application/octet-stream"
+
+          IO.puts("Final filename: #{filename_str}")
+          IO.puts("Final content type: #{content_type_str}")
+
+          # Set proper download headers
+          conn
+          |> put_resp_header("content-disposition", "attachment; filename=\"#{filename_str}\"")
+          |> put_resp_header("content-type", content_type_str)
+          |> put_resp_header("content-length", "#{byte_size(body)}")
+          |> put_resp_header("cache-control", "no-cache, no-store, must-revalidate")
+          |> put_resp_header("pragma", "no-cache")
+          |> put_resp_header("expires", "0")
+          |> send_resp(200, body)
+
+        {:ok, %Req.Response{status: status_code}} ->
+          IO.puts("❌ HTTP Error: #{status_code}")
+          conn
+          |> put_flash(:error, "Failed to download file (HTTP #{status_code})")
+          |> redirect(to: ~p"/")
+
+        {:error, reason} ->
+          IO.puts("❌ Req Error: #{inspect(reason)}")
+          conn
+          |> put_flash(:error, "Failed to download file: #{inspect(reason)}")
+          |> redirect(to: ~p"/")
+      end
+    rescue
+      error ->
+        IO.puts("❌ Exception: #{inspect(error)}")
+        conn
+        |> put_flash(:error, "Error downloading file: #{inspect(error)}")
+        |> redirect(to: ~p"/")
+    end
+  end
+
+  defp get_content_type_from_headers(headers) do
+    case Enum.find(headers, fn {key, _value} -> String.downcase(key) == "content-type" end) do
+      {_key, content_type} -> content_type
+      nil -> nil
     end
   end
 end

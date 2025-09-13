@@ -12,8 +12,6 @@ defmodule Shomp.Products.Product do
     field :digital_file_url, :string
     field :digital_file_type, :string
     field :stripe_product_id, :string
-    field :store_id, :string  # Reference to store's immutable store_id
-    field :store, :map, virtual: true  # Virtual field to hold store data
     field :slug, :string  # SEO-friendly URL slug
     field :sold_out, :boolean, default: false  # For physical products
     field :quantity, :integer, default: 0  # Available quantity for physical products
@@ -28,11 +26,12 @@ defmodule Shomp.Products.Product do
     field :additional_images, {:array, :string}, default: []
     field :primary_image_index, :integer, default: 0
 
+    belongs_to :store, Shomp.Stores.Store, foreign_key: :store_id, references: :store_id, type: :string
     belongs_to :category, Shomp.Categories.Category  # Global platform category
     belongs_to :custom_category, Shomp.Categories.Category  # Store-specific category
 
     has_many :payments, Shomp.Payments.Payment
-    has_many :downloads, Shomp.Downloads.Download
+    has_many :downloads, Shomp.Downloads.Download, foreign_key: :product_immutable_id, references: :immutable_id
 
     timestamps(type: :utc_datetime)
   end
