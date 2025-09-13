@@ -149,12 +149,12 @@ defmodule ShompWeb.PurchaseDetailsLive.Show do
                                   </div>
                                 <% {:error, :expired} -> %>
                                   <span class="text-xs text-error">Download link expired</span>
-                                <% {:error, :limit_exceeded} -> %>
+                                <% {:error, :limit_reached} -> %>
                                   <div class="flex items-center space-x-2">
                                     <span class="text-xs text-base-content/60">
                                       (<%= @max_downloads %>/<%= @max_downloads %> downloads used)
                                     </span>
-                                    <span class="text-xs text-error">Download limit exceeded</span>
+                                    <span class="text-xs text-warning">Download limit reached</span>
                                   </div>
                               <% end %>
                             </div>
@@ -281,8 +281,8 @@ defmodule ShompWeb.PurchaseDetailsLive.Show do
 
     # Check if there's already a download for this product
     case get_download_info(product_id_int, socket.assigns.download_tokens) do
-      {:error, :limit_exceeded} ->
-        {:noreply, put_flash(socket, :error, "Download limit exceeded for this product")}
+      {:error, :limit_reached} ->
+        {:noreply, put_flash(socket, :error, "Download limit reached for this product")}
 
       {:error, :not_found} ->
         # Find the order item for this specific purchase
@@ -317,12 +317,6 @@ defmodule ShompWeb.PurchaseDetailsLive.Show do
 
   @impl true
   def handle_info(%{event: "download_updated", payload: %{download: download}}, socket) do
-    IO.puts("=== LIVEVIEW RECEIVED DOWNLOAD UPDATE ===")
-    IO.puts("Download ID: #{download.id}")
-    IO.puts("Product Immutable ID: #{download.product_immutable_id}")
-    IO.puts("Universal Order ID: #{download.universal_order_id}")
-    IO.puts("Download Count: #{download.download_count}")
-
     # Find the matching order item by both product and universal_order_id
     matching_item = socket.assigns.universal_order.universal_order_items
     |> Enum.find(fn item ->
@@ -332,30 +326,19 @@ defmodule ShompWeb.PurchaseDetailsLive.Show do
 
     case matching_item do
       nil ->
-        IO.puts("❌ No matching order item found for download update")
+        # No matching order item found, ignore
         {:noreply, socket}
       item ->
         product_id = item.product.id
-        IO.puts("✅ Found matching order item, product ID: #{product_id}")
         # Update the download token for this product
         new_tokens = Map.put(socket.assigns.download_tokens, product_id, {:ok, download})
-        IO.puts("✅ Updated download tokens for product #{product_id}")
         {:noreply, assign(socket, :download_tokens, new_tokens)}
     end
   end
 
-  @impl true
-  def handle_info(%{event: "subscription_test", payload: %{message: test_message}}, socket) do
-    IO.puts("=== LIVEVIEW RECEIVED SUBSCRIPTION TEST ===")
-    IO.puts("Test message: #{test_message}")
-    {:noreply, socket}
-  end
-
   # Catch-all for other PubSub messages
   @impl true
-  def handle_info(message, socket) do
-    IO.puts("=== LIVEVIEW RECEIVED UNKNOWN MESSAGE ===")
-    IO.puts("Message: #{inspect(message)}")
+  def handle_info(_message, socket) do
     {:noreply, socket}
   end
 
@@ -389,8 +372,8 @@ defmodule ShompWeb.PurchaseDetailsLive.Show do
               # If expired, show as not found so user can create a new one
               {product_id, {:error, :not_found}}
             not Downloads.Download.within_limit?(download, get_max_downloads()) ->
-              # If limit exceeded, show limit exceeded (don't allow new downloads)
-              {product_id, {:error, :limit_exceeded}}
+              # If limit reached, show limit reached (don't allow new downloads)
+              {product_id, {:error, :limit_reached}}
             true ->
               {product_id, {:ok, download}}
           end
@@ -405,7 +388,7 @@ defmodule ShompWeb.PurchaseDetailsLive.Show do
       {:ok, download} ->
         cond do
           not Downloads.Download.valid?(download) -> {:error, :expired}
-          not Downloads.Download.within_limit?(download, get_max_downloads()) -> {:error, :limit_exceeded}
+          not Downloads.Download.within_limit?(download, get_max_downloads()) -> {:error, :limit_reached}
           true -> {:ok, download}
         end
       {:error, reason} -> {:error, reason}

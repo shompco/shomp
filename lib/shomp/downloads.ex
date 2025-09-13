@@ -93,7 +93,7 @@ defmodule Shomp.Downloads do
             {:error, :expired}
 
           not Download.within_limit?(download, get_max_downloads()) ->
-            {:error, :limit_exceeded}
+            {:error, :limit_reached}
 
           true ->
             {:ok, download}
@@ -110,16 +110,10 @@ defmodule Shomp.Downloads do
     |> Repo.update() do
       {:ok, updated_download} ->
         # Broadcast the download update event
-        IO.puts("=== BROADCASTING DOWNLOAD UPDATE ===")
-        IO.puts("User ID: #{download.user_id}")
-        IO.puts("Download count: #{updated_download.download_count}")
-        IO.puts("Channel: downloads:#{download.user_id}")
-
-        broadcast_result = Phoenix.PubSub.broadcast(Shomp.PubSub, "downloads:#{download.user_id}", %{
+        Phoenix.PubSub.broadcast(Shomp.PubSub, "downloads:#{download.user_id}", %{
           event: "download_updated",
           payload: %{download: updated_download}
         })
-        IO.puts("Broadcast result: #{inspect(broadcast_result)}")
         {:ok, updated_download}
       error -> error
     end

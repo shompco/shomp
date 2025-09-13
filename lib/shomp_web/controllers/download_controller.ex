@@ -73,7 +73,7 @@ defmodule ShompWeb.DownloadController do
 
       {:error, :limit_exceeded} ->
         conn
-        |> put_flash(:error, "Download limit exceeded for this product.")
+        |> put_flash(:error, "Download limit reached for this product.")
         |> redirect(to: ~p"/")
 
       {:error, _reason} ->
