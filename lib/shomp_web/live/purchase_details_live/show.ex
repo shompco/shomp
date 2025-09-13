@@ -8,6 +8,16 @@ defmodule ShompWeb.PurchaseDetailsLive.Show do
   on_mount {ShompWeb.UserAuth, :require_authenticated}
 
   @impl true
+  def connected(socket) do
+    user = socket.assigns.current_scope.user
+
+    # Subscribe to download events now that we're connected
+    Phoenix.PubSub.subscribe(Shomp.PubSub, "downloads:#{user.id}")
+
+    {:ok, socket}
+  end
+
+  @impl true
   def mount(%{"universal_order_id" => universal_order_id}, _session, socket) do
     user = socket.assigns.current_scope.user
 
@@ -38,22 +48,6 @@ defmodule ShompWeb.PurchaseDetailsLive.Show do
             preload: [:product]
           ) |> Shomp.Repo.all()
 
-          # Debug: Check product data
-          IO.puts("=== PURCHASE DETAILS DEBUG ===")
-          IO.puts("Order items count: #{length(order_items)}")
-          for {item, index} <- Enum.with_index(order_items) do
-            IO.puts("Item #{index + 1}:")
-            IO.puts("  Order Item ID: #{item.id}")
-            IO.puts("  Universal Order ID: #{item.universal_order_id}")
-            IO.puts("  Product loaded: #{item.product != nil}")
-            if item.product do
-              IO.puts("  Product ID: #{item.product.id}")
-              IO.puts("  Product Immutable ID: #{item.product.immutable_id}")
-              IO.puts("  Product title: #{item.product.title}")
-              IO.puts("  Product type: #{item.product.type}")
-            end
-          end
-
           # Manually set the order items
           universal_order = %{universal_order | universal_order_items: order_items}
 
@@ -63,21 +57,15 @@ defmodule ShompWeb.PurchaseDetailsLive.Show do
           # Subscribe to universal order updates
           Phoenix.PubSub.subscribe(Shomp.PubSub, "universal_orders")
 
+          # Also subscribe to download events in mount (in case connected/1 isn't called)
+          Phoenix.PubSub.subscribe(Shomp.PubSub, "downloads:#{user.id}")
+
           socket =
             socket
             |> assign(:universal_order, universal_order)
             |> assign(:download_tokens, download_tokens)
             |> assign(:max_downloads, get_max_downloads())
             |> assign(:page_title, "Purchase ##{universal_order.universal_order_id}")
-
-          # Subscribe to download events when connected
-          if connected?(socket) do
-            IO.puts("=== SUBSCRIBING TO DOWNLOAD EVENTS ===")
-            IO.puts("User ID: #{user.id}")
-            IO.puts("Channel: downloads:#{user.id}")
-            Phoenix.PubSub.subscribe(Shomp.PubSub, "downloads:#{user.id}")
-            IO.puts("✅ Subscribed to download events")
-          end
 
           {:ok, socket}
         end
@@ -162,7 +150,12 @@ defmodule ShompWeb.PurchaseDetailsLive.Show do
                                 <% {:error, :expired} -> %>
                                   <span class="text-xs text-error">Download link expired</span>
                                 <% {:error, :limit_exceeded} -> %>
-                                  <span class="text-xs text-error">Download limit exceeded</span>
+                                  <div class="flex items-center space-x-2">
+                                    <span class="text-xs text-base-content/60">
+                                      (<%= @max_downloads %>/<%= @max_downloads %> downloads used)
+                                    </span>
+                                    <span class="text-xs text-error">Download limit exceeded</span>
+                                  </div>
                               <% end %>
                             </div>
                           <% end %>
@@ -271,12 +264,6 @@ defmodule ShompWeb.PurchaseDetailsLive.Show do
 
     # Only update if this is the same order we're viewing
     if updated_order.id == current_order.id do
-      IO.puts("=== PURCHASE DETAILS: Received order update via PubSub ===")
-      IO.puts("Order ID: #{updated_order.universal_order_id}")
-      IO.puts("New shipping status: #{updated_order.shipping_status}")
-      IO.puts("Tracking number: #{updated_order.tracking_number}")
-      IO.puts("Carrier: #{updated_order.carrier}")
-
       # Preserve the order items from the current order since the updated order may not have them preloaded
       updated_order_with_items = %{updated_order | universal_order_items: current_order.universal_order_items}
 
@@ -285,12 +272,6 @@ defmodule ShompWeb.PurchaseDetailsLive.Show do
       # Not our order, ignore
       {:noreply, socket}
     end
-  end
-
-  # Catch-all for other PubSub messages
-  @impl true
-  def handle_info(_message, socket) do
-    {:noreply, socket}
   end
 
   @impl true
@@ -313,13 +294,6 @@ defmodule ShompWeb.PurchaseDetailsLive.Show do
             {:noreply, put_flash(socket, :error, "Product not found")}
 
           item ->
-            # Debug: Check the order item data
-            IO.puts("=== CREATING DOWNLOAD DEBUG ===")
-            IO.puts("Order Item ID: #{inspect(item.id)}")
-            IO.puts("Order Item ID type: #{inspect(item.id |> inspect |> String.split(".") |> List.first)}")
-            IO.puts("Universal Order ID: #{inspect(item.universal_order_id)}")
-            IO.puts("Product Immutable ID: #{inspect(item.product.immutable_id)}")
-
             # Create download for this specific order item (each purchase gets its own download record)
             case Downloads.create_download_for_order_item(item, user_id) do
               {:ok, download} ->
@@ -343,10 +317,10 @@ defmodule ShompWeb.PurchaseDetailsLive.Show do
 
   @impl true
   def handle_info(%{event: "download_updated", payload: %{download: download}}, socket) do
-    IO.puts("=== RECEIVED DOWNLOAD UPDATE EVENT ===")
+    IO.puts("=== LIVEVIEW RECEIVED DOWNLOAD UPDATE ===")
     IO.puts("Download ID: #{download.id}")
     IO.puts("Product Immutable ID: #{download.product_immutable_id}")
-    IO.puts("Order Item ID: #{download.order_item_id}")
+    IO.puts("Universal Order ID: #{download.universal_order_id}")
     IO.puts("Download Count: #{download.download_count}")
 
     # Find the matching order item by both product and universal_order_id
@@ -356,18 +330,6 @@ defmodule ShompWeb.PurchaseDetailsLive.Show do
       item.universal_order_id == download.universal_order_id
     end)
 
-    IO.puts("Looking for order item with:")
-    IO.puts("  Product Immutable ID: #{download.product_immutable_id}")
-    IO.puts("  Universal Order ID: #{download.universal_order_id}")
-
-    IO.puts("Available order items:")
-    for {item, index} <- Enum.with_index(socket.assigns.universal_order.universal_order_items) do
-      IO.puts("  Item #{index + 1}:")
-      IO.puts("    Product Immutable ID: #{item.product.immutable_id}")
-      IO.puts("    Universal Order ID: #{item.universal_order_id}")
-      IO.puts("    Match: #{item.product.immutable_id == download.product_immutable_id and item.universal_order_id == download.universal_order_id}")
-    end
-
     case matching_item do
       nil ->
         IO.puts("❌ No matching order item found for download update")
@@ -375,29 +337,24 @@ defmodule ShompWeb.PurchaseDetailsLive.Show do
       item ->
         product_id = item.product.id
         IO.puts("✅ Found matching order item, product ID: #{product_id}")
-
         # Update the download token for this product
         new_tokens = Map.put(socket.assigns.download_tokens, product_id, {:ok, download})
         IO.puts("✅ Updated download tokens for product #{product_id}")
-        IO.puts("New download count: #{download.download_count}")
-        IO.puts("Max downloads: #{socket.assigns.max_downloads}")
-
-        {:noreply,
-         socket
-         |> assign(:download_tokens, new_tokens)
-         |> put_flash(:info, "Download count updated: #{download.download_count}/#{socket.assigns.max_downloads}")}
+        {:noreply, assign(socket, :download_tokens, new_tokens)}
     end
   end
 
   @impl true
-  def handle_info(%{event: "download_updated"}, socket) do
-    IO.puts("=== RECEIVED DOWNLOAD UPDATE EVENT (fallback) ===")
+  def handle_info(%{event: "subscription_test", payload: %{message: test_message}}, socket) do
+    IO.puts("=== LIVEVIEW RECEIVED SUBSCRIPTION TEST ===")
+    IO.puts("Test message: #{test_message}")
     {:noreply, socket}
   end
 
+  # Catch-all for other PubSub messages
   @impl true
   def handle_info(message, socket) do
-    IO.puts("=== RECEIVED UNKNOWN MESSAGE ===")
+    IO.puts("=== LIVEVIEW RECEIVED UNKNOWN MESSAGE ===")
     IO.puts("Message: #{inspect(message)}")
     {:noreply, socket}
   end
@@ -409,19 +366,10 @@ defmodule ShompWeb.PurchaseDetailsLive.Show do
     digital_products = order_items
     |> Enum.filter(fn item -> item.product.type == "digital" end)
 
-    IO.puts("=== DOWNLOAD TOKENS DEBUG ===")
-    IO.puts("Digital products count: #{length(digital_products)}")
-    IO.puts("User ID: #{user_id}")
-
     # Get download tokens for each order item (each purchase gets its own download record)
     digital_products
     |> Enum.map(fn order_item ->
       product_id = order_item.product.id
-
-      IO.puts("Processing order item:")
-      IO.puts("  Order Item ID: #{order_item.id}")
-      IO.puts("  Product ID: #{product_id}")
-      IO.puts("  Product Immutable ID: #{order_item.product.immutable_id}")
 
       # Get download record for this specific universal order (each purchase gets its own download record)
       downloads = Downloads.list_user_downloads(user_id)
@@ -431,34 +379,19 @@ defmodule ShompWeb.PurchaseDetailsLive.Show do
       end)
       |> Enum.sort_by(fn download -> download.inserted_at end, :desc) # Most recent first
 
-      IO.puts("  Found downloads: #{length(downloads)}")
-      for {download, index} <- Enum.with_index(downloads) do
-        IO.puts("    Download #{index + 1}:")
-        IO.puts("      ID: #{download.id}")
-        IO.puts("      Product Immutable ID: #{download.product_immutable_id}")
-        IO.puts("      Order Item ID: #{download.order_item_id}")
-        IO.puts("      Download Count: #{download.download_count}")
-        IO.puts("      Valid: #{Downloads.Download.valid?(download)}")
-        IO.puts("      Within Limit: #{Downloads.Download.within_limit?(download, get_max_downloads())}")
-      end
-
       case downloads do
         [] ->
-          IO.puts("  Result: {:error, :not_found}")
           {product_id, {:error, :not_found}}
         [download | _] ->
           # Check if the download is still valid and within limits
           cond do
             not Downloads.Download.valid?(download) ->
               # If expired, show as not found so user can create a new one
-              IO.puts("  Result: {:error, :not_found} (expired)")
               {product_id, {:error, :not_found}}
             not Downloads.Download.within_limit?(download, get_max_downloads()) ->
               # If limit exceeded, show limit exceeded (don't allow new downloads)
-              IO.puts("  Result: {:error, :limit_exceeded}")
               {product_id, {:error, :limit_exceeded}}
             true ->
-              IO.puts("  Result: {:ok, download}")
               {product_id, {:ok, download}}
           end
       end
