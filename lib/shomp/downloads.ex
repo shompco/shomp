@@ -115,10 +115,11 @@ defmodule Shomp.Downloads do
         IO.puts("Download count: #{updated_download.download_count}")
         IO.puts("Channel: downloads:#{download.user_id}")
 
-        Phoenix.PubSub.broadcast(Shomp.PubSub, "downloads:#{download.user_id}", %{
+        broadcast_result = Phoenix.PubSub.broadcast(Shomp.PubSub, "downloads:#{download.user_id}", %{
           event: "download_updated",
           payload: %{download: updated_download}
         })
+        IO.puts("Broadcast result: #{inspect(broadcast_result)}")
         {:ok, updated_download}
       error -> error
     end
@@ -172,12 +173,21 @@ defmodule Shomp.Downloads do
   def create_download_for_order_item(order_item, user_id, opts \\ []) do
     expires_at = Keyword.get(opts, :expires_at, DateTime.add(DateTime.utc_now(), 24 * 60 * 60, :second))
 
-    create_download_link(%{
+    # Build the attributes map, only including order_item_id if it's a valid integer
+    attrs = %{
       product_immutable_id: order_item.product.immutable_id,
       user_id: user_id,
       expires_at: expires_at,
-      order_item_id: order_item.id  # This makes each purchase unique
-    })
+      universal_order_id: order_item.universal_order_id  # This links to the universal order
+    }
+
+    # Only add order_item_id if it's a valid integer
+    attrs = case order_item.id do
+      id when is_integer(id) -> Map.put(attrs, :order_item_id, id)
+      _ -> attrs
+    end
+
+    create_download_link(attrs)
   end
 
   @doc """

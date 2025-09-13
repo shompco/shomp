@@ -43,11 +43,14 @@ defmodule ShompWeb.PurchaseDetailsLive.Show do
           IO.puts("Order items count: #{length(order_items)}")
           for {item, index} <- Enum.with_index(order_items) do
             IO.puts("Item #{index + 1}:")
+            IO.puts("  Order Item ID: #{item.id}")
+            IO.puts("  Universal Order ID: #{item.universal_order_id}")
             IO.puts("  Product loaded: #{item.product != nil}")
             if item.product do
+              IO.puts("  Product ID: #{item.product.id}")
+              IO.puts("  Product Immutable ID: #{item.product.immutable_id}")
               IO.puts("  Product title: #{item.product.title}")
-              IO.puts("  Product image_thumb: #{inspect(item.product.image_thumb)}")
-              IO.puts("  Product image_original: #{inspect(item.product.image_original)}")
+              IO.puts("  Product type: #{item.product.type}")
             end
           end
 
@@ -69,7 +72,11 @@ defmodule ShompWeb.PurchaseDetailsLive.Show do
 
           # Subscribe to download events when connected
           if connected?(socket) do
+            IO.puts("=== SUBSCRIBING TO DOWNLOAD EVENTS ===")
+            IO.puts("User ID: #{user.id}")
+            IO.puts("Channel: downloads:#{user.id}")
             Phoenix.PubSub.subscribe(Shomp.PubSub, "downloads:#{user.id}")
+            IO.puts("✅ Subscribed to download events")
           end
 
           {:ok, socket}
@@ -306,6 +313,13 @@ defmodule ShompWeb.PurchaseDetailsLive.Show do
             {:noreply, put_flash(socket, :error, "Product not found")}
 
           item ->
+            # Debug: Check the order item data
+            IO.puts("=== CREATING DOWNLOAD DEBUG ===")
+            IO.puts("Order Item ID: #{inspect(item.id)}")
+            IO.puts("Order Item ID type: #{inspect(item.id |> inspect |> String.split(".") |> List.first)}")
+            IO.puts("Universal Order ID: #{inspect(item.universal_order_id)}")
+            IO.puts("Product Immutable ID: #{inspect(item.product.immutable_id)}")
+
             # Create download for this specific order item (each purchase gets its own download record)
             case Downloads.create_download_for_order_item(item, user_id) do
               {:ok, download} ->
@@ -335,33 +349,56 @@ defmodule ShompWeb.PurchaseDetailsLive.Show do
     IO.puts("Order Item ID: #{download.order_item_id}")
     IO.puts("Download Count: #{download.download_count}")
 
-    # Find the matching order item by product
-    product_id = socket.assigns.universal_order.universal_order_items
-    |> Enum.find(fn item -> 
-      item.product.immutable_id == download.product_immutable_id
+    # Find the matching order item by both product and universal_order_id
+    matching_item = socket.assigns.universal_order.universal_order_items
+    |> Enum.find(fn item ->
+      item.product.immutable_id == download.product_immutable_id and
+      item.universal_order_id == download.universal_order_id
     end)
-    |> case do
-      nil -> nil
-      item -> item.product.id
+
+    IO.puts("Looking for order item with:")
+    IO.puts("  Product Immutable ID: #{download.product_immutable_id}")
+    IO.puts("  Universal Order ID: #{download.universal_order_id}")
+
+    IO.puts("Available order items:")
+    for {item, index} <- Enum.with_index(socket.assigns.universal_order.universal_order_items) do
+      IO.puts("  Item #{index + 1}:")
+      IO.puts("    Product Immutable ID: #{item.product.immutable_id}")
+      IO.puts("    Universal Order ID: #{item.universal_order_id}")
+      IO.puts("    Match: #{item.product.immutable_id == download.product_immutable_id and item.universal_order_id == download.universal_order_id}")
     end
 
-    IO.puts("Found Product ID: #{inspect(product_id)}")
-
-    case product_id do
+    case matching_item do
       nil ->
-        IO.puts("❌ No matching product found for download update")
+        IO.puts("❌ No matching order item found for download update")
         {:noreply, socket}
-      id ->
-        # Update the download token for this product
-        new_tokens = Map.put(socket.assigns.download_tokens, id, {:ok, download})
-        IO.puts("✅ Updated download tokens for product #{id}")
+      item ->
+        product_id = item.product.id
+        IO.puts("✅ Found matching order item, product ID: #{product_id}")
 
-        {:noreply, assign(socket, :download_tokens, new_tokens)}
+        # Update the download token for this product
+        new_tokens = Map.put(socket.assigns.download_tokens, product_id, {:ok, download})
+        IO.puts("✅ Updated download tokens for product #{product_id}")
+        IO.puts("New download count: #{download.download_count}")
+        IO.puts("Max downloads: #{socket.assigns.max_downloads}")
+
+        {:noreply,
+         socket
+         |> assign(:download_tokens, new_tokens)
+         |> put_flash(:info, "Download count updated: #{download.download_count}/#{socket.assigns.max_downloads}")}
     end
   end
 
   @impl true
-  def handle_info(_, socket) do
+  def handle_info(%{event: "download_updated"}, socket) do
+    IO.puts("=== RECEIVED DOWNLOAD UPDATE EVENT (fallback) ===")
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info(message, socket) do
+    IO.puts("=== RECEIVED UNKNOWN MESSAGE ===")
+    IO.puts("Message: #{inspect(message)}")
     {:noreply, socket}
   end
 
@@ -380,19 +417,20 @@ defmodule ShompWeb.PurchaseDetailsLive.Show do
     digital_products
     |> Enum.map(fn order_item ->
       product_id = order_item.product.id
-      
+
       IO.puts("Processing order item:")
       IO.puts("  Order Item ID: #{order_item.id}")
       IO.puts("  Product ID: #{product_id}")
       IO.puts("  Product Immutable ID: #{order_item.product.immutable_id}")
-      
-      # Get download record for this product (most recent one)
+
+      # Get download record for this specific universal order (each purchase gets its own download record)
       downloads = Downloads.list_user_downloads(user_id)
-      |> Enum.filter(fn download -> 
-        download.product_immutable_id == order_item.product.immutable_id
+      |> Enum.filter(fn download ->
+        download.product_immutable_id == order_item.product.immutable_id and
+        download.universal_order_id == order_item.universal_order_id
       end)
       |> Enum.sort_by(fn download -> download.inserted_at end, :desc) # Most recent first
-      
+
       IO.puts("  Found downloads: #{length(downloads)}")
       for {download, index} <- Enum.with_index(downloads) do
         IO.puts("    Download #{index + 1}:")
@@ -403,23 +441,23 @@ defmodule ShompWeb.PurchaseDetailsLive.Show do
         IO.puts("      Valid: #{Downloads.Download.valid?(download)}")
         IO.puts("      Within Limit: #{Downloads.Download.within_limit?(download, get_max_downloads())}")
       end
-      
+
       case downloads do
-        [] -> 
+        [] ->
           IO.puts("  Result: {:error, :not_found}")
           {product_id, {:error, :not_found}}
-        [download | _] -> 
+        [download | _] ->
           # Check if the download is still valid and within limits
           cond do
-            not Downloads.Download.valid?(download) -> 
+            not Downloads.Download.valid?(download) ->
               # If expired, show as not found so user can create a new one
               IO.puts("  Result: {:error, :not_found} (expired)")
               {product_id, {:error, :not_found}}
-            not Downloads.Download.within_limit?(download, get_max_downloads()) -> 
+            not Downloads.Download.within_limit?(download, get_max_downloads()) ->
               # If limit exceeded, show limit exceeded (don't allow new downloads)
               IO.puts("  Result: {:error, :limit_exceeded}")
               {product_id, {:error, :limit_exceeded}}
-            true -> 
+            true ->
               IO.puts("  Result: {:ok, download}")
               {product_id, {:ok, download}}
           end

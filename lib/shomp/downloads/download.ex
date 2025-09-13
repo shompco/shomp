@@ -8,6 +8,7 @@ defmodule Shomp.Downloads.Download do
     field :expires_at, :utc_datetime
     field :last_downloaded_at, :utc_datetime
     field :order_item_id, :integer
+    field :universal_order_id, :string
 
     belongs_to :product, Shomp.Products.Product, foreign_key: :product_immutable_id, references: :immutable_id, type: :binary_id
     belongs_to :user, Shomp.Accounts.User
@@ -18,7 +19,7 @@ defmodule Shomp.Downloads.Download do
   @doc false
   def changeset(download, attrs) do
     download
-    |> cast(attrs, [:token, :download_count, :expires_at, :last_downloaded_at, :product_immutable_id, :user_id, :order_item_id])
+    |> cast(attrs, [:token, :download_count, :expires_at, :last_downloaded_at, :product_immutable_id, :user_id, :order_item_id, :universal_order_id])
     |> validate_required([:token, :product_immutable_id, :user_id])
     |> validate_number(:download_count, greater_than_or_equal_to: 0)
     |> unique_constraint(:token)
@@ -31,8 +32,8 @@ defmodule Shomp.Downloads.Download do
   """
   def create_changeset(download, attrs) do
     download
-    |> cast(attrs, [:download_count, :expires_at, :last_downloaded_at, :product_immutable_id, :user_id])
-    |> validate_required([:product_immutable_id, :user_id])
+    |> cast(attrs, [:download_count, :expires_at, :last_downloaded_at, :product_immutable_id, :user_id, :order_item_id, :universal_order_id])
+    |> validate_required([:product_immutable_id, :user_id, :universal_order_id])
     |> validate_number(:download_count, greater_than_or_equal_to: 0)
     |> put_change(:token, generate_secure_token())
     |> put_change(:download_count, 0)
