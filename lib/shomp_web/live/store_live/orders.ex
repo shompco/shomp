@@ -22,7 +22,7 @@ defmodule ShompWeb.StoreLive.Orders do
   end
 
   @impl true
-  def render(%{universal_order: universal_order} = assigns) do
+  def render(%{universal_order: _universal_order} = assigns) do
     # Render individual order details
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope}>

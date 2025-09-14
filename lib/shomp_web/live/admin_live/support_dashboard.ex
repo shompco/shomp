@@ -2,24 +2,23 @@ defmodule ShompWeb.AdminLive.SupportDashboard do
   use ShompWeb, :live_view
 
   alias Shomp.SupportTickets
-  alias Shomp.Accounts
 
   on_mount {ShompWeb.UserAuth, :require_admin}
 
   def mount(_params, _session, socket) do
     # Get dashboard statistics
     stats = get_dashboard_stats()
-    
+
     # Get recent tickets
     recent_tickets = SupportTickets.list_admin_tickets(%{status: "open"}) |> Enum.take(10)
-    
+
     # Get urgent tickets
     urgent_tickets = SupportTickets.list_admin_tickets(%{priority: "urgent"}) |> Enum.take(5)
-    
+
     # Get all tickets for filtering
     all_tickets = SupportTickets.list_admin_tickets()
-    
-    socket = 
+
+    socket =
       socket
       |> assign(:stats, stats)
       |> assign(:recent_tickets, recent_tickets)
@@ -35,15 +34,15 @@ defmodule ShompWeb.AdminLive.SupportDashboard do
   def handle_event("assign_ticket", %{"ticket_id" => ticket_id}, socket) do
     ticket = SupportTickets.get_ticket!(ticket_id)
     admin_user = socket.assigns.current_scope.user
-    
+
     case SupportTickets.assign_ticket(ticket, admin_user.id) do
       {:ok, updated_ticket} ->
-        {:noreply, 
+        {:noreply,
          socket
          |> put_flash(:info, "Ticket assigned to you")
          |> assign(:recent_tickets, update_ticket_in_list(socket.assigns.recent_tickets, updated_ticket))
          |> assign(:filtered_tickets, update_ticket_in_list(socket.assigns.filtered_tickets, updated_ticket))}
-      
+
       {:error, _reason} ->
         {:noreply, put_flash(socket, :error, "Failed to assign ticket")}
     end
@@ -52,18 +51,18 @@ defmodule ShompWeb.AdminLive.SupportDashboard do
   def handle_event("resolve_ticket", %{"ticket_id" => ticket_id, "resolution_notes" => notes}, socket) do
     ticket = SupportTickets.get_ticket!(ticket_id)
     admin_user = socket.assigns.current_scope.user
-    
+
     case SupportTickets.resolve_ticket(ticket, admin_user.id, notes) do
       {:ok, updated_ticket} ->
         # Send resolution notification to customer
         # Shomp.Notifications.send_ticket_resolution_notification(updated_ticket)
-        
-        {:noreply, 
+
+        {:noreply,
          socket
          |> put_flash(:info, "Ticket resolved successfully")
          |> assign(:recent_tickets, update_ticket_in_list(socket.assigns.recent_tickets, updated_ticket))
          |> assign(:filtered_tickets, update_ticket_in_list(socket.assigns.filtered_tickets, updated_ticket))}
-      
+
       {:error, _reason} ->
         {:noreply, put_flash(socket, :error, "Failed to resolve ticket")}
     end
@@ -71,8 +70,8 @@ defmodule ShompWeb.AdminLive.SupportDashboard do
 
   def handle_event("filter_tickets", %{"filters" => filters}, socket) do
     filtered_tickets = SupportTickets.list_admin_tickets(filters)
-    
-    {:noreply, 
+
+    {:noreply,
      socket
      |> assign(:filtered_tickets, filtered_tickets)
      |> assign(:filters, filters)}
@@ -113,22 +112,22 @@ defmodule ShompWeb.AdminLive.SupportDashboard do
           <div class="stat-title">Total Tickets</div>
           <div class="stat-value text-primary"><%= @stats.total_tickets %></div>
         </div>
-        
+
         <div class="stat bg-base-100 shadow rounded-lg">
           <div class="stat-title">Open Tickets</div>
           <div class="stat-value text-warning"><%= @stats.open_tickets %></div>
         </div>
-        
+
         <div class="stat bg-base-100 shadow rounded-lg">
           <div class="stat-title">Urgent</div>
           <div class="stat-value text-error"><%= @stats.urgent_tickets %></div>
         </div>
-        
+
         <div class="stat bg-base-100 shadow rounded-lg">
           <div class="stat-title">Resolved Today</div>
           <div class="stat-value text-success"><%= @stats.resolved_today %></div>
         </div>
-        
+
         <div class="stat bg-base-100 shadow rounded-lg">
           <div class="stat-title">Avg Resolution</div>
           <div class="stat-value text-info"><%= @stats.avg_resolution_time %>h</div>
@@ -141,7 +140,7 @@ defmodule ShompWeb.AdminLive.SupportDashboard do
           <div class="card bg-base-100 shadow">
             <div class="card-body">
               <h2 class="card-title text-error">Urgent Tickets</h2>
-              
+
               <div class="space-y-3">
                 <%= if Enum.empty?(@urgent_tickets) do %>
                   <p class="text-gray-500 text-sm">No urgent tickets</p>
@@ -159,8 +158,8 @@ defmodule ShompWeb.AdminLive.SupportDashboard do
                             <%= ticket.ticket_number %> • <%= ticket.user.email %>
                           </p>
                         </div>
-                        <button 
-                          phx-click="assign_ticket" 
+                        <button
+                          phx-click="assign_ticket"
                           phx-value-ticket_id={ticket.ticket_number}
                           class="btn btn-xs btn-primary"
                         >
@@ -181,11 +180,11 @@ defmodule ShompWeb.AdminLive.SupportDashboard do
             <div class="card-body">
               <div class="flex justify-between items-center mb-4">
                 <h2 class="card-title">All Tickets</h2>
-                
+
                 <!-- Filters -->
                 <div class="flex gap-2">
-                  <select 
-                    phx-change="filter_tickets" 
+                  <select
+                    phx-change="filter_tickets"
                     name="filters[status]"
                     class="select select-bordered select-sm"
                   >
@@ -196,9 +195,9 @@ defmodule ShompWeb.AdminLive.SupportDashboard do
                     <option value="resolved">Resolved</option>
                     <option value="closed">Closed</option>
                   </select>
-                  
-                  <select 
-                    phx-change="filter_tickets" 
+
+                  <select
+                    phx-change="filter_tickets"
                     name="filters[priority]"
                     class="select select-bordered select-sm"
                   >
@@ -208,9 +207,9 @@ defmodule ShompWeb.AdminLive.SupportDashboard do
                     <option value="high">High</option>
                     <option value="urgent">Urgent</option>
                   </select>
-                  
-                  <select 
-                    phx-change="filter_tickets" 
+
+                  <select
+                    phx-change="filter_tickets"
                     name="filters[category]"
                     class="select select-bordered select-sm"
                   >
@@ -223,7 +222,7 @@ defmodule ShompWeb.AdminLive.SupportDashboard do
                   </select>
                 </div>
               </div>
-              
+
               <div class="overflow-x-auto">
                 <table class="table table-zebra w-full">
                   <thead>
@@ -285,8 +284,8 @@ defmodule ShompWeb.AdminLive.SupportDashboard do
                         <td>
                           <div class="flex gap-1">
                             <%= if !ticket.assigned_to_user do %>
-                              <button 
-                                phx-click="assign_ticket" 
+                              <button
+                                phx-click="assign_ticket"
                                 phx-value-ticket_id={ticket.ticket_number}
                                 class="btn btn-xs btn-primary"
                               >

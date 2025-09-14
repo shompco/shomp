@@ -1,12 +1,11 @@
 defmodule ShompWeb.AdminLive.EmailSubscriptions do
   use ShompWeb, :live_view
   alias Shomp.EmailSubscriptions
-  alias Shomp.EmailSubscriptions.EmailSubscription
 
   def mount(_params, _session, socket) do
     if socket.assigns.current_scope && socket.assigns.current_scope.user.role == "admin" do
-      {:ok, 
-       socket 
+      {:ok,
+       socket
        |> assign(:page_title, "Email Subscriptions - Admin")
        |> assign(:page, 1)
        |> assign(:per_page, 50)
@@ -15,57 +14,57 @@ defmodule ShompWeb.AdminLive.EmailSubscriptions do
        |> assign(:source_filter, "all")
        |> load_subscriptions()}
     else
-      {:ok, 
-       socket 
+      {:ok,
+       socket
        |> put_flash(:error, "Access denied. Admin privileges required.")
        |> redirect(to: ~p"/")}
     end
   end
 
   def handle_event("search", %{"query" => query}, socket) do
-    {:noreply, 
-     socket 
+    {:noreply,
+     socket
      |> assign(:search_query, query)
      |> assign(:page, 1)
      |> load_subscriptions()}
   end
 
   def handle_event("filter_status", %{"status" => status}, socket) do
-    {:noreply, 
-     socket 
+    {:noreply,
+     socket
      |> assign(:status_filter, status)
      |> assign(:page, 1)
      |> load_subscriptions()}
   end
 
   def handle_event("filter_source", %{"source" => source}, socket) do
-    {:noreply, 
-     socket 
+    {:noreply,
+     socket
      |> assign(:source_filter, source)
      |> assign(:page, 1)
      |> load_subscriptions()}
   end
 
   def handle_event("change_page", %{"page" => page}, socket) do
-    {:noreply, 
-     socket 
+    {:noreply,
+     socket
      |> assign(:page, String.to_integer(page))
      |> load_subscriptions()}
   end
 
   def handle_event("unsubscribe", %{"id" => id}, socket) do
     subscription = EmailSubscriptions.get_email_subscription!(id)
-    
+
     case EmailSubscriptions.unsubscribe_email_subscription(subscription) do
       {:ok, _updated_subscription} ->
-        {:noreply, 
-         socket 
+        {:noreply,
+         socket
          |> put_flash(:info, "Email subscription unsubscribed successfully.")
          |> load_subscriptions()}
-      
+
       {:error, _changeset} ->
-        {:noreply, 
-         socket 
+        {:noreply,
+         socket
          |> put_flash(:error, "Failed to unsubscribe email subscription.")
          |> load_subscriptions()}
     end
@@ -73,17 +72,17 @@ defmodule ShompWeb.AdminLive.EmailSubscriptions do
 
   def handle_event("delete", %{"id" => id}, socket) do
     subscription = EmailSubscriptions.get_email_subscription!(id)
-    
+
     case EmailSubscriptions.delete_email_subscription(subscription) do
       {:ok, _deleted_subscription} ->
-        {:noreply, 
-         socket 
+        {:noreply,
+         socket
          |> put_flash(:info, "Email subscription deleted successfully.")
          |> load_subscriptions()}
-      
+
       {:error, _changeset} ->
-        {:noreply, 
-         socket 
+        {:noreply,
+         socket
          |> put_flash(:error, "Failed to delete email subscription.")
          |> load_subscriptions()}
     end
@@ -92,9 +91,9 @@ defmodule ShompWeb.AdminLive.EmailSubscriptions do
   def handle_event("export_csv", _params, socket) do
     subscriptions = get_filtered_subscriptions(socket.assigns)
     csv_data = generate_csv(subscriptions)
-    
-    {:noreply, 
-     socket 
+
+    {:noreply,
+     socket
      |> put_flash(:info, "CSV export ready. Check your downloads folder.")
      |> push_event("download_csv", %{data: csv_data, filename: "email_subscriptions_#{Date.utc_today()}.csv"})}
   end
@@ -103,7 +102,7 @@ defmodule ShompWeb.AdminLive.EmailSubscriptions do
     subscriptions = get_filtered_subscriptions(socket.assigns)
     total_count = length(subscriptions)
     total_pages = ceil(total_count / socket.assigns.per_page)
-    
+
     socket
     |> assign(:subscriptions, subscriptions)
     |> assign(:total_count, total_count)
@@ -112,7 +111,7 @@ defmodule ShompWeb.AdminLive.EmailSubscriptions do
 
   defp get_filtered_subscriptions(assigns) do
     subscriptions = EmailSubscriptions.list_email_subscriptions()
-    
+
     subscriptions
     |> filter_by_search(assigns.search_query)
     |> filter_by_status(assigns.status_filter)
@@ -123,7 +122,7 @@ defmodule ShompWeb.AdminLive.EmailSubscriptions do
   defp filter_by_search(subscriptions, ""), do: subscriptions
   defp filter_by_search(subscriptions, query) do
     subscriptions
-    |> Enum.filter(fn sub -> 
+    |> Enum.filter(fn sub ->
       String.contains?(String.downcase(sub.email), String.downcase(query))
     end)
   end
@@ -142,9 +141,9 @@ defmodule ShompWeb.AdminLive.EmailSubscriptions do
 
   defp generate_csv(subscriptions) do
     headers = ["Email", "Source", "Status", "Subscribed At", "Unsubscribed At"]
-    
+
     rows = subscriptions
-    |> Enum.map(fn sub -> 
+    |> Enum.map(fn sub ->
       [
         sub.email,
         sub.source,
@@ -153,19 +152,19 @@ defmodule ShompWeb.AdminLive.EmailSubscriptions do
         safe_format_date(sub.unsubscribed_at)
       ]
     end)
-    
+
     [headers | rows]
     |> CSV.encode()
     |> Enum.to_list()
     |> Enum.join("")
   end
 
-  
+
   defp safe_format_date(nil), do: "-"
   defp safe_format_date(datetime) do
     "#{datetime.year}-#{String.pad_leading("#{datetime.month}", 2, "0")}-#{String.pad_leading("#{datetime.day}", 2, "0")}"
   end
-  
+
   defp safe_format_time(nil), do: "-"
   defp safe_format_time(datetime) do
     "#{String.pad_leading("#{datetime.hour}", 2, "0")}:#{String.pad_leading("#{datetime.minute}", 2, "0")}"
@@ -185,21 +184,21 @@ defmodule ShompWeb.AdminLive.EmailSubscriptions do
           <div class="stat-title">Total Subscriptions</div>
           <div class="stat-value text-primary"><%= @total_count %></div>
         </div>
-        
+
         <div class="stat bg-base-100 shadow rounded-lg">
           <div class="stat-title">Active</div>
           <div class="stat-value text-success">
             <%= EmailSubscriptions.count_active_subscriptions() %>
           </div>
         </div>
-        
+
         <div class="stat bg-base-100 shadow rounded-lg">
           <div class="stat-title">Unsubscribed</div>
           <div class="stat-value text-warning">
             <%= EmailSubscriptions.count_email_subscriptions() - EmailSubscriptions.count_active_subscriptions() %>
           </div>
         </div>
-        
+
         <div class="stat bg-base-100 shadow rounded-lg">
           <div class="stat-title">Today</div>
           <div class="stat-value text-info">
@@ -217,9 +216,9 @@ defmodule ShompWeb.AdminLive.EmailSubscriptions do
               <span class="label-text">Search Emails</span>
             </label>
             <form phx-submit="search" class="flex gap-2">
-              <input 
-                type="text" 
-                name="query" 
+              <input
+                type="text"
+                name="query"
                 value={@search_query}
                 placeholder="Enter email or part of email..."
                 class="input input-bordered flex-1"
@@ -233,9 +232,9 @@ defmodule ShompWeb.AdminLive.EmailSubscriptions do
             <label class="label">
               <span class="label-text">Status</span>
             </label>
-            <select 
-              phx-change="filter_status" 
-              name="status" 
+            <select
+              phx-change="filter_status"
+              name="status"
               class="select select-bordered w-full"
             >
               <option value="all" selected={@status_filter == "all"}>All Statuses</option>
@@ -250,9 +249,9 @@ defmodule ShompWeb.AdminLive.EmailSubscriptions do
             <label class="label">
               <span class="label-text">Source</span>
             </label>
-            <select 
-              phx-change="filter_source" 
-              name="source" 
+            <select
+              phx-change="filter_source"
+              name="source"
               class="select select-bordered w-full"
             >
               <option value="all" selected={@source_filter == "all"}>All Sources</option>
@@ -264,8 +263,8 @@ defmodule ShompWeb.AdminLive.EmailSubscriptions do
 
           <!-- Export -->
           <div class="flex items-end">
-            <button 
-              phx-click="export_csv" 
+            <button
+              phx-click="export_csv"
               class="btn btn-outline btn-secondary w-full"
             >
               📊 Export CSV
@@ -342,8 +341,8 @@ defmodule ShompWeb.AdminLive.EmailSubscriptions do
                   <td>
                     <div class="flex gap-2">
                       <%= if subscription.status == "active" do %>
-                        <button 
-                          phx-click="unsubscribe" 
+                        <button
+                          phx-click="unsubscribe"
                           phx-value-id={subscription.id}
                           class="btn btn-warning btn-xs"
                           data-confirm="Are you sure you want to unsubscribe this email?"
@@ -351,8 +350,8 @@ defmodule ShompWeb.AdminLive.EmailSubscriptions do
                           Unsubscribe
                         </button>
                       <% end %>
-                      <button 
-                        phx-click="delete" 
+                      <button
+                        phx-click="delete"
                         phx-value-id={subscription.id}
                         class="btn btn-error btn-xs"
                         data-confirm="Are you sure you want to delete this subscription? This action cannot be undone."
@@ -372,8 +371,8 @@ defmodule ShompWeb.AdminLive.EmailSubscriptions do
           <div class="flex justify-center p-4 border-t">
             <div class="join">
               <%= for page <- 1..@total_pages do %>
-                <button 
-                  phx-click="change_page" 
+                <button
+                  phx-click="change_page"
                   phx-value-page={page}
                   class={[
                     "join-item btn btn-sm",
@@ -424,7 +423,7 @@ defmodule ShompWeb.AdminLive.EmailSubscriptions do
   defp count_today_subscriptions do
     today = Date.utc_today()
     EmailSubscriptions.list_email_subscriptions()
-    |> Enum.filter(fn sub -> 
+    |> Enum.filter(fn sub ->
       subscription_date = DateTime.to_date(sub.subscribed_at)
       Date.compare(subscription_date, today) == :eq
     end)

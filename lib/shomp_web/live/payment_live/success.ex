@@ -5,12 +5,16 @@ defmodule ShompWeb.PaymentLive.Success do
   alias Shomp.Repo
   alias Phoenix.PubSub
   alias ShompWeb.Endpoint
+  alias Shomp.Notifications
+  alias Shomp.Products
+  alias Shomp.Stores
+  alias Shomp.Accounts
 
   def mount(%{"session_id" => session_id} = params, _session, socket) do
     # Get payment details - try both session_id and payment_intent_id
-    payment = Payments.get_payment_by_stripe_id(session_id) || 
+    payment = Payments.get_payment_by_stripe_id(session_id) ||
               Payments.get_payment_by_payment_intent_id(session_id)
-    
+
     # Get order details for review tracking (handle case where order might not exist yet)
     order = if payment do
       try do
@@ -24,13 +28,37 @@ defmodule ShompWeb.PaymentLive.Success do
     else
       nil
     end
-    
-    # Subscribe to order updates for this session
+
+    # Subscribe to order updates for this session and payment processed events
     if payment && !order do
       PubSub.subscribe(Shomp.PubSub, "order_created:#{session_id}")
+      PubSub.subscribe(Shomp.PubSub, "payment_processed:#{payment.stripe_payment_id}")
     end
-    
-    socket = 
+
+    # Debug: Check if payment exists and create notifications as fallback
+    if payment do
+      IO.puts("DEBUG: Payment found for session_id #{session_id}, payment_id: #{payment.id}")
+
+      # Check if notifications already exist for this payment (webhook might have created them)
+      existing_notifications = Notifications.list_user_notifications(payment.user_id)
+      |> Enum.filter(fn n ->
+        n.metadata["order_id"] == to_string(payment.id) ||
+        n.metadata["order_id"] == payment.id
+      end)
+
+      if length(existing_notifications) == 0 do
+        IO.puts("DEBUG: No existing notifications found, creating fallback notifications")
+        # Create notifications as fallback (webhook might not be running)
+        notify_seller_of_purchase(payment)
+        notify_buyer_of_purchase(payment)
+      else
+        IO.puts("DEBUG: Notifications already exist for this payment")
+      end
+    else
+      IO.puts("DEBUG: No payment found for session_id #{session_id}")
+    end
+
+    socket =
       socket
       |> assign(:session_id, session_id)
       |> assign(:payment, payment)
@@ -44,6 +72,13 @@ defmodule ShompWeb.PaymentLive.Success do
   def handle_info({:order_created, order}, socket) do
     # Order was created! Update the UI with preloaded data
     {:noreply, assign(socket, :order, order)}
+  end
+
+  def handle_info({:payment_processed, _payment_intent_id}, socket) do
+    # Payment was processed via webhook, reload the page to show updated data
+    IO.puts("Payment processed via webhook, reloading success page data")
+    # Reload the page to get the latest data
+    {:noreply, push_navigate(socket, to: ~p"/payments/success?session_id=#{socket.assigns.session_id}")}
   end
 
   def handle_event("donate", %{"amount" => amount, "frequency" => frequency}, socket) do
@@ -78,7 +113,7 @@ defmodule ShompWeb.PaymentLive.Success do
             <p class="mt-2 text-sm text-base-content/70">
               Thank you for your purchase. Your payment has been processed successfully.
             </p>
-            
+
             <%= if @order do %>
               <div class="mt-4 p-4 bg-success/10 rounded-md border border-success/20">
                 <h3 class="text-lg font-medium text-success mb-2">Purchase Details</h3>
@@ -102,14 +137,14 @@ defmodule ShompWeb.PaymentLive.Success do
                     </div>
                   </div>
                 </div>
-                
+
                 <div class="mt-4 pt-3 border-t border-base-300">
                   <p class="text-sm text-base-content/70 mb-3">
                     Enjoy your purchase! You can now review this product.
                   </p>
                   <%= for order_item <- @order.order_items do %>
-                    <a 
-                      href={"/stores/#{@store_slug}/products/#{order_item.product_id}/reviews/new"} 
+                    <a
+                      href={"/stores/#{@store_slug}/products/#{order_item.product_id}/reviews/new"}
                       class="inline-block btn btn-success btn-sm"
                     >
                       Review <%= order_item.product.title %>
@@ -130,7 +165,7 @@ defmodule ShompWeb.PaymentLive.Success do
                 </div>
               <% end %>
             <% end %>
-            
+
             <%= if @session_id do %>
               <div class="mt-4 p-3 bg-base-200 rounded-md">
                 <p class="text-xs text-base-content/60">Session ID: <%= @session_id %></p>
@@ -169,5 +204,60 @@ defmodule ShompWeb.PaymentLive.Success do
       </div>
     </div>
     """
+  end
+
+  # Private function to notify seller of purchase
+  defp notify_seller_of_purchase(payment) do
+    IO.puts("DEBUG: notify_seller_of_purchase called for payment #{payment.id}")
+    try do
+      # Get the product to find the seller
+      product = Products.get_product!(payment.product_id)
+      IO.puts("DEBUG: Found product #{product.id} for payment #{payment.id}")
+
+      # Get the store to find the seller
+      store = Stores.get_store!(product.store_id)
+      IO.puts("DEBUG: Found store #{store.id} for product #{product.id}")
+
+      # Get the buyer's name
+      buyer = Accounts.get_user!(payment.user_id)
+      buyer_name = buyer.name || buyer.email
+      IO.puts("DEBUG: Found buyer #{buyer_name} for payment #{payment.id}")
+
+      # Format the amount
+      amount = Decimal.to_string(payment.amount, :normal)
+      IO.puts("DEBUG: Amount is #{amount} for payment #{payment.id}")
+
+      # Create notification for the seller
+      case Notifications.notify_seller_new_order(store.user_id, payment.id, buyer_name, amount) do
+        {:ok, notification} ->
+          IO.puts("SUCCESS: Seller notification created for payment #{payment.id}, notification id: #{notification.id}")
+        {:error, reason} ->
+          IO.puts("ERROR: Failed to create seller notification: #{inspect(reason)}")
+      end
+    rescue
+      error ->
+        IO.puts("ERROR: Failed to notify seller for payment #{payment.id}: #{inspect(error)}")
+    end
+  end
+
+  # Private function to notify buyer of purchase
+  defp notify_buyer_of_purchase(payment) do
+    IO.puts("DEBUG: notify_buyer_of_purchase called for payment #{payment.id}")
+    try do
+      # Format the amount
+      amount = Decimal.to_string(payment.amount, :normal)
+      IO.puts("DEBUG: Amount is #{amount} for payment #{payment.id}")
+
+      # Create notification for the buyer
+      case Notifications.notify_payment_received(payment.user_id, payment.id, amount) do
+        {:ok, notification} ->
+          IO.puts("SUCCESS: Buyer notification created for payment #{payment.id}, notification id: #{notification.id}")
+        {:error, reason} ->
+          IO.puts("ERROR: Failed to create buyer notification: #{inspect(reason)}")
+      end
+    rescue
+      error ->
+        IO.puts("ERROR: Failed to notify buyer for payment #{payment.id}: #{inspect(error)}")
+    end
   end
 end

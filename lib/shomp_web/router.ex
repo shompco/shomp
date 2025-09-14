@@ -77,7 +77,6 @@ defmodule ShompWeb.Router do
 
     post "/checkout", PaymentController, :create_checkout
     get "/custom-donate", PaymentController, :custom_donate
-    live "/success", PaymentLive.Success, :show
     live "/cancel", PaymentLive.Cancel, :show
   end
 
@@ -156,6 +155,7 @@ defmodule ShompWeb.Router do
       live "/dashboard/products/:id/edit", ProductLive.Edit, :edit
       live "/cart", CartLive.Show, :show
       live "/checkout/cart/:cart_id", CheckoutLive.Cart, :show
+      live "/payments/success", PaymentLive.Success, :show
 
       # Support system routes
       live "/support", SupportLive.Index, :index

@@ -3,16 +3,22 @@ defmodule ShompWeb.CheckoutLive.Processing do
 
   on_mount {ShompWeb.UserAuth, :mount_current_scope}
 
+  alias Shomp.UniversalOrders
+  alias Phoenix.PubSub
+
   @impl true
   def mount(%{"payment_intent_id" => payment_intent_id}, _session, socket) do
     socket = assign(socket,
       payment_intent_id: payment_intent_id,
-      status: "processing"
+      status: "processing",
+      attempts: 0
     )
 
-    # Start polling for payment status
+    # Subscribe to payment updates for this payment intent
     if connected?(socket) do
-      Process.send_after(self(), :check_payment_status, 2000)
+      PubSub.subscribe(Shomp.PubSub, "payment_processed:#{payment_intent_id}")
+      # Start checking immediately
+      send(self(), :check_payment_status)
     end
 
     {:ok, socket}
@@ -20,17 +26,69 @@ defmodule ShompWeb.CheckoutLive.Processing do
 
   @impl true
   def handle_info(:check_payment_status, socket) do
-    # Check if payment is complete
-    # For now, we'll simulate a delay and then redirect
-    # In a real implementation, you'd check the Stripe payment intent status
+    payment_intent_id = socket.assigns.payment_intent_id
+    attempts = socket.assigns.attempts
 
-    Process.send_after(self(), :redirect_to_success, 3000)
-    {:noreply, socket}
+    # Check if we've exceeded max attempts (30 seconds total)
+    if attempts >= 15 do
+      {:noreply,
+       socket
+       |> put_flash(:error, "Payment processing is taking longer than expected. Please check your dashboard for updates.")
+       |> push_navigate(to: ~p"/dashboard/purchases")}
+    else
+      # Check database for payment status
+      case check_payment_status(payment_intent_id) do
+        {:ok, :completed} ->
+          # Payment is complete, redirect to success
+          {:noreply, push_navigate(socket, to: ~p"/checkout/success?payment_intent=#{payment_intent_id}")}
+
+        {:ok, :failed} ->
+          # Payment failed, redirect to error page
+          {:noreply,
+           socket
+           |> put_flash(:error, "Payment failed. Please try again.")
+           |> push_navigate(to: ~p"/cart")}
+
+        {:ok, :processing} ->
+          # Still processing, check again in 2 seconds
+          Process.send_after(self(), :check_payment_status, 2000)
+          {:noreply, assign(socket, attempts: attempts + 1)}
+
+        _ ->
+          # Payment not found yet, check again in 2 seconds
+          Process.send_after(self(), :check_payment_status, 2000)
+          {:noreply, assign(socket, attempts: attempts + 1)}
+      end
+    end
   end
 
   @impl true
-  def handle_info(:redirect_to_success, socket) do
-    {:noreply, push_navigate(socket, to: ~p"/checkout/success?payment_intent=#{socket.assigns.payment_intent_id}")}
+  def handle_info({:payment_processed, payment_intent_id}, socket) do
+    # Payment was processed via webhook, redirect immediately
+    if payment_intent_id == socket.assigns.payment_intent_id do
+      IO.puts("Payment processed via webhook, redirecting to success page")
+      {:noreply, push_navigate(socket, to: ~p"/checkout/success?payment_intent=#{payment_intent_id}")}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  # Check payment status in database
+  defp check_payment_status(payment_intent_id) do
+    # First check if we have a universal order for this payment intent
+    case UniversalOrders.get_universal_order_by_payment_intent(payment_intent_id) do
+      nil ->
+        # No universal order found yet, still processing
+        {:ok, :processing}
+
+      universal_order ->
+        # Check if the universal order is marked as completed
+        case universal_order.status do
+          "completed" -> {:ok, :completed}
+          "failed" -> {:ok, :failed}
+          _ -> {:ok, :processing}
+        end
+    end
   end
 
   @impl true

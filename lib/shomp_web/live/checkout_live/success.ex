@@ -5,9 +5,16 @@ defmodule ShompWeb.CheckoutLive.Success do
 
   alias Shomp.UniversalOrders
   alias Shomp.PaymentSplits
+  alias Shomp.Notifications
+  alias Shomp.Stores
 
   @impl true
   def mount(%{"payment_intent" => payment_intent_id}, _session, socket) do
+    # Subscribe to payment processed events for this payment intent
+    if connected?(socket) do
+      Phoenix.PubSub.subscribe(Shomp.PubSub, "payment_processed:#{payment_intent_id}")
+    end
+
     # Get payment intent ID from URL params
     load_order_data(socket, payment_intent_id)
   end
@@ -34,6 +41,9 @@ defmodule ShompWeb.CheckoutLive.Success do
           # Get payment splits for this order
           payment_splits = PaymentSplits.list_payment_splits_by_universal_order(universal_order.id)
 
+          # Notify sellers of their individual orders
+          notify_sellers_of_cart_purchase(payment_splits)
+
           {:ok, assign(socket,
             universal_order: universal_order,
             payment_splits: payment_splits
@@ -45,6 +55,14 @@ defmodule ShompWeb.CheckoutLive.Success do
        |> put_flash(:error, "No payment information found")
        |> push_navigate(to: ~p"/")}
     end
+  end
+
+  @impl true
+  def handle_info({:payment_processed, payment_intent_id}, socket) do
+    # Payment was processed via webhook, reload the page to show updated data
+    IO.puts("Payment processed via webhook, reloading checkout success page data")
+    # Reload the page to get the latest data
+    {:noreply, push_navigate(socket, to: ~p"/checkout/success?payment_intent=#{payment_intent_id}")}
   end
 
   @impl true
@@ -170,5 +188,48 @@ defmodule ShompWeb.CheckoutLive.Success do
       </div>
     </div>
     """
+  end
+
+  # Private function to notify sellers of cart purchase
+  defp notify_sellers_of_cart_purchase(payment_splits) do
+    Enum.each(payment_splits, fn payment_split ->
+      try do
+        # Get the universal order to find the product
+        universal_order = UniversalOrders.get_universal_order!(payment_split.universal_order_id)
+
+        # Get the universal order items (already preloaded)
+        order_items = universal_order.universal_order_items
+
+        # Find the order item for this store
+        order_item = Enum.find(order_items, fn item -> item.store_id == payment_split.store_id end)
+
+        if order_item do
+          # Get the product using the product_immutable_id
+          product = Shomp.Repo.get_by!(Shomp.Products.Product, immutable_id: order_item.product_immutable_id)
+
+          # Get the store to find the seller
+          store = Stores.get_store!(product.store_id)
+
+          # Get the buyer's name from the universal order
+          buyer_name = universal_order.customer_name || "Customer"
+
+          # Format the amount
+          amount = Decimal.to_string(payment_split.store_amount, :normal)
+
+          # Create notification for the seller
+          case Notifications.notify_seller_new_order(store.user_id, payment_split.id, buyer_name, amount) do
+            {:ok, _notification} ->
+              IO.puts("Seller notification created for payment split #{payment_split.id}")
+            {:error, reason} ->
+              IO.puts("Failed to create seller notification: #{inspect(reason)}")
+          end
+        else
+          IO.puts("WARNING: No order item found for payment split #{payment_split.id} and store #{payment_split.store_id}")
+        end
+      rescue
+        error ->
+          IO.puts("ERROR: Failed to notify seller for payment split #{payment_split.id}: #{inspect(error)}")
+      end
+    end)
   end
 end

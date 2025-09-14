@@ -9,6 +9,7 @@ defmodule Shomp.Payments.Payment do
     field :amount, :decimal
     field :stripe_payment_id, :string
     field :status, :string, default: "pending"
+    field :product_immutable_id, :binary_id
     belongs_to :product, Product
     belongs_to :user, User
 
@@ -20,8 +21,8 @@ defmodule Shomp.Payments.Payment do
   """
   def changeset(payment, attrs) do
     payment
-    |> cast(attrs, [:amount, :stripe_payment_id, :product_id, :user_id, :status])
-    |> validate_required([:amount, :stripe_payment_id, :product_id, :user_id])
+    |> cast(attrs, [:amount, :stripe_payment_id, :product_id, :user_id, :status, :product_immutable_id])
+    |> validate_required([:amount, :stripe_payment_id, :product_id, :user_id, :product_immutable_id])
     |> validate_number(:amount, greater_than: 0)
     |> validate_inclusion(:status, ["pending", "succeeded", "failed", "canceled"])
     |> unique_constraint(:stripe_payment_id)

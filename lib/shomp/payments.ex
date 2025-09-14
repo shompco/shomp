@@ -14,6 +14,9 @@ defmodule Shomp.Payments do
   alias Shomp.UniversalOrders
   alias Shomp.PaymentSplits
   alias Shomp.Stores.StoreKYCContext
+  alias Shomp.Notifications
+  alias Shomp.Accounts
+  alias Shomp.Stores
 
   @doc """
   Creates a Stripe checkout session for a donation.
@@ -171,6 +174,9 @@ defmodule Shomp.Payments do
 
       "charge.succeeded" ->
         handle_charge_succeeded(event.data.object)
+
+      "payment_intent.charge_succeeded" ->
+        handle_payment_intent_charge_succeeded(event.data.object)
 
       "payment_intent.succeeded" ->
         handle_payment_succeeded(event.data.object)
@@ -396,7 +402,8 @@ defmodule Shomp.Payments do
 
   defp create_download_for_product(payment) do
     # Only create downloads for digital products
-    if payment.product.type == "digital" do
+    product = Products.get_product!(payment.product_id)
+    if product.type == "digital" do
       Downloads.create_download_for_payment(payment.product_id, payment.user_id)
     else
       {:ok, :not_digital}
@@ -417,42 +424,66 @@ defmodule Shomp.Payments do
     IO.puts("Charge metadata: #{inspect(charge_metadata)}")
     IO.puts("Payment intent ID: #{payment_intent_id}")
 
-    # Look up the payment by the payment intent ID OR use metadata fallback
-    case get_payment_by_payment_intent_id(payment_intent_id) do
-      nil ->
-        IO.puts("No payment record found, trying to decrease quantity from metadata...")
-        # Fallback: decrease quantity directly from charge metadata
-        decrease_quantity_from_metadata(charge_metadata)
-
-      payment ->
-        IO.puts("Found payment: #{payment.id}")
-        # Update payment status to succeeded
-        case update_payment_status(payment, "succeeded") do
-          {:ok, updated_payment} ->
-            IO.puts("Payment status updated to succeeded")
-            # Update store balance
-            update_store_balance_from_payment(updated_payment)
-            IO.puts("Store balance updated")
-
-            # Create order for review tracking
-            order_result = create_order_from_payment(updated_payment, updated_payment.stripe_payment_id)
-            IO.puts("Order creation result: #{inspect(order_result)}")
-
-            # Create download for digital products
-            download_result = create_download_for_product(updated_payment)
-            IO.puts("Download creation result: #{inspect(download_result)}")
-
-            # Decrease quantity for physical products
-            quantity_result = decrease_product_quantity(updated_payment)
-            IO.puts("Quantity decrease result: #{inspect(quantity_result)}")
-
-            {:ok, updated_payment}
-
-          {:error, reason} ->
-            IO.puts("ERROR: Failed to update payment status: #{inspect(reason)}")
-            {:error, reason}
-        end
+    # Extract store amount from metadata for seller notification
+    store_amount_cents = case charge_metadata do
+      %{"store_amount_cents" => amount} when is_binary(amount) -> String.to_integer(amount)
+      %{"store_amount_cents" => amount} when is_integer(amount) -> amount
+      _ -> charge_amount # fallback to total charge amount
     end
+
+    # Convert cents to dollars for display
+    store_amount_dollars = store_amount_cents / 100
+
+    IO.puts("Store amount (cents): #{store_amount_cents}")
+    IO.puts("Store amount (dollars): #{store_amount_dollars}")
+
+    # Just send seller notification - Universal Order already created in payment_intent.succeeded
+    IO.puts("Sending seller notification for charge succeeded...")
+
+    # Extract product and store info from metadata for notification
+    product_id = case charge_metadata do
+      %{"product_id" => id} when is_binary(id) -> String.to_integer(id)
+      %{"product_id" => id} when is_integer(id) -> id
+      _ -> nil
+    end
+
+    store_id = case charge_metadata do
+      %{"store_id" => id} -> id
+      _ -> nil
+    end
+
+    universal_order_id = case charge_metadata do
+      %{"universal_order_id" => id} -> id
+      _ -> nil
+    end
+
+    if product_id && store_id && universal_order_id do
+      # Get the universal order to find the user
+      case UniversalOrders.get_universal_order_by_payment_intent(universal_order_id) do
+        nil ->
+          IO.puts("Universal order not found for payment intent: #{universal_order_id}")
+        universal_order ->
+          # Get the product and store
+          product = Products.get_product!(product_id)
+          store = Stores.get_store!(store_id)
+
+          # Get the buyer's name
+          buyer = Accounts.get_user!(universal_order.user_id)
+          buyer_name = buyer.name || buyer.email
+
+          # Create seller notification
+          case Notifications.notify_seller_new_order(store.user_id, universal_order.universal_order_id, buyer_name, store_amount_dollars) do
+            {:ok, _notification} ->
+              IO.puts("Seller notification created for charge succeeded with store amount $#{store_amount_dollars}")
+            {:error, reason} ->
+              IO.puts("Failed to create seller notification: #{inspect(reason)}")
+          end
+      end
+    else
+      IO.puts("Missing required metadata for seller notification")
+    end
+
+    {:ok, :notification_sent}
   end
 
   defp handle_checkout_completed(session) do
@@ -512,9 +543,17 @@ defmodule Shomp.Payments do
             case create_download_for_product(updated_payment) do
               {:ok, _download} ->
                 IO.puts("Download created successfully")
+                # Notify seller of new order
+                notify_seller_of_purchase(updated_payment)
+                # Notify buyer of successful purchase
+                notify_buyer_of_purchase(updated_payment)
                 {:ok, updated_payment}
               {:error, reason} ->
                 IO.puts("Warning: Failed to create download for payment #{session.id}: #{inspect(reason)}")
+                # Notify seller of new order even if download fails
+                notify_seller_of_purchase(updated_payment)
+                # Notify buyer of successful purchase
+                notify_buyer_of_purchase(updated_payment)
                 {:ok, updated_payment}
             end
 
@@ -579,9 +618,17 @@ defmodule Shomp.Payments do
                 case create_download_for_product(updated_payment) do
                   {:ok, _download} ->
                     IO.puts("Download created successfully")
+                    # Notify seller of new order
+                    notify_seller_of_purchase(updated_payment)
+                    # Notify buyer of successful purchase
+                    notify_buyer_of_purchase(updated_payment)
                     {:ok, updated_payment}
                   {:error, reason} ->
                     IO.puts("Warning: Failed to create download: #{inspect(reason)}")
+                    # Notify seller of new order even if download fails
+                    notify_seller_of_purchase(updated_payment)
+                    # Notify buyer of successful purchase
+                    notify_buyer_of_purchase(updated_payment)
                     {:ok, updated_payment}
                 end
 
@@ -626,10 +673,14 @@ defmodule Shomp.Payments do
             {:error, reason}
 
           nil ->
-            # Mark all payments as succeeded
+            # Mark all payments as succeeded and notify sellers
             Enum.each(payments, fn {:ok, payment} ->
               update_payment_status(payment, "succeeded")
               update_store_balance_from_payment(payment)
+              # Notify seller of new order
+              notify_seller_of_purchase(payment)
+              # Notify buyer of successful purchase
+              notify_buyer_of_purchase(payment)
             end)
 
         # Create universal order for review tracking
@@ -651,10 +702,14 @@ defmodule Shomp.Payments do
       [] -> {:error, :no_payments_found}
 
       payments ->
-        # Update all payment statuses
+        # Update all payment statuses and notify sellers
         Enum.each(payments, fn payment ->
           update_payment_status(payment, "succeeded")
           update_store_balance_from_payment(payment)
+          # Notify seller of new order
+          notify_seller_of_purchase(payment)
+          # Notify buyer of successful purchase
+          notify_buyer_of_purchase(payment)
         end)
 
         # Complete the cart
@@ -729,6 +784,9 @@ defmodule Shomp.Payments do
 
             # Update store's available balance (for tracking purposes)
             update_store_available_balance(payment_split.store_id, payment_split.store_amount)
+
+            # Create individual payment record for success page
+            create_payment_from_payment_split(payment_split, payment_intent_id, universal_order)
           end
         end)
 
@@ -745,6 +803,80 @@ defmodule Shomp.Payments do
   defp handle_payment_failed(_payment_intent) do
     # Handle failed payment intent
     {:ok, :payment_failed}
+  end
+
+  defp handle_payment_intent_charge_succeeded(charge) do
+    IO.puts("=== PAYMENT INTENT CHARGE SUCCEEDED WEBHOOK ===")
+
+    # Handle both struct (proper webhook) and map (fallback parsing) formats
+    charge_id = get_field(charge, :id, "id")
+    charge_amount = get_field(charge, :amount, "amount")
+    charge_metadata = get_field(charge, :metadata, "metadata")
+    payment_intent_id = get_field(charge, :payment_intent, "payment_intent")
+
+    IO.puts("Charge ID: #{charge_id}")
+    IO.puts("Charge amount: #{charge_amount}")
+    IO.puts("Charge metadata: #{inspect(charge_metadata)}")
+    IO.puts("Payment intent ID: #{payment_intent_id}")
+
+    # Extract store amount from metadata for seller notification
+    store_amount_cents = case charge_metadata do
+      %{"store_amount_cents" => amount} when is_binary(amount) -> String.to_integer(amount)
+      %{"store_amount_cents" => amount} when is_integer(amount) -> amount
+      _ -> charge_amount # fallback to total charge amount
+    end
+
+    # Convert cents to dollars for display
+    store_amount_dollars = store_amount_cents / 100
+
+    IO.puts("Store amount (cents): #{store_amount_cents}")
+    IO.puts("Store amount (dollars): #{store_amount_dollars}")
+
+    # Look up the payment by the payment intent ID OR use metadata fallback
+    case get_payment_by_payment_intent_id(payment_intent_id) do
+      nil ->
+        IO.puts("No payment record found, trying to decrease quantity from metadata...")
+        # Fallback: decrease quantity directly from charge metadata
+        decrease_quantity_from_metadata(charge_metadata)
+
+      payment ->
+        IO.puts("Found payment: #{payment.id}")
+        # Update payment status to succeeded
+        case update_payment_status(payment, "succeeded") do
+          {:ok, updated_payment} ->
+            IO.puts("Payment status updated to succeeded")
+            # Update store balance
+            update_store_balance_from_payment(updated_payment)
+            IO.puts("Store balance updated")
+
+            # Create order for review tracking
+            order_result = create_order_from_payment(updated_payment, updated_payment.stripe_payment_id)
+            IO.puts("Order creation result: #{inspect(order_result)}")
+
+            # Create download for digital products
+            download_result = create_download_for_product(updated_payment)
+            IO.puts("Download creation result: #{inspect(download_result)}")
+
+            # Decrease quantity for physical products
+            quantity_result = decrease_product_quantity(updated_payment)
+            IO.puts("Quantity decrease result: #{inspect(quantity_result)}")
+
+            # Notify seller of new order with store amount
+            notify_seller_of_purchase_with_amount(updated_payment, store_amount_dollars)
+
+            # Notify buyer of successful purchase
+            notify_buyer_of_purchase(updated_payment)
+
+            # Broadcast payment processed event for LiveView updates
+            broadcast_payment_processed(updated_payment)
+
+            {:ok, updated_payment}
+
+          {:error, reason} ->
+            IO.puts("ERROR: Failed to update payment status: #{inspect(reason)}")
+            {:error, reason}
+        end
+    end
   end
 
   defp process_payment_split_transfer(payment_split, payment_intent) do
@@ -1453,6 +1585,177 @@ defmodule Shomp.Payments do
       error ->
         IO.puts("ERROR: Product not found for payment #{payment.id}: #{inspect(error)}")
         {:error, :product_not_found}
+    end
+  end
+
+  @doc """
+  Notifies the seller when a purchase is made.
+  """
+  defp notify_seller_of_purchase(payment) do
+    try do
+      # Get the product to find the seller
+      product = Products.get_product!(payment.product_id)
+
+      # Get the store to find the seller
+      store = Stores.get_store!(product.store_id)
+
+      # Get the buyer's name
+      buyer = Accounts.get_user!(payment.user_id)
+      buyer_name = buyer.name || buyer.email
+
+      # Format the amount
+      amount = Decimal.to_string(payment.amount, :normal)
+
+      # Create notification for the seller
+      case Notifications.notify_seller_new_order(store.user_id, payment.id, buyer_name, amount) do
+        {:ok, _notification} ->
+          IO.puts("Seller notification created for payment #{payment.id}")
+        {:error, reason} ->
+          IO.puts("Failed to create seller notification: #{inspect(reason)}")
+      end
+    rescue
+      error ->
+        IO.puts("Error creating seller notification: #{inspect(error)}")
+    end
+  end
+
+  @doc """
+  Notifies the seller when a purchase is made with a specific store amount.
+  """
+  defp notify_seller_of_purchase_with_amount(payment, store_amount_dollars) do
+    try do
+      # Get the product to find the seller
+      product = Products.get_product!(payment.product_id)
+
+      # Get the store to find the seller
+      store = Stores.get_store!(product.store_id)
+
+      # Get the buyer's name
+      buyer = Accounts.get_user!(payment.user_id)
+      buyer_name = buyer.name || buyer.email
+
+      # Format the store amount (already in dollars)
+      amount = :erlang.float_to_binary(store_amount_dollars, decimals: 2)
+
+      # Create notification for the seller
+      case Notifications.notify_seller_new_order(store.user_id, payment.id, buyer_name, amount) do
+        {:ok, _notification} ->
+          IO.puts("Seller notification created for payment #{payment.id} with store amount $#{amount}")
+        {:error, reason} ->
+          IO.puts("Failed to create seller notification: #{inspect(reason)}")
+      end
+    rescue
+      error ->
+        IO.puts("Error creating seller notification: #{inspect(error)}")
+    end
+  end
+
+
+
+  @doc """
+  Creates a payment record from a payment split for success page display.
+  """
+  defp create_payment_from_payment_split(payment_split, payment_intent_id, universal_order) do
+    try do
+      # Get the universal order item to find the product
+      IO.puts("Looking for order item with universal_order_id: #{universal_order.universal_order_id} and store_id: #{payment_split.store_id}")
+      order_item = Repo.get_by!(UniversalOrders.UniversalOrderItem,
+        universal_order_id: universal_order.universal_order_id,
+        store_id: payment_split.store_id
+      )
+      IO.puts("Found order item: #{inspect(order_item.id)}")
+
+      # Get the product from the order item
+      product = Repo.get_by!(Products.Product, immutable_id: order_item.product_immutable_id)
+
+      # Create payment record
+      payment_attrs = %{
+        user_id: universal_order.user_id,
+        product_id: product.id,
+        product_immutable_id: product.immutable_id,
+        amount: payment_split.total_amount, # Total amount (store + platform fee)
+        stripe_payment_id: payment_intent_id,
+        status: "succeeded"
+      }
+
+      case create_payment(payment_attrs) do
+        {:ok, payment} ->
+          IO.puts("Created payment record #{payment.id} for payment split #{payment_split.payment_split_id}")
+
+          # Create order for review tracking
+          create_order_from_payment(payment, payment_intent_id)
+
+          # Create download for digital products
+          create_download_for_product(payment)
+
+          # Decrease quantity for physical products
+          decrease_product_quantity(payment)
+
+          # Notify seller of new order with store amount
+          store_amount_dollars = Decimal.to_float(payment_split.store_amount)
+          notify_seller_of_purchase_with_amount(payment, store_amount_dollars)
+
+          # Notify buyer of successful purchase
+          notify_buyer_of_purchase(payment, store_amount_dollars)
+
+          # Broadcast payment processed event for LiveView updates
+          broadcast_payment_processed(payment)
+
+          {:ok, payment}
+
+        {:error, reason} ->
+          IO.puts("Failed to create payment record: #{inspect(reason)}")
+          {:error, reason}
+      end
+    rescue
+      error ->
+        IO.puts("Error creating payment from payment split: #{inspect(error)}")
+        {:error, error}
+    end
+  end
+
+  @doc """
+  Broadcasts payment processed event for LiveView updates.
+  """
+  defp broadcast_payment_processed(payment) do
+    try do
+      Phoenix.PubSub.broadcast(
+        Shomp.PubSub,
+        "payment_processed:#{payment.stripe_payment_id}",
+        {:payment_processed, payment.stripe_payment_id}
+      )
+      IO.puts("Broadcasted payment processed event for payment #{payment.id}")
+    rescue
+      error ->
+        IO.puts("Error broadcasting payment processed event: #{inspect(error)}")
+    end
+  end
+
+  @doc """
+  Notifies the buyer when a purchase is successful.
+  """
+  defp notify_buyer_of_purchase(payment, store_amount_dollars \\ nil) do
+    try do
+      # Get the product details
+      product = Products.get_product!(payment.product_id)
+
+      # Use store amount if provided, otherwise use total amount
+      amount = if store_amount_dollars do
+        :erlang.float_to_binary(store_amount_dollars, decimals: 2)
+      else
+        Decimal.to_string(payment.amount, :normal)
+      end
+
+      # Create notification for the buyer
+      case Notifications.notify_payment_received(payment.user_id, payment.id, amount) do
+        {:ok, _notification} ->
+          IO.puts("Buyer notification created for payment #{payment.id}")
+        {:error, reason} ->
+          IO.puts("Failed to create buyer notification: #{inspect(reason)}")
+      end
+    rescue
+      error ->
+        IO.puts("Error creating buyer notification: #{inspect(error)}")
     end
   end
 end

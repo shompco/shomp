@@ -2,7 +2,6 @@ defmodule ShompWeb.AdminLive.OrderShow do
   use ShompWeb, :live_view
 
   alias Shomp.Orders
-  alias Shomp.Stores
 
   on_mount {ShompWeb.UserAuth, :require_admin}
 
@@ -26,10 +25,10 @@ defmodule ShompWeb.AdminLive.OrderShow do
         ])
 
         # Manually fetch store data and categories for each product
-        order_with_stores = %{order_with_details | 
+        order_with_stores = %{order_with_details |
           order_items: Enum.map(order_with_details.order_items, fn order_item ->
             store = Shomp.Stores.get_store_by_store_id(order_item.product.store_id)
-            
+
             # Load platform category if it exists
             product_with_store = %{order_item.product | store: store}
             product_with_categories = if product_with_store.category_id do
@@ -40,7 +39,7 @@ defmodule ShompWeb.AdminLive.OrderShow do
             else
               product_with_store
             end
-            
+
             # Load custom category if it exists
             product_with_all = if product_with_categories.custom_category_id do
               case Shomp.Repo.get(Shomp.Categories.Category, product_with_categories.custom_category_id) do
@@ -50,7 +49,7 @@ defmodule ShompWeb.AdminLive.OrderShow do
             else
               product_with_categories
             end
-            
+
             %{order_item | product: product_with_all}
           end)
         }
@@ -155,8 +154,8 @@ defmodule ShompWeb.AdminLive.OrderShow do
                     <div class="flex items-center space-x-4 p-4 border border-base-300 rounded-lg">
                       <div class="flex-shrink-0">
                         <%= if order_item.product.image_thumb do %>
-                          <img 
-                            src={"/uploads/products/#{order_item.product.id}/#{order_item.product.image_thumb}"} 
+                          <img
+                            src={"/uploads/products/#{order_item.product.id}/#{order_item.product.image_thumb}"}
                             alt={order_item.product.title}
                             class="w-16 h-16 object-cover rounded"
                           />
