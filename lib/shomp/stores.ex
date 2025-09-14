@@ -145,6 +145,15 @@ defmodule Shomp.Stores do
   end
 
   @doc """
+  Gets a single store by its immutable store_id.
+
+  Raises `Ecto.NoResultsError` if the Store does not exist.
+  """
+  def get_store_by_store_id!(store_id) do
+    Repo.get_by!(Store, store_id: store_id)
+  end
+
+  @doc """
   Gets a store by its immutable store_id with user association loaded.
 
   ## Examples

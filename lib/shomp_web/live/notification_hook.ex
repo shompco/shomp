@@ -13,10 +13,10 @@ defmodule ShompWeb.NotificationHook do
   def on_mount(:default, _params, _session, socket) do
     if connected?(socket) and socket.assigns[:current_scope] do
       user = socket.assigns.current_scope.user
-      
+
       # Subscribe to user-specific notification channel
       PubSub.subscribe(Shomp.PubSub, "notifications:#{user.id}")
-      
+
       unread_count = Shomp.Notifications.unread_count(user.id)
       recent_notifications = Shomp.Notifications.list_user_notifications(user.id, limit: 5)
 
@@ -43,10 +43,10 @@ defmodule ShompWeb.NotificationHook do
   def on_mount(:require_authenticated, _params, _session, socket) do
     if connected?(socket) and socket.assigns[:current_scope] do
       user = socket.assigns.current_scope.user
-      
+
       # Subscribe to user-specific notification channel
       PubSub.subscribe(Shomp.PubSub, "notifications:#{user.id}")
-      
+
       unread_count = Shomp.Notifications.unread_count(user.id)
       recent_notifications = Shomp.Notifications.list_user_notifications(user.id, limit: 5)
 
@@ -76,8 +76,8 @@ defmodule ShompWeb.NotificationHook do
       user = socket.assigns.current_scope.user
       unread_count = Shomp.Notifications.unread_count(user.id)
       recent_notifications = Shomp.Notifications.list_user_notifications(user.id, limit: 5)
-      
-      {:noreply, 
+
+      {:noreply,
        socket
        |> safe_assign(:unread_count, unread_count)
        |> safe_assign(:recent_notifications, recent_notifications)
@@ -92,8 +92,8 @@ defmodule ShompWeb.NotificationHook do
       user = socket.assigns.current_scope.user
       unread_count = Shomp.Notifications.unread_count(user.id)
       recent_notifications = Shomp.Notifications.list_user_notifications(user.id, limit: 5)
-      
-      {:noreply, 
+
+      {:noreply,
        socket
        |> safe_assign(:unread_count, unread_count)
        |> safe_assign(:recent_notifications, recent_notifications)
@@ -108,8 +108,8 @@ defmodule ShompWeb.NotificationHook do
       user = socket.assigns.current_scope.user
       unread_count = Shomp.Notifications.unread_count(user.id)
       recent_notifications = Shomp.Notifications.list_user_notifications(user.id, limit: 5)
-      
-      {:noreply, 
+
+      {:noreply,
        socket
        |> safe_assign(:unread_count, unread_count)
        |> safe_assign(:recent_notifications, recent_notifications)
@@ -129,14 +129,14 @@ defmodule ShompWeb.NotificationHook do
     if socket.assigns[:current_scope] do
       user = socket.assigns.current_scope.user
       notification = Shomp.Notifications.get_notification!(id)
-      
+
       if notification.user_id == user.id do
         case Shomp.Notifications.mark_as_read(notification) do
           {:ok, _notification} ->
             # Broadcast the update to all connected sessions
             PubSub.broadcast(Shomp.PubSub, "notifications:#{user.id}", {:notification_read, id})
             {:noreply, socket}
-          
+
           {:error, _changeset} ->
             {:noreply, socket}
         end
@@ -151,13 +151,13 @@ defmodule ShompWeb.NotificationHook do
   def handle_event("mark_all_read", _params, socket) do
     if socket.assigns[:current_scope] do
       user = socket.assigns.current_scope.user
-      
+
       case Shomp.Notifications.mark_all_as_read(user.id) do
         {_count, _} ->
           # Broadcast the update to all connected sessions
           PubSub.broadcast(Shomp.PubSub, "notifications:#{user.id}", {:notifications_updated})
           {:noreply, socket}
-        
+
         _ ->
           {:noreply, socket}
       end

@@ -78,14 +78,14 @@ defmodule ShompWeb.PurchaseDetailsLive.Show do
     <Layouts.app flash={@flash} current_scope={@current_scope}>
       <div class="mx-auto max-w-4xl">
         <div class="mb-8">
+          <div class="flex items-center gap-4 mb-4">
+            <.link href={~p"/dashboard/purchases"} class="btn btn-outline">
+              ← Back to Purchases
+            </.link>
+          </div>
           <.header>
             Purchase #<%= @universal_order.universal_order_id %>
             <:subtitle>Your purchase details</:subtitle>
-            <:actions>
-              <.link href={~p"/dashboard/purchases"} class="btn btn-outline">
-                ← Back to Purchases
-              </.link>
-            </:actions>
           </.header>
         </div>
 

@@ -546,14 +546,12 @@ defmodule Shomp.Payments do
                 # Notify seller of new order
                 notify_seller_of_purchase(updated_payment)
                 # Notify buyer of successful purchase
-                notify_buyer_of_purchase(updated_payment)
                 {:ok, updated_payment}
               {:error, reason} ->
                 IO.puts("Warning: Failed to create download for payment #{session.id}: #{inspect(reason)}")
                 # Notify seller of new order even if download fails
                 notify_seller_of_purchase(updated_payment)
                 # Notify buyer of successful purchase
-                notify_buyer_of_purchase(updated_payment)
                 {:ok, updated_payment}
             end
 
@@ -621,14 +619,12 @@ defmodule Shomp.Payments do
                     # Notify seller of new order
                     notify_seller_of_purchase(updated_payment)
                     # Notify buyer of successful purchase
-                    notify_buyer_of_purchase(updated_payment)
                     {:ok, updated_payment}
                   {:error, reason} ->
                     IO.puts("Warning: Failed to create download: #{inspect(reason)}")
                     # Notify seller of new order even if download fails
                     notify_seller_of_purchase(updated_payment)
                     # Notify buyer of successful purchase
-                    notify_buyer_of_purchase(updated_payment)
                     {:ok, updated_payment}
                 end
 
@@ -680,7 +676,6 @@ defmodule Shomp.Payments do
               # Notify seller of new order
               notify_seller_of_purchase(payment)
               # Notify buyer of successful purchase
-              notify_buyer_of_purchase(payment)
             end)
 
         # Create universal order for review tracking
@@ -709,7 +704,6 @@ defmodule Shomp.Payments do
           # Notify seller of new order
           notify_seller_of_purchase(payment)
           # Notify buyer of successful purchase
-          notify_buyer_of_purchase(payment)
         end)
 
         # Complete the cart
@@ -865,7 +859,6 @@ defmodule Shomp.Payments do
             notify_seller_of_purchase_with_amount(updated_payment, store_amount_dollars)
 
             # Notify buyer of successful purchase
-            notify_buyer_of_purchase(updated_payment)
 
             # Broadcast payment processed event for LiveView updates
             broadcast_payment_processed(updated_payment)
@@ -1597,7 +1590,7 @@ defmodule Shomp.Payments do
       product = Products.get_product!(payment.product_id)
 
       # Get the store to find the seller
-      store = Stores.get_store!(product.store_id)
+      store = Stores.get_store_by_store_id!(product.store_id)
 
       # Get the buyer's name
       buyer = Accounts.get_user!(payment.user_id)
@@ -1606,10 +1599,16 @@ defmodule Shomp.Payments do
       # Format the amount
       amount = Decimal.to_string(payment.amount, :normal)
 
+      # Get the universal order ID for the notification link
+      universal_order_id = case UniversalOrders.get_universal_order_by_payment_intent(payment.stripe_payment_id) do
+        nil -> payment.id # fallback to payment ID if no universal order found
+        universal_order -> universal_order.universal_order_id
+      end
+
       # Create notification for the seller
-      case Notifications.notify_seller_new_order(store.user_id, payment.id, buyer_name, amount) do
+      case Notifications.notify_seller_new_order(store.user_id, universal_order_id, buyer_name, amount) do
         {:ok, _notification} ->
-          IO.puts("Seller notification created for payment #{payment.id}")
+          IO.puts("Seller notification created for payment #{payment.id} with universal order #{universal_order_id}")
         {:error, reason} ->
           IO.puts("Failed to create seller notification: #{inspect(reason)}")
       end
@@ -1628,7 +1627,7 @@ defmodule Shomp.Payments do
       product = Products.get_product!(payment.product_id)
 
       # Get the store to find the seller
-      store = Stores.get_store!(product.store_id)
+      store = Stores.get_store_by_store_id!(product.store_id)
 
       # Get the buyer's name
       buyer = Accounts.get_user!(payment.user_id)
@@ -1637,10 +1636,16 @@ defmodule Shomp.Payments do
       # Format the store amount (already in dollars)
       amount = :erlang.float_to_binary(store_amount_dollars, decimals: 2)
 
+      # Get the universal order ID for the notification link
+      universal_order_id = case UniversalOrders.get_universal_order_by_payment_intent(payment.stripe_payment_id) do
+        nil -> payment.id # fallback to payment ID if no universal order found
+        universal_order -> universal_order.universal_order_id
+      end
+
       # Create notification for the seller
-      case Notifications.notify_seller_new_order(store.user_id, payment.id, buyer_name, amount) do
+      case Notifications.notify_seller_new_order(store.user_id, universal_order_id, buyer_name, amount) do
         {:ok, _notification} ->
-          IO.puts("Seller notification created for payment #{payment.id} with store amount $#{amount}")
+          IO.puts("Seller notification created for payment #{payment.id} with store amount $#{amount} and universal order #{universal_order_id}")
         {:error, reason} ->
           IO.puts("Failed to create seller notification: #{inspect(reason)}")
       end
@@ -1695,8 +1700,6 @@ defmodule Shomp.Payments do
           store_amount_dollars = Decimal.to_float(payment_split.store_amount)
           notify_seller_of_purchase_with_amount(payment, store_amount_dollars)
 
-          # Notify buyer of successful purchase
-          notify_buyer_of_purchase(payment, store_amount_dollars)
 
           # Broadcast payment processed event for LiveView updates
           broadcast_payment_processed(payment)
@@ -1731,31 +1734,4 @@ defmodule Shomp.Payments do
     end
   end
 
-  @doc """
-  Notifies the buyer when a purchase is successful.
-  """
-  defp notify_buyer_of_purchase(payment, store_amount_dollars \\ nil) do
-    try do
-      # Get the product details
-      product = Products.get_product!(payment.product_id)
-
-      # Use store amount if provided, otherwise use total amount
-      amount = if store_amount_dollars do
-        :erlang.float_to_binary(store_amount_dollars, decimals: 2)
-      else
-        Decimal.to_string(payment.amount, :normal)
-      end
-
-      # Create notification for the buyer
-      case Notifications.notify_payment_received(payment.user_id, payment.id, amount) do
-        {:ok, _notification} ->
-          IO.puts("Buyer notification created for payment #{payment.id}")
-        {:error, reason} ->
-          IO.puts("Failed to create buyer notification: #{inspect(reason)}")
-      end
-    rescue
-      error ->
-        IO.puts("Error creating buyer notification: #{inspect(error)}")
-    end
-  end
 end

@@ -45,7 +45,7 @@ defmodule Shomp.Notifications do
         # Broadcast notification creation to user's channel
         Phoenix.PubSub.broadcast(Shomp.PubSub, "notifications:#{notification.user_id}", {:notification_created, notification})
         {:ok, notification}
-      
+
       error ->
         error
     end
@@ -76,7 +76,7 @@ defmodule Shomp.Notifications do
         # Broadcast notification read to user's channel
         Phoenix.PubSub.broadcast(Shomp.PubSub, "notifications:#{notification.user_id}", {:notification_read, notification.id})
         {:ok, updated_notification}
-      
+
       error ->
         error
     end
@@ -92,7 +92,7 @@ defmodule Shomp.Notifications do
         # Broadcast notifications updated to user's channel
         Phoenix.PubSub.broadcast(Shomp.PubSub, "notifications:#{user_id}", {:notifications_updated})
         {count, []}
-      
+
       result ->
         result
     end
@@ -166,20 +166,6 @@ defmodule Shomp.Notifications do
     })
   end
 
-  @doc """
-  Creates a notification when payment is received.
-  """
-  def notify_payment_received(user_id, order_id, amount) do
-    create_notification(%{
-      user_id: user_id,
-      title: "Payment Received",
-      message: "Payment of $#{amount} has been successfully processed.",
-      type: "payment_received",
-      action_url: "/dashboard/purchases",
-      metadata: %{order_id: order_id, amount: amount},
-      priority: "high"
-    })
-  end
 
   @doc """
   Creates a notification when an order is shipped.
@@ -240,10 +226,10 @@ defmodule Shomp.Notifications do
   def notify_seller_new_order(seller_id, order_id, customer_name, order_amount) do
     create_notification(%{
       user_id: seller_id,
-      title: "New Order Received",
-      message: "You received a new order from #{customer_name} for $#{order_amount}",
+      title: "Congratulations! You made a sale for $#{order_amount}",
+      message: "Payment has been processed.",
       type: "new_order",
-      action_url: "/dashboard/orders",
+      action_url: "/dashboard/orders/universal/#{order_id}",
       metadata: %{order_id: order_id, customer_name: customer_name, amount: order_amount},
       priority: "urgent"
     })

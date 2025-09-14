@@ -4,6 +4,7 @@ defmodule ShompWeb.UserLive.Notifications do
   alias Shomp.Notifications
 
   on_mount {ShompWeb.UserAuth, :require_authenticated}
+  on_mount {ShompWeb.NotificationHook, :require_authenticated}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -94,6 +95,13 @@ defmodule ShompWeb.UserLive.Notifications do
     else
       {:noreply, put_flash(socket, :error, "Unauthorized")}
     end
+  end
+
+  # Catch-all handler for unexpected events
+  @impl true
+  def handle_event(event, params, socket) do
+    IO.puts("Unexpected event received: #{inspect(event)} with params: #{inspect(params)}")
+    {:noreply, socket}
   end
 
   @impl true

@@ -34,17 +34,17 @@ defmodule ShompWeb.RequestLive.Index do
                     <%= String.capitalize(request.status) %>
                   </span>
                 </div>
-                
+
                 <p class="text-gray-600 mb-3 line-clamp-2">
                   <%= request.description %>
                 </p>
-                
+
                 <div class="flex items-center justify-between text-sm text-gray-500">
                   <span>By @<%= request.user.username %></span>
                   <span><%= Calendar.strftime(request.inserted_at, "%B %d, %Y") %></span>
                 </div>
               </div>
-              
+
               <div class="flex items-center space-x-4 ml-4">
                 <div class="text-center">
                   <div class="text-lg font-semibold text-gray-900" id={"vote-total-#{request.id}"}>
@@ -52,11 +52,11 @@ defmodule ShompWeb.RequestLive.Index do
                   </div>
                   <div class="text-xs text-gray-500">votes</div>
                 </div>
-                
+
                 <%= if @current_scope && @current_scope.user do %>
                   <% current_vote = get_user_vote(request, @current_scope.user.id) %>
                   <div class="flex flex-col items-center space-y-1">
-                    <button 
+                    <button
                       phx-click="vote"
                       phx-value-request_id={request.id}
                       phx-value-weight="1"
@@ -70,7 +70,7 @@ defmodule ShompWeb.RequestLive.Index do
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path>
                       </svg>
                     </button>
-                    <button 
+                    <button
                       phx-click="vote"
                       phx-value-request_id={request.id}
                       phx-value-weight="-1"
@@ -113,7 +113,7 @@ defmodule ShompWeb.RequestLive.Index do
     request = FeatureRequests.get_request!(id)
     {:ok, _} = FeatureRequests.delete_request(request)
 
-    {:noreply, 
+    {:noreply,
      socket
      |> assign(:requests, FeatureRequests.list_requests())
      |> put_flash(:info, "Feature request deleted successfully!")}
@@ -129,16 +129,16 @@ defmodule ShompWeb.RequestLive.Index do
               Shomp.PubSub,
               "feature_requests:votes",
               {
-                :vote_updated, 
-                request_id, 
+                :vote_updated,
+                request_id,
                 FeatureRequests.get_request_vote_total(request_id),
                 user.username,
                 action,
                 weight_int
               }
             )
-            
-            {:noreply, 
+
+            {:noreply,
              socket
              |> assign(:requests, FeatureRequests.list_requests())
              |> put_flash(:info, "Vote recorded!")}
@@ -155,10 +155,10 @@ defmodule ShompWeb.RequestLive.Index do
   def handle_info({:vote_updated, request_id, new_total, username, action, weight}, socket) do
     # Update the vote total in real-time with enhanced information
     {:noreply, push_event(socket, "update_vote_total", %{
-      request_id: request_id, 
-      total: new_total, 
-      username: username, 
-      action: action, 
+      request_id: request_id,
+      total: new_total,
+      username: username,
+      action: action,
       weight: weight
     })}
   end
