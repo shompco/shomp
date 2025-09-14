@@ -2,6 +2,9 @@ defmodule ShompWeb.LandingLive.Show do
   use ShompWeb, :live_view
   alias Shomp.EmailSubscriptions
 
+  on_mount {ShompWeb.UserAuth, :mount_current_scope}
+  on_mount {ShompWeb.NotificationHook, :default}
+
   @page_title "About Shomp - The Nonprofit Marketplace"
 
   def mount(_params, _session, socket) do
@@ -22,7 +25,7 @@ defmodule ShompWeb.LandingLive.Show do
     end
   end
 
-  # Notification event handlers
+  # Notification event handlers are now handled by NotificationHook
   def handle_event("toggle_notifications", _params, socket) do
     show_notifications = !socket.assigns[:show_notifications]
     {:noreply, assign(socket, :show_notifications, show_notifications)}
@@ -36,14 +39,7 @@ defmodule ShompWeb.LandingLive.Show do
       if notification.user_id == user.id do
         case Shomp.Notifications.mark_as_read(notification) do
           {:ok, _notification} ->
-            # Refresh notifications and unread count
-            unread_count = Shomp.Notifications.unread_count(user.id)
-            recent_notifications = Shomp.Notifications.list_user_notifications(user.id, limit: 5)
-
-            {:noreply,
-             socket
-             |> assign(:unread_count, unread_count)
-             |> assign(:recent_notifications, recent_notifications)}
+            {:noreply, socket}
 
           {:error, _changeset} ->
             {:noreply, socket}
@@ -62,14 +58,7 @@ defmodule ShompWeb.LandingLive.Show do
 
       case Shomp.Notifications.mark_all_as_read(user.id) do
         {_count, _} ->
-          # Refresh notifications and unread count
-          unread_count = Shomp.Notifications.unread_count(user.id)
-          recent_notifications = Shomp.Notifications.list_user_notifications(user.id, limit: 5)
-
-          {:noreply,
-           socket
-           |> assign(:unread_count, unread_count)
-           |> assign(:recent_notifications, recent_notifications)}
+          {:noreply, socket}
 
         _ ->
           {:noreply, socket}

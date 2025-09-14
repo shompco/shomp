@@ -38,9 +38,17 @@ defmodule Shomp.Notifications do
   Creates a notification.
   """
   def create_notification(attrs \\ %{}) do
-    %Notification{}
-    |> Notification.create_changeset(attrs)
-    |> Repo.insert()
+    case %Notification{}
+         |> Notification.create_changeset(attrs)
+         |> Repo.insert() do
+      {:ok, notification} ->
+        # Broadcast notification creation to user's channel
+        Phoenix.PubSub.broadcast(Shomp.PubSub, "notifications:#{notification.user_id}", {:notification_created, notification})
+        {:ok, notification}
+      
+      error ->
+        error
+    end
   end
 
   @doc """
@@ -63,15 +71,31 @@ defmodule Shomp.Notifications do
   Marks a notification as read.
   """
   def mark_as_read(%Notification{} = notification) do
-    update_notification(notification, %{read: true})
+    case update_notification(notification, %{read: true}) do
+      {:ok, updated_notification} ->
+        # Broadcast notification read to user's channel
+        Phoenix.PubSub.broadcast(Shomp.PubSub, "notifications:#{notification.user_id}", {:notification_read, notification.id})
+        {:ok, updated_notification}
+      
+      error ->
+        error
+    end
   end
 
   @doc """
   Marks all notifications as read for a user.
   """
   def mark_all_as_read(user_id) do
-    from(n in Notification, where: n.user_id == ^user_id and n.read == false)
-    |> Repo.update_all(set: [read: true])
+    case from(n in Notification, where: n.user_id == ^user_id and n.read == false)
+         |> Repo.update_all(set: [read: true]) do
+      {count, _} when count > 0 ->
+        # Broadcast notifications updated to user's channel
+        Phoenix.PubSub.broadcast(Shomp.PubSub, "notifications:#{user_id}", {:notifications_updated})
+        {count, []}
+      
+      result ->
+        result
+    end
   end
 
   @doc """
