@@ -15,7 +15,7 @@ defmodule ShompWeb.UserLive.MyProducts do
 
     {:ok, assign(socket,
       products: products,
-      page_title: "My Products"
+      page_title: "Your Products"
     )}
   end
 
@@ -27,7 +27,7 @@ defmodule ShompWeb.UserLive.MyProducts do
         <!-- Header -->
         <div class="flex items-center justify-between mb-8">
           <div>
-            <h1 class="text-3xl font-bold text-base-content">My Products</h1>
+            <h1 class="text-3xl font-bold text-base-content">Your Products</h1>
             <p class="text-base-content/70 mt-2">
               Manage your digital products at shomp.co/my/products and see your store at shomp.co/<%= @current_scope.user.username %>
             </p>
@@ -43,7 +43,7 @@ defmodule ShompWeb.UserLive.MyProducts do
               navigate={~p"/#{@current_scope.user.username}"}
               class="btn btn-outline"
             >
-              View My Store
+              View Your Products
             </.link>
           </div>
         </div>

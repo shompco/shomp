@@ -194,10 +194,16 @@ defmodule ShompWeb.ProductLive.Show do
             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
             </svg>
-            <%= case Map.get(assigns, :referrer, "store") do %>
-              <% "category" -> %>Back to All Categories
+            <%= case Map.get(assigns, :referrer, "default") do %>
+              <% "category" -> %>Back to Product Categories
               <% "store_category" -> %>Back to <%= @product.custom_category.name %>
-              <% _ -> %>Back to All Stores
+              <% "store" -> %>Back to <%= @product.store.name %>
+              <% "search" -> %>Back to Search
+              <% "home" -> %>Back to Home
+              <% "profile" -> %>Back to Profile
+              <% "orders" -> %>Back to Orders
+              <% "cart" -> %>Back to Cart
+              <% _ -> %>Back
             <% end %>
           </button>
         </div>

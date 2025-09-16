@@ -9,7 +9,7 @@ defmodule ShompWeb.CategoryLive.Index do
     socket =
       socket
       |> assign(:categories, categories_with_products)
-      |> assign(:page_title, "Browse Categories")
+      |> assign(:page_title, "Browse Products")
 
     {:ok, socket}
   end
@@ -25,10 +25,10 @@ defmodule ShompWeb.CategoryLive.Index do
                 📂
               </div>
               <h1 class="text-sm font-semibold text-primary">
-                Browse Categories
+                Browse Products
               </h1>
               <span class="text-xs text-base-content/60">
-                <%= length(@categories) %> categories
+                <%= length(@categories) %> Categories
               </span>
             </div>
             <div class="text-xs text-base-content/70">
@@ -43,7 +43,7 @@ defmodule ShompWeb.CategoryLive.Index do
             <nav class="text-xs breadcrumbs">
               <ul>
                 <li><a href="/" class="link link-hover">Home</a></li>
-                <li>Categories</li>
+                <li>Product Categories</li>
               </ul>
             </nav>
           </div>
@@ -56,8 +56,8 @@ defmodule ShompWeb.CategoryLive.Index do
             <p class="text-base-content/70 mb-8">
               Categories will appear here once products are added to them.
             </p>
-            <a href="/stores" class="btn btn-primary btn-lg">
-              Browse Stores
+            <a href="/categories" class="btn btn-primary btn-lg">
+              Browse Products
             </a>
           </div>
         <% else %>
@@ -105,7 +105,7 @@ defmodule ShompWeb.CategoryLive.Index do
                       <div class="flex gap-2 flex-wrap justify-end">
                         <%= for product <- category.products do %>
                           <a
-                            href={get_product_url(product)}
+                            href={get_product_url(product) <> "?referrer=category"}
                             class="block w-20 h-20 bg-gradient-to-br from-base-200 to-base-300 overflow-hidden hover:shadow-lg transition-all duration-300 hover:scale-105 rounded-lg flex-shrink-0 relative group"
                           >
                             <!-- Lens effect for product thumbnails -->

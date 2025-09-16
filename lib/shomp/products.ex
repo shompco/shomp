@@ -67,13 +67,28 @@ defmodule Shomp.Products do
 
   @doc """
   Creates a product for a user's default store.
+  Creates a default store if one doesn't exist.
   """
   def create_user_product(user, attrs) do
-    store = Shomp.Stores.get_user_default_store(user)
-    if store do
-      create_product(Map.put(attrs, :store_id, store.store_id))
-    else
-      {:error, :no_store}
+    case Shomp.Stores.get_user_default_store(user) do
+      nil ->
+        # Create a default store for the user
+        store_attrs = %{
+          name: user.username,
+          slug: user.username,
+          description: "Default store for #{user.username}",
+          user_id: user.id
+        }
+
+        case Shomp.Stores.create_store(store_attrs) do
+          {:ok, store} ->
+            create_product(Map.put(attrs, "store_id", store.store_id))
+          {:error, changeset} ->
+            {:error, changeset}
+        end
+
+      store ->
+        create_product(Map.put(attrs, "store_id", store.store_id))
     end
   end
 
@@ -122,8 +137,8 @@ defmodule Shomp.Products do
   def get_product_with_store!(id) do
     product = Repo.get!(Product, id)
 
-    # Manually fetch the store data using the store_id
-    case Shomp.Stores.get_store_by_store_id(product.store_id) do
+    # Manually fetch the store data using the store_id with user preloaded
+    case Shomp.Stores.get_store_by_store_id_with_user(product.store_id) do
       nil ->
         raise Ecto.NoResultsError, message: "Store not found for product"
       store ->
@@ -486,37 +501,10 @@ defmodule Shomp.Products do
   def get_products_by_category(category_id, limit \\ 20) do
     Product
     |> where([p], p.category_id == ^category_id)
+    |> preload([:store, :category, :custom_category, store: :user])
     |> order_by([p], [desc: p.inserted_at])
     |> limit(^limit)
     |> Repo.all()
-    |> Enum.map(fn product ->
-      case Shomp.Stores.get_store_by_store_id(product.store_id) do
-        nil -> product
-        store ->
-          product = Map.put(product, :store, store)
-
-          # Load platform category if it exists
-          if product.category_id do
-            case Repo.get(Shomp.Categories.Category, product.category_id) do
-              nil -> product
-              category -> Map.put(product, :category, category)
-            end
-          else
-            product
-          end
-          |> then(fn product ->
-            # Load custom category if it exists
-            if product.custom_category_id do
-              case Repo.get(Shomp.Categories.Category, product.custom_category_id) do
-                nil -> product
-                custom_category -> Map.put(product, :custom_category, custom_category)
-              end
-            else
-              product
-            end
-          end)
-      end
-    end)
   end
 
   @doc """

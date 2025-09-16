@@ -97,7 +97,7 @@ defmodule ShompWeb.CategoryLive.Show do
             <nav class="text-xs breadcrumbs">
               <ul>
                 <li><a href="/" class="link link-hover">Home</a></li>
-                <li><a href="/categories" class="link link-hover">Categories</a></li>
+                <li><a href="/categories" class="link link-hover">Product Categories</a></li>
                 <li><%= @category.name %></li>
               </ul>
             </nav>
@@ -198,7 +198,7 @@ defmodule ShompWeb.CategoryLive.Show do
           <div class="px-4 py-4">
             <div class="text-center">
               <a href="/categories" class="btn btn-outline btn-sm">
-                ← Back to All Categories
+                ← Back to All Products
               </a>
             </div>
           </div>

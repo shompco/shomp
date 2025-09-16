@@ -14,8 +14,8 @@ defmodule ShompWeb.SellerOrderLive.Index do
       <div class="mx-auto max-w-7xl">
         <div class="mb-8">
           <.header>
-            Order Management
-            <:subtitle>Manage orders from all your stores</:subtitle>
+            Your Customer's Order Management
+            <:subtitle>Manage orders for all your customers</:subtitle>
           </.header>
         </div>
 
@@ -162,7 +162,7 @@ defmodule ShompWeb.SellerOrderLive.Index do
     socket =
       socket
       |> assign(:store_orders, store_orders)
-      |> assign(:page_title, "Order Management")
+      |> assign(:page_title, "Your Customer's Order Management")
 
     {:ok, socket}
   end

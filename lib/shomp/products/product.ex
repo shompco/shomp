@@ -25,6 +25,7 @@ defmodule Shomp.Products.Product do
     field :image_ultra, :string
     field :additional_images, {:array, :string}, default: []
     field :primary_image_index, :integer, default: 0
+    field :us_citizen_confirmation, :boolean, virtual: true  # Virtual field for US citizen checkbox
 
     belongs_to :store, Shomp.Stores.Store, foreign_key: :store_id, references: :store_id, type: :string
     belongs_to :category, Shomp.Categories.Category  # Global platform category
@@ -42,6 +43,7 @@ defmodule Shomp.Products.Product do
   def changeset(product, attrs) do
     product
     |> cast(attrs, [:title, :description, :price, :type, :file_path, :digital_file_url, :digital_file_type, :store_id, :stripe_product_id, :category_id, :custom_category_id, :slug, :image_original, :image_thumb, :image_medium, :image_large, :image_extra_large, :image_ultra, :additional_images, :primary_image_index, :sold_out, :quantity])
+    |> cast(attrs, [:us_citizen_confirmation], [])
     |> validate_required([:title, :price, :type, :store_id])
     |> validate_length(:title, min: 2, max: 200)
     |> validate_length(:description, max: 2000)
@@ -52,6 +54,7 @@ defmodule Shomp.Products.Product do
     |> validate_length(:store_id, min: 1)
     |> validate_slug_format()
     |> validate_image_paths()
+    |> validate_us_citizen_confirmation()
   end
 
   @doc """
@@ -130,5 +133,14 @@ defmodule Shomp.Products.Product do
           add_error(acc, field, "must be a valid path string")
       end
     end)
+  end
+
+  defp validate_us_citizen_confirmation(changeset) do
+    case get_change(changeset, :us_citizen_confirmation) do
+      true -> changeset
+      false -> add_error(changeset, :us_citizen_confirmation, "Shomp is only available to users based in the U.S. This ensures we can process payouts smoothly.")
+      nil -> add_error(changeset, :us_citizen_confirmation, "Shomp is only available to users based in the U.S. This ensures we can process payouts smoothly.")
+      _ -> add_error(changeset, :us_citizen_confirmation, "Shomp is only available to users based in the U.S. This ensures we can process payouts smoothly.")
+    end
   end
 end

@@ -6,6 +6,7 @@ defmodule Shomp.Categories do
   import Ecto.Query, warn: false
   alias Shomp.Repo
   alias Shomp.Categories.Category
+  alias Shomp.Products.Product
 
   @doc """
   Returns the list of categories.
@@ -230,18 +231,31 @@ defmodule Shomp.Categories do
   @doc """
   Returns categories with their products for the categories index page.
   Each category includes up to 8 products for thumbnail display.
+  Only returns categories that have at least one product.
   """
   def get_categories_with_products_and_thumbnails do
-    Category
-    |> join(:inner, [c], p in "products", on: c.id == p.category_id)
+    # Get all categories with their products in a single optimized query
+    categories = Category
     |> where([c], c.level == 1 and c.active == true)
-    |> group_by([c], c.id)
-    |> select([c], c)
     |> order_by([c], c.name)
     |> Repo.all()
+
+    # Get all products for these categories in one query with preloaded store data
+    category_ids = Enum.map(categories, & &1.id)
+
+    products_by_category = Product
+    |> where([p], p.category_id in ^category_ids)
+    |> preload([:store, :category, store: :user])
+    |> order_by([p], [desc: p.inserted_at])
+    |> Repo.all()
+    |> Enum.group_by(& &1.category_id)
+
+    # Attach products to their categories (limit to 8 per category) and filter out empty categories
+    categories
     |> Enum.map(fn category ->
-      products = Shomp.Products.get_products_by_category(category.id, 8)
+      products = Map.get(products_by_category, category.id, []) |> Enum.take(8)
       Map.put(category, :products, products)
     end)
+    |> Enum.reject(fn category -> Enum.empty?(category.products) end)
   end
 end

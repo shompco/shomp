@@ -248,7 +248,8 @@ const liveSocket = new LiveSocket("/live", Socket, {
     FileUploadHook,
     CartDonationHook,
     UsCitizenshipValidation,
-    DigitalFileUpload
+    DigitalFileUpload,
+    ShowHideOnTypeChange
   },
 })
 

@@ -269,10 +269,10 @@ defmodule ShompWeb.StoreLive.Index do
         <%= if @current_scope do %>
           <div class="text-center mt-12">
             <.link
-              navigate={~p"/stores/new"}
+              navigate={~p"/dashboard/products/new"}
               class="btn btn-primary btn-lg"
             >
-              Create Your Own Store
+              Sell Your Own Product
             </.link>
           </div>
         <% end %>

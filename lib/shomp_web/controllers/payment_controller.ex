@@ -125,7 +125,7 @@ defmodule ShompWeb.PaymentController do
     cond do
       String.contains?(referer, "/about") -> "About"
       String.contains?(referer, "/requests") -> "Feature Requests"
-      String.contains?(referer, "/stores") -> "Browse Stores"
+      String.contains?(referer, "/categories") -> "Browse Products"
       String.contains?(referer, "/donations") -> "Donations"
       String.contains?(referer, "/landing") -> "About Shomp"
       String.contains?(referer, "/") -> "Home"

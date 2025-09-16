@@ -168,7 +168,7 @@ defmodule ShompWeb.ProductLive.New do
           <% end %>
 
           <!-- Quantity Available (only for physical products) -->
-          <div id="quantity-section" class="hidden" phx-hook="ShowHideOnTypeChange" data-show-on="physical">
+          <%= if @product_type == "physical" do %>
             <.input
               field={@form[:quantity]}
               type="number"
@@ -177,7 +177,7 @@ defmodule ShompWeb.ProductLive.New do
               min="0"
               step="1"
             />
-          </div>
+          <% end %>
 
           <!-- Category Selection Section -->
           <div class="space-y-4">
@@ -281,6 +281,37 @@ defmodule ShompWeb.ProductLive.New do
             <% end %>
           </div>
 
+          <!-- US Citizen Compliance Checkbox -->
+          <div class="space-y-4">
+            <div class="space-y-2">
+              <div class="fieldset mb-2">
+                <label>
+                  <input type="hidden" name="product[us_citizen_confirmation]" value="false" />
+                  <span class="label">
+                    <input
+                      type="checkbox"
+                      id="product_us_citizen_confirmation"
+                      name="product[us_citizen_confirmation]"
+                      value="true"
+                      checked={@form[:us_citizen_confirmation].value}
+                      class="checkbox checkbox-sm"
+                      required
+                    />
+                    I confirm that I am located in the United States and eligible to receive payments here.
+                  </span>
+                </label>
+                <%= if @form[:us_citizen_confirmation].errors != [] do %>
+                  <p class="mt-1.5 flex gap-2 items-center text-sm text-orange-600">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                    </svg>
+                    Shomp is only available to users based in the U.S. This ensures we can process payouts smoothly.
+                  </p>
+                <% end %>
+              </div>
+            </div>
+          </div>
+
           <.button phx-disable-with="Creating product..." class="btn btn-primary w-full">
             Create Product
           </.button>
@@ -294,14 +325,15 @@ defmodule ShompWeb.ProductLive.New do
   def mount(_params, _session, socket) do
     user = socket.assigns.current_scope.user
 
-    # Get the user's default store
+    # Get or create the user's default store
     store = Stores.get_user_default_store(user)
 
     if store do
       # Default to Physical Product and load physical categories
       changeset = Products.change_product_creation(%Products.Product{})
       changeset = Ecto.Changeset.put_change(changeset, :store_id, store.store_id)
-        changeset = Ecto.Changeset.put_change(changeset, :type, "physical")
+      changeset = Ecto.Changeset.put_change(changeset, :type, "physical")
+      changeset = Ecto.Changeset.put_change(changeset, :us_citizen_confirmation, false)
 
         # Load physical categories by default
         physical_categories = Categories.get_categories_by_type("physical")
@@ -331,7 +363,6 @@ defmodule ShompWeb.ProductLive.New do
           |> assign(:uploaded_images, [])
           |> assign(:uploaded_digital_file, nil)
           |> assign(:product_type, "physical")
-          |> push_event("js", %{exec: "document.getElementById('quantity-section').classList.remove('hidden')"})
 
         {:ok, socket}
     else
@@ -437,19 +468,30 @@ defmodule ShompWeb.ProductLive.New do
     file_data = build_file_data(socket.assigns)
     IO.puts("File data: #{inspect(file_data)}")
 
-    # Merge file data with product params
-    complete_params = Map.merge(product_params, file_data)
+    # Merge file data with product params and ensure all keys are strings
+    complete_params = product_params
+    |> Map.merge(file_data)
+    |> Enum.map(fn {k, v} -> {to_string(k), v} end)
+    |> Map.new()
     IO.puts("Complete params: #{inspect(complete_params)}")
 
-    with {:ok, product} <- Products.create_product(complete_params) do
-      store = find_store_by_id(socket.assigns.stores, product.store_id)
+    # Get the user's default store for navigation
+    user = socket.assigns.current_scope.user
+
+    with {:ok, product} <- Products.create_user_product(user, complete_params) do
       success_message = build_success_message(socket.assigns)
 
       {:noreply,
        socket
        |> put_flash(:info, success_message)
-       |> push_navigate(to: ~p"/stores/#{store.slug}")}
+       |> push_navigate(to: ~p"/#{user.username}/#{product.slug}")}
     else
+      {:error, :no_store} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Unable to access your store. Please try again.")
+         |> push_navigate(to: ~p"/")}
+
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign_form(socket, changeset, socket.assigns.filtered_category_options, socket.assigns.custom_category_options)}
 
@@ -693,9 +735,6 @@ defmodule ShompWeb.ProductLive.New do
     end
   end
 
-  defp find_store_by_id(stores, store_id) do
-    Enum.find(stores, fn store -> store.store_id == store_id end)
-  end
 
   defp assign_form(socket, %Ecto.Changeset{} = changeset, filtered_category_options, custom_category_options) do
     form = to_form(changeset, as: "product")

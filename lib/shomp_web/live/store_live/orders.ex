@@ -109,10 +109,10 @@ defmodule ShompWeb.StoreLive.Orders do
       <div class="mx-auto max-w-6xl">
         <div class="mb-8">
           <.header>
-            Order Management
+            Your Customer's Order Management
             <:subtitle>
               <%= if @store do %>
-                Manage orders for your store: <%= @store.name %>
+                Manage orders for all your customers: <%= @store.name %>
               <% else %>
                 Select a store to manage orders
               <% end %>
@@ -434,7 +434,7 @@ defmodule ShompWeb.StoreLive.Orders do
           store: single_store,
           stores: stores,
           orders: orders,
-          page_title: "Order Management"
+          page_title: "Your Customer's Order Management"
         )}
 
       multiple_stores ->
@@ -446,7 +446,7 @@ defmodule ShompWeb.StoreLive.Orders do
               store: nil,
               stores: multiple_stores,
               orders: [],
-              page_title: "Order Management - Select Store"
+              page_title: "Your Customer's Order Management - Select Store"
             )}
 
           store_id ->
@@ -458,7 +458,7 @@ defmodule ShompWeb.StoreLive.Orders do
                   store: nil,
                   stores: multiple_stores,
                   orders: [],
-                  page_title: "Order Management - Select Store"
+                  page_title: "Your Customer's Order Management - Select Store"
                 )}
 
               selected_store ->
@@ -472,7 +472,7 @@ defmodule ShompWeb.StoreLive.Orders do
                   store: selected_store,
                   stores: multiple_stores,
                   orders: orders,
-                  page_title: "Order Management"
+                  page_title: "Your Customer's Order Management"
                 )}
             end
         end
