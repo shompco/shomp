@@ -3,6 +3,7 @@ defmodule ShompWeb.ProductLive.Show do
 
   on_mount {ShompWeb.UserAuth, :mount_current_scope}
 
+  alias Shomp.Accounts
   alias Shomp.Products
   alias Shomp.Stores
   alias Shomp.StoreCategories
@@ -22,6 +23,48 @@ defmodule ShompWeb.ProductLive.Show do
   end
 
   @impl true
+  def mount(%{"username" => username, "product_slug" => product_slug} = params, _session, socket) do
+    # Get the user by username
+    case Accounts.get_user_by_username(username) do
+      nil ->
+        {:ok,
+         socket
+         |> put_flash(:error, "User not found")
+         |> push_navigate(to: ~p"/")}
+
+      user ->
+        # Get the user's default store
+        store = Shomp.Stores.get_user_default_store(user)
+        if store do
+          # Get the product by username and slug
+          case Products.get_product_by_username_and_slug(username, product_slug) do
+            nil ->
+              {:ok,
+               socket
+               |> put_flash(:error, "Product not found")
+               |> push_navigate(to: ~p"/#{username}")}
+
+            product ->
+              # Subscribe to product quantity changes
+              if connected?(socket) do
+                Phoenix.PubSub.subscribe(Shomp.PubSub, "product_quantity:#{product.id}")
+              end
+
+              # Fetch reviews for this product
+              reviews = Shomp.Reviews.get_product_reviews(product.id)
+              referrer = params["referrer"] || "store"
+
+              {:ok, assign(socket, product: product, reviews: reviews, current_image: product.image_original, current_image_index: nil, donate: true, referrer: referrer)}
+          end
+        else
+          {:ok,
+           socket
+           |> put_flash(:error, "Store not found")
+           |> push_navigate(to: ~p"/")}
+        end
+    end
+  end
+
   def mount(%{"store_slug" => store_slug, "id" => id} = params, _session, socket) do
     product = Products.get_product_with_store!(id)
 
@@ -170,10 +213,10 @@ defmodule ShompWeb.ProductLive.Show do
             </.link>
             <span>/</span>
             <.link
-              navigate={~p"/stores/#{@product.store.slug}"}
+              navigate={~p"/#{@product.store.user.username}"}
               class="hover:text-base-content transition-colors"
             >
-              <%= @product.store.name %>
+              <%= @product.store.user.username %>
             </.link>
 
             <%= if @product.custom_category && Map.has_key?(@product.custom_category, :slug) && @product.custom_category.slug do %>

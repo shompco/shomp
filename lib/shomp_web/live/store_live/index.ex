@@ -9,11 +9,13 @@ defmodule ShompWeb.StoreLive.Index do
   @impl true
   def mount(_params, _session, socket) do
     stores = Stores.list_stores_with_users()
-    # Manually load products for each store to avoid association issues
-    stores_with_products = Enum.map(stores, fn store ->
+    # Manually load products for each store and filter out stores with no products
+    stores_with_products = stores
+    |> Enum.map(fn store ->
       products = Shomp.Products.list_products_by_store(store.store_id)
       Map.put(store, :products, products)
     end)
+    |> Enum.filter(fn store -> length(store.products) > 0 end)
     {:ok, assign(socket, stores: stores_with_products, search: "", filtered_stores: stores_with_products)}
   end
 
@@ -25,8 +27,8 @@ defmodule ShompWeb.StoreLive.Index do
       else
         socket.assigns.stores
         |> Enum.filter(fn store ->
-          String.contains?(String.downcase(store.name), String.downcase(search)) or
-          String.contains?(String.downcase(store.description || ""), String.downcase(search))
+          String.contains?(String.downcase(store.user.username), String.downcase(search)) or
+          String.contains?(String.downcase(store.user.name || ""), String.downcase(search))
         end)
       end
 
@@ -102,10 +104,10 @@ defmodule ShompWeb.StoreLive.Index do
                 🏪
               </div>
               <h1 class="text-sm font-semibold text-primary">
-                Browse Stores
+                Browse Creators
               </h1>
               <span class="text-xs text-base-content/60">
-                <%= length(@stores) %> stores
+                <%= length(@stores) %> creators
               </span>
             </div>
             <div class="text-xs text-base-content/70">
@@ -165,10 +167,10 @@ defmodule ShompWeb.StoreLive.Index do
               </div>
               <%= if @current_scope do %>
                 <.link
-                  navigate={~p"/stores/new"}
+                  navigate={~p"/dashboard/products/new"}
                   class="btn btn-primary"
                 >
-                  Create Your Store
+                  Start Selling
                 </.link>
               <% else %>
                 <.link
@@ -188,15 +190,15 @@ defmodule ShompWeb.StoreLive.Index do
                   <!-- Store Info Section - fixed width -->
                   <div class="flex-shrink-0 w-80 lg:w-96">
                     <.link
-                      navigate={~p"/stores/#{store.slug}"}
+                      navigate={~p"/#{store.user.username}"}
                       class="text-lg font-semibold text-base-content hover:text-primary transition-colors duration-200 block"
                     >
-                      <%= store.name %>
+                      <%= store.user.username %>
                     </.link>
 
-                    <%= if store.description do %>
+                    <%= if store.user.bio do %>
                       <p class="text-base-content/70 text-sm mt-1 line-clamp-1">
-                        <%= store.description %>
+                        <%= store.user.bio %>
                       </p>
                     <% end %>
 
@@ -323,23 +325,16 @@ defmodule ShompWeb.StoreLive.Index do
   # Helper function to get product URL
   defp get_product_url(product) do
     if product.store do
-      if product.slug do
-        # Check if custom_category is loaded and has a slug
-        custom_category_slug = case product do
-          %{custom_category: %Ecto.Association.NotLoaded{}} -> nil
-          %{custom_category: nil} -> nil
-          %{custom_category: custom_category} when is_map(custom_category) ->
-            Map.get(custom_category, :slug)
-          _ -> nil
-        end
-
-        if custom_category_slug do
-          "/stores/#{product.store.slug}/#{custom_category_slug}/#{product.slug}"
+      # Get the store owner's username
+      store_owner = Shomp.Accounts.get_user_by_id(product.store.user_id)
+      if store_owner do
+        if product.slug do
+          "/#{store_owner.username}/#{product.slug}"
         else
-          "/stores/#{product.store.slug}/products/#{product.slug}"
+          "/#{store_owner.username}/#{product.id}"
         end
       else
-        "/stores/#{product.store.slug}/products/#{product.id}"
+        "#"
       end
     else
       "#"

@@ -202,7 +202,7 @@ defmodule ShompWeb.DownloadLive.Purchases do
                               </a>
                             <% end %>
                           <% end %>
-                          <a href={~p"/stores/#{order_item.product.store.slug}/products/#{order_item.product_id}/reviews/new"} class="btn btn-xs btn-secondary">
+                          <a href={~p"/#{order_item.product.store.user.username}/#{order_item.product.slug || order_item.product_id}/reviews/new"} class="btn btn-xs btn-secondary">
                             Review
                           </a>
                         </div>

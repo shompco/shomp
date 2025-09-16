@@ -119,6 +119,8 @@ defmodule ShompWeb.ProductLive.Edit do
             phx-change="type_changed"
           />
 
+          <!-- Store Category field hidden per MVP Core 12 -->
+          <!--
           <.input
             field={@form[:custom_category_id]}
             type="select"
@@ -126,6 +128,7 @@ defmodule ShompWeb.ProductLive.Edit do
             options={@custom_category_options}
             prompt="Select a store category to organize your products"
           />
+          -->
 
           <!-- Product Images Management -->
           <div class="space-y-6">

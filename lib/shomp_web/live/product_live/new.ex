@@ -21,14 +21,6 @@ defmodule ShompWeb.ProductLive.New do
         </div>
 
         <.form for={@form} id="product_form" phx-submit="save" phx-change="validate" multipart>
-          <.input
-            field={@form[:store_id]}
-            type="select"
-            label="Select Store"
-            options={@store_options}
-            required
-            phx-change="store_changed"
-          />
 
           <.input
             field={@form[:title]}
@@ -200,6 +192,8 @@ defmodule ShompWeb.ProductLive.New do
               required
             />
 
+            <!-- Store Category field hidden per MVP Core 12 -->
+            <!--
             <.input
               field={@form[:custom_category_id]}
               type="select"
@@ -207,10 +201,10 @@ defmodule ShompWeb.ProductLive.New do
               options={@custom_category_options}
               prompt="Select a store category to organize your products"
             />
+            -->
 
             <div class="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
               <p><strong>Platform Category:</strong> Required. This helps customers discover your product across the platform.</p>
-              <p><strong>Store Category:</strong> Optional. Create custom categories in your store settings to organize products your way.</p>
             </div>
           </div>
 
@@ -297,58 +291,23 @@ defmodule ShompWeb.ProductLive.New do
   end
 
   @impl true
-  def mount(params, _session, socket) do
+  def mount(_params, _session, socket) do
     user = socket.assigns.current_scope.user
 
-    # Get the user's stores
-    stores = Stores.get_stores_by_user(user.id)
+    # Get the user's default store
+    store = Stores.get_user_default_store(user)
 
-    case stores do
-      [] ->
-        {:ok,
-         socket
-         |> put_flash(:error, "You need to create a store first!")
-         |> push_navigate(to: ~p"/stores/new")}
-
-      _ ->
-        # Create store options for the dropdown
-        store_options = Enum.map(stores, fn store ->
-          {store.name, store.store_id}
-        end)
-
-        # Pre-select store based on URL parameter or first store if only one exists
-        selected_store_id = cond do
-          # If store_id is provided in URL params, use that
-          params["store_id"] && params["store_id"] != "" ->
-            # Verify the store belongs to the user
-            case Enum.find(stores, fn store -> store.store_id == params["store_id"] end) do
-              nil -> if length(stores) == 1, do: List.first(stores).store_id, else: nil
-              store -> store.store_id
-            end
-          # If only one store exists, pre-select it
-          length(stores) == 1 -> List.first(stores).store_id
-          # Otherwise, no pre-selection
-          true -> nil
-        end
-
-        # Default to Physical Product and load physical categories
-        changeset = Products.change_product_creation(%Products.Product{})
-        changeset = if selected_store_id do
-          Ecto.Changeset.put_change(changeset, :store_id, selected_store_id)
-        else
-          changeset
-        end
+    if store do
+      # Default to Physical Product and load physical categories
+      changeset = Products.change_product_creation(%Products.Product{})
+      changeset = Ecto.Changeset.put_change(changeset, :store_id, store.store_id)
         changeset = Ecto.Changeset.put_change(changeset, :type, "physical")
 
         # Load physical categories by default
         physical_categories = Categories.get_categories_by_type("physical")
 
-        # Load custom categories for selected store
-        custom_categories = if selected_store_id do
-          StoreCategories.get_store_category_options_with_default(selected_store_id)
-        else
-          [{"Select Store First", nil}]
-        end
+        # Load custom categories for the default store
+        custom_categories = StoreCategories.get_store_category_options_with_default(store.store_id)
 
         # Configure uploads
         socket = socket
@@ -367,7 +326,7 @@ defmodule ShompWeb.ProductLive.New do
             progress: &handle_progress/3
           )
 
-        socket = assign_form(socket, changeset, store_options, stores, physical_categories, custom_categories)
+        socket = assign_form(socket, changeset, physical_categories, custom_categories)
           |> assign(:filtered_category_options, physical_categories)
           |> assign(:uploaded_images, [])
           |> assign(:uploaded_digital_file, nil)
@@ -375,6 +334,11 @@ defmodule ShompWeb.ProductLive.New do
           |> push_event("js", %{exec: "document.getElementById('quantity-section').classList.remove('hidden')"})
 
         {:ok, socket}
+    else
+      {:ok,
+       socket
+       |> put_flash(:error, "Unable to create your store. Please try again.")
+       |> push_navigate(to: ~p"/")}
     end
   end
 
@@ -385,18 +349,7 @@ defmodule ShompWeb.ProductLive.New do
       |> Products.change_product_creation(product_params)
       |> Map.put(:action, :validate)
 
-    {:noreply, assign_form(socket, changeset, socket.assigns.store_options, socket.assigns.stores, socket.assigns.filtered_category_options, socket.assigns.custom_category_options)}
-  end
-
-  def handle_event("store_changed", %{"product" => %{"store_id" => store_id}}, socket) do
-    # Update custom categories when store changes
-    custom_categories = if store_id && store_id != "" do
-      StoreCategories.get_store_category_options_with_default(store_id)
-    else
-      [{"Select Store First", nil}]
-    end
-
-    {:noreply, assign(socket, custom_category_options: custom_categories)}
+    {:noreply, assign_form(socket, changeset, socket.assigns.filtered_category_options, socket.assigns.custom_category_options)}
   end
 
   def handle_event("type_changed", %{"product" => %{"type" => product_type}}, socket) do
@@ -443,6 +396,66 @@ defmodule ShompWeb.ProductLive.New do
   def handle_event("upload_images", _params, socket) do
     # This event is no longer needed with auto_upload: true
     {:noreply, socket}
+  end
+
+  def handle_event("move_image_up", %{"index" => index}, socket) do
+    index = String.to_integer(index)
+    if index > 0 do
+      uploaded_images = socket.assigns.uploaded_images
+      new_images = List.insert_at(List.delete_at(uploaded_images, index), index - 1, Enum.at(uploaded_images, index))
+      {:noreply, assign(socket, uploaded_images: new_images)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_event("move_image_down", %{"index" => index}, socket) do
+    index = String.to_integer(index)
+    uploaded_images = socket.assigns.uploaded_images
+    if index < length(uploaded_images) - 1 do
+      new_images = List.insert_at(List.delete_at(uploaded_images, index), index + 1, Enum.at(uploaded_images, index))
+      {:noreply, assign(socket, uploaded_images: new_images)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_event("remove_image", %{"index" => index}, socket) do
+    index = String.to_integer(index)
+    uploaded_images = socket.assigns.uploaded_images
+    new_images = List.delete_at(uploaded_images, index)
+    {:noreply, assign(socket, uploaded_images: new_images)}
+  end
+
+  def handle_event("save", %{"product" => product_params}, socket) do
+    IO.puts("=== SAVE EVENT DEBUG ===")
+    IO.puts("Product params: #{inspect(product_params)}")
+    IO.puts("Uploaded digital file: #{inspect(socket.assigns.uploaded_digital_file)}")
+    IO.puts("Uploaded images: #{inspect(socket.assigns.uploaded_images)}")
+
+    # Build file data and merge with product params
+    file_data = build_file_data(socket.assigns)
+    IO.puts("File data: #{inspect(file_data)}")
+
+    # Merge file data with product params
+    complete_params = Map.merge(product_params, file_data)
+    IO.puts("Complete params: #{inspect(complete_params)}")
+
+    with {:ok, product} <- Products.create_product(complete_params) do
+      store = find_store_by_id(socket.assigns.stores, product.store_id)
+      success_message = build_success_message(socket.assigns)
+
+      {:noreply,
+       socket
+       |> put_flash(:info, success_message)
+       |> push_navigate(to: ~p"/stores/#{store.slug}")}
+    else
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:noreply, assign_form(socket, changeset, socket.assigns.filtered_category_options, socket.assigns.custom_category_options)}
+
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, "Failed to create product: #{reason}")}
+    end
   end
 
   def handle_progress(:product_images, entry, socket) do
@@ -620,66 +633,6 @@ defmodule ShompWeb.ProductLive.New do
     :crypto.strong_rand_bytes(16) |> Base.encode64()
   end
 
-  def handle_event("move_image_up", %{"index" => index}, socket) do
-    index = String.to_integer(index)
-    if index > 0 do
-      uploaded_images = socket.assigns.uploaded_images
-      new_images = List.insert_at(List.delete_at(uploaded_images, index), index - 1, Enum.at(uploaded_images, index))
-      {:noreply, assign(socket, uploaded_images: new_images)}
-    else
-      {:noreply, socket}
-    end
-  end
-
-  def handle_event("move_image_down", %{"index" => index}, socket) do
-    index = String.to_integer(index)
-    uploaded_images = socket.assigns.uploaded_images
-    if index < length(uploaded_images) - 1 do
-      new_images = List.insert_at(List.delete_at(uploaded_images, index), index + 1, Enum.at(uploaded_images, index))
-      {:noreply, assign(socket, uploaded_images: new_images)}
-    else
-      {:noreply, socket}
-    end
-  end
-
-  def handle_event("remove_image", %{"index" => index}, socket) do
-    index = String.to_integer(index)
-    uploaded_images = socket.assigns.uploaded_images
-    new_images = List.delete_at(uploaded_images, index)
-    {:noreply, assign(socket, uploaded_images: new_images)}
-  end
-
-  def handle_event("save", %{"product" => product_params}, socket) do
-    IO.puts("=== SAVE EVENT DEBUG ===")
-    IO.puts("Product params: #{inspect(product_params)}")
-    IO.puts("Uploaded digital file: #{inspect(socket.assigns.uploaded_digital_file)}")
-    IO.puts("Uploaded images: #{inspect(socket.assigns.uploaded_images)}")
-
-    # Build file data and merge with product params
-    file_data = build_file_data(socket.assigns)
-    IO.puts("File data: #{inspect(file_data)}")
-
-    # Merge file data with product params
-    complete_params = Map.merge(product_params, file_data)
-    IO.puts("Complete params: #{inspect(complete_params)}")
-
-    with {:ok, product} <- Products.create_product(complete_params) do
-      store = find_store_by_id(socket.assigns.stores, product.store_id)
-      success_message = build_success_message(socket.assigns)
-
-      {:noreply,
-       socket
-       |> put_flash(:info, success_message)
-       |> push_navigate(to: ~p"/stores/#{store.slug}")}
-    else
-      {:error, %Ecto.Changeset{} = changeset} ->
-        {:noreply, assign_form(socket, changeset, socket.assigns.store_options, socket.assigns.stores, socket.assigns.filtered_category_options, socket.assigns.custom_category_options)}
-
-      {:error, reason} ->
-        {:noreply, put_flash(socket, :error, "Failed to create product: #{reason}")}
-    end
-  end
-
   defp update_product_with_files(product, socket) do
     file_data = build_file_data(socket.assigns)
 
@@ -744,12 +697,10 @@ defmodule ShompWeb.ProductLive.New do
     Enum.find(stores, fn store -> store.store_id == store_id end)
   end
 
-  defp assign_form(socket, %Ecto.Changeset{} = changeset, store_options, stores, filtered_category_options, custom_category_options) do
+  defp assign_form(socket, %Ecto.Changeset{} = changeset, filtered_category_options, custom_category_options) do
     form = to_form(changeset, as: "product")
     assign(socket,
       form: form,
-      store_options: store_options,
-      stores: stores,
       filtered_category_options: filtered_category_options,
       custom_category_options: custom_category_options,
       uploaded_files: []

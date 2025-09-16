@@ -27,6 +27,22 @@ defmodule Shomp.Accounts do
   end
 
   @doc """
+  Gets a user by ID.
+
+  ## Examples
+
+      iex> get_user_by_id(1)
+      %User{}
+
+      iex> get_user_by_id(999)
+      nil
+
+  """
+  def get_user_by_id(id) do
+    Repo.get(User, id)
+  end
+
+  @doc """
   Gets a user by email and password.
 
   ## Examples
@@ -114,6 +130,21 @@ defmodule Shomp.Accounts do
     Repo.get_by(User, username: username)
   end
 
+  @doc """
+  Gets a user by username with their default store and products preloaded.
+  """
+  def get_user_with_store_and_products(username) do
+    from(u in User, where: u.username == ^username)
+    |> Repo.one()
+    |> case do
+      nil -> nil
+      user ->
+        store = Shomp.Stores.get_user_default_store(user)
+        products = if store, do: Shomp.Products.list_products_by_store(store.store_id), else: []
+        Map.put(user, :products, products)
+    end
+  end
+
   ## User registration
 
   @doc """
@@ -133,12 +164,15 @@ defmodule Shomp.Accounts do
   """
   def register_user(attrs) do
     default_tier = get_default_tier()
-    
+
     case %User{}
          |> User.registration_changeset(attrs)
          |> Ecto.Changeset.put_change(:tier_id, default_tier.id)
          |> Repo.insert() do
       {:ok, user} = result ->
+        # Auto-create default store for new user
+        Shomp.Stores.ensure_default_store(user)
+
         # Broadcast to admin dashboard
         Phoenix.PubSub.broadcast(Shomp.PubSub, "admin:users", %{
           event: "user_registered",
@@ -490,7 +524,7 @@ defmodule Shomp.Accounts do
   """
   def check_user_limits(user) do
     user = Repo.preload(user, :tier)
-    
+
     %{
       store_count: count_user_stores(user.id),
       store_limit: user.tier.store_limit,

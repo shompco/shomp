@@ -91,19 +91,15 @@ defmodule ShompWeb.UserLive.Registration do
     case Accounts.register_user(user_params) do
       {:ok, user} ->
         # Automatically log in the user after successful registration
-        {:ok, _} =
-          Accounts.deliver_login_instructions(
-            user,
-            &url(~p"/users/log-in/#{&1}")
-          )
-
+        {:ok, token, _claims} = Accounts.generate_user_session_token(user)
+        
         {:noreply,
          socket
          |> put_flash(
            :info,
-           "Account created successfully! Please check your email to confirm your account."
+           "Account created successfully! Welcome to Shomp - let's start selling!"
          )
-         |> push_navigate(to: ~p"/users/log-in")}
+         |> push_navigate(to: ~p"/users/log-in?token=#{token}", external: true)}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign_form(socket, changeset)}

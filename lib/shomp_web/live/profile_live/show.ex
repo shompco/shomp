@@ -1,11 +1,13 @@
 defmodule ShompWeb.ProfileLive.Show do
   use ShompWeb, :live_view
 
+  on_mount {ShompWeb.UserAuth, :mount_current_scope}
+
   alias Shomp.Accounts
-  alias Shomp.Stores
+  alias Shomp.Products
 
   def mount(%{"username" => username}, _session, socket) do
-    case Accounts.get_user_by_username(username) do
+    case Accounts.get_user_with_store_and_products(username) do
       nil ->
         {:ok,
          socket
@@ -13,13 +15,11 @@ defmodule ShompWeb.ProfileLive.Show do
          |> redirect(to: ~p"/")}
 
       user ->
-        stores = Stores.get_stores_by_user(user.id)
-        
         {:ok,
          socket
          |> assign(:creator, user)
-         |> assign(:stores, stores)
-         |> assign(:page_title, "#{user.username || user.name}'s Profile")}
+         |> assign(:products, user.products || [])
+         |> assign(:page_title, "#{user.username || user.name}'s Store")}
     end
   end
 
@@ -36,10 +36,11 @@ defmodule ShompWeb.ProfileLive.Show do
                 <%= String.first(@creator.username || @creator.name || "U") %>
               </div>
             </div>
-            
+
             <!-- Profile Info -->
             <div class="flex-1">
-              <div class="flex items-center gap-3 mb-4">
+              <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-3">
                 <h1 class="text-3xl font-bold">
                   <%= @creator.username || @creator.name %>
                 </h1>
@@ -51,18 +52,31 @@ defmodule ShompWeb.ProfileLive.Show do
                     Verified Creator
                   </div>
                 <% end %>
+                </div>
+
+                <%= if @current_scope && @current_scope.user && @current_scope.user.id == @creator.id do %>
+                  <.link
+                    navigate={~p"/my/details"}
+                    class="btn btn-outline btn-sm"
+                  >
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    Update Store and Profile Page
+                  </.link>
+                <% end %>
               </div>
-              
+
               <p class="text-lg text-base-content/70 mb-4">
                 Member since <%= Calendar.strftime(@creator.inserted_at, "%B %Y") %>
               </p>
-              
+
               <div class="flex flex-wrap gap-4 text-sm text-base-content/60">
                 <div class="flex items-center gap-2">
                   <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" />
                   </svg>
-                  <%= length(@stores) %> Store<%= if length(@stores) != 1, do: "s", else: "" %>
+                  <%= length(@products) %> Product<%= if length(@products) != 1, do: "s", else: "" %>
                 </div>
               </div>
             </div>
@@ -94,7 +108,7 @@ defmodule ShompWeb.ProfileLive.Show do
                   </.link>
                 </div>
               <% end %>
-              
+
               <%= if @creator.location do %>
                 <div class="flex items-center gap-3">
                   <svg class="w-5 h-5 text-primary flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -109,36 +123,59 @@ defmodule ShompWeb.ProfileLive.Show do
           </div>
         <% end %>
 
-        <!-- Stores Section -->
+        <!-- Products Section -->
         <div class="bg-base-100 rounded-lg shadow-lg p-8">
-          <h2 class="text-2xl font-bold mb-6">Stores</h2>
-          
-          <%= if @stores == [] do %>
+          <h2 class="text-2xl font-bold mb-6">Products</h2>
+
+          <%= if @products == [] do %>
             <div class="text-center py-12 text-base-content/60">
-              <svg class="w-16 h-16 mx-auto mb-4 text-base-content/30" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" />
-              </svg>
-              <p class="text-lg">No stores yet</p>
-              <p class="text-sm">This creator hasn't created any stores yet.</p>
+              <div class="mx-auto h-24 w-24 text-base-content/30 mb-4">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+              </div>
+              <p class="text-lg">No products yet</p>
+              <p class="text-sm">This creator hasn't added any products yet.</p>
             </div>
           <% else %>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <%= for store <- @stores do %>
-                <div class="card bg-base-200 hover:bg-base-300 transition-colors cursor-pointer">
-                  <div class="card-body">
-                    <h3 class="card-title text-lg">
-                      <.link href={~p"/stores/#{store.slug}"} class="hover:text-primary">
-                        <%= store.name %>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              <%= for product <- @products do %>
+                <div class="card bg-base-200 hover:bg-base-300 transition-colors cursor-pointer overflow-hidden">
+                  <!-- Product Image -->
+                  <div class="aspect-square bg-base-300 flex items-center justify-center">
+                    <%= if get_product_image(product) do %>
+                      <img
+                        src={get_product_image(product)}
+                        alt={product.title}
+                        class="w-full h-full object-cover"
+                      />
+                    <% else %>
+                      <div class="text-base-content/40">
+                        <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                    <% end %>
+                  </div>
+
+                  <div class="card-body p-4">
+                    <h3 class="card-title text-lg line-clamp-2">
+                      <.link href={get_product_url(product, @creator)} class="hover:text-primary">
+                        <%= product.title %>
                       </.link>
                     </h3>
-                    <%= if store.description do %>
-                      <p class="text-base-content/70 text-sm line-clamp-2">
-                        <%= store.description %>
-                      </p>
-                    <% end %>
+                    <p class="text-2xl font-bold text-primary mb-2">
+                      $<%= product.price %>
+                    </p>
+                    <div class="flex items-center justify-between text-sm text-base-content/60 mb-4">
+                      <span class="capitalize"><%= product.type %></span>
+                      <span class={if product.quantity == 0 && product.type == "physical", do: "text-error", else: "text-success"}>
+                        <%= if product.quantity == 0 && product.type == "physical", do: "Sold Out", else: "Available" %>
+                      </span>
+                    </div>
                     <div class="card-actions justify-end mt-4">
-                      <.link href={~p"/stores/#{store.slug}"} class="btn btn-primary btn-sm">
-                        Visit Store
+                      <.link href={get_product_url(product, @creator)} class="btn btn-primary btn-sm">
+                        View Product
                       </.link>
                     </div>
                   </div>
@@ -150,5 +187,33 @@ defmodule ShompWeb.ProfileLive.Show do
       </div>
     </div>
     """
+  end
+
+  # Helper function to get the best available image for a product
+  defp get_product_image(product) do
+    cond do
+      # Try thumbnail first
+      product.image_thumb && product.image_thumb != "" -> product.image_thumb
+      # Fall back to original image
+      product.image_original && product.image_original != "" -> product.image_original
+      # Try medium image
+      product.image_medium && product.image_medium != "" -> product.image_medium
+      # Try large image
+      product.image_large && product.image_large != "" -> product.image_large
+      # Try additional images if available
+      product.additional_images && length(product.additional_images) > 0 ->
+        List.first(product.additional_images)
+      # No image available
+      true -> nil
+    end
+  end
+
+  # Helper function to get product URL
+  defp get_product_url(product, user) do
+    if product.slug do
+      "/#{user.username}/#{product.slug}"
+    else
+      "/#{user.username}/#{product.id}"
+    end
   end
 end

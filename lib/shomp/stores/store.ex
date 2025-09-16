@@ -12,6 +12,7 @@ defmodule Shomp.Stores.Store do
     field :merchant_status, :string, default: "pending_verification"
     field :pending_balance, :decimal, default: 0
     field :available_balance, :decimal, default: 0
+    field :is_default, :boolean, default: false
     field :us_citizen_confirmation, :boolean, virtual: true  # Virtual field for checkbox
     belongs_to :user, User
     has_many :products, Shomp.Products.Product, foreign_key: :store_id, references: :store_id

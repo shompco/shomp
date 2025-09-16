@@ -331,6 +331,58 @@ defmodule Shomp.Stores do
   end
 
   @doc """
+  Gets or creates the default store for a user.
+  This is the main function to use instead of managing multiple stores.
+  """
+  def get_user_default_store(user) do
+    case get_default_store_by_user(user.id) do
+      nil ->
+        case ensure_default_store(user) do
+          {:ok, store} -> store
+          {:error, _} -> nil
+        end
+      store -> store
+    end
+  end
+
+  @doc """
+  Gets a store by username (for public store pages).
+  """
+  def get_store_by_username(username) do
+    from(s in Store)
+    |> join(:inner, [s], u in User, on: s.user_id == u.id)
+    |> where([s, u], u.username == ^username and s.is_default == true)
+    |> Repo.one()
+  end
+
+  @doc """
+  Ensures user has a default store. Creates one if it doesn't exist.
+  """
+  def ensure_default_store(user) do
+    case get_default_store_by_user(user.id) do
+      nil -> create_default_store(user)
+      store -> {:ok, store}
+    end
+  end
+
+  defp get_default_store_by_user(user_id) do
+    from(s in Store, where: s.user_id == ^user_id and s.is_default == true)
+    |> Repo.one()
+  end
+
+  defp create_default_store(user) do
+    store_attrs = %{
+      name: user.username || user.name || "My Store",
+      slug: user.username,
+      description: "Welcome to #{user.username}'s store",
+      user_id: user.id,
+      is_default: true
+    }
+
+    create_store(store_attrs)
+  end
+
+  @doc """
   Cleans up Stripe account if user has no more stores.
   This prevents orphaned Stripe accounts.
   """

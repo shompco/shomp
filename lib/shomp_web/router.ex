@@ -59,15 +59,13 @@ defmodule ShompWeb.Router do
     end
   end
 
-  # Store routes
+  # Store routes (legacy - keeping for admin)
   scope "/stores", ShompWeb do
     pipe_through :browser
 
     live_session :stores_with_cart,
       on_mount: [{ShompWeb.UserAuth, :mount_current_scope}, {ShompWeb.CartHook, :default}, {ShompWeb.NotificationHook, :default}] do
-      live "/new", StoreLive.New, :new
       live "/", StoreLive.Index, :index
-      live "/:slug", StoreLive.Show, :show
     end
   end
 
@@ -133,8 +131,8 @@ defmodule ShompWeb.Router do
       live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
       live "/users/tier-upgrade", UserLive.TierUpgrade, :new
       live "/users/tier-selection", UserLive.TierSelection, :new
-      live "/users/profile", ProfileLive.Edit, :edit
-      live "/my/stores", StoreLive.MyStores, :index
+      live "/my/details", ProfileLive.Edit, :edit
+      live "/my/products", UserLive.MyProducts, :index
 
       # Address management
       live "/dashboard/addresses", AddressLive.Index, :index
@@ -242,28 +240,15 @@ defmodule ShompWeb.Router do
     end
   end
 
-  # Product and category routes - specific patterns
+  # Username-based store and product routes - must come AFTER all custom shomp routes
   scope "/", ShompWeb do
     pipe_through :browser
 
     live_session :public_products_with_cart,
       on_mount: [{ShompWeb.UserAuth, :mount_current_scope}, {ShompWeb.CartHook, :default}, {ShompWeb.NotificationHook, :default}] do
-      # Product routes - new structure with /stores/ prefix
-      live "/stores/:store_slug/products/:product_slug", ProductLive.Show, :show_by_store_product_slug
-
-      # Custom category product routes
-      live "/stores/:store_slug/:category_slug/:product_slug", ProductLive.Show, :show_by_slug
-
-      # Store category route
-      live "/stores/:store_slug/:category_slug", StoreLive.Show, :show_category
+      # Username-based store pages (public)
+      live "/:username", UserLive.Store, :show_by_username
+      live "/:username/:product_slug", ProductLive.Show, :show_by_username_product
     end
-
-    # Store-specific review routes
-    get "/stores/:store_slug/products/:product_id/reviews", ReviewController, :index
-    get "/stores/:store_slug/products/:product_id/reviews/new", ReviewController, :new
-    post "/stores/:store_slug/products/:product_id/reviews", ReviewController, :create
-    get "/stores/:store_slug/products/:product_id/reviews/:id/edit", ReviewController, :edit
-    put "/stores/:store_slug/products/:product_id/reviews/:id", ReviewController, :update
-    delete "/stores/:store_slug/products/:product_id/reviews/:id", ReviewController, :delete
   end
 end

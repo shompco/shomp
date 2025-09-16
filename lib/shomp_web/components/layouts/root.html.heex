@@ -148,21 +148,14 @@
       </li>
       <%= if @current_scope do %>
         <!-- Conditional Store Display -->
-        <%= if Shomp.Stores.count_user_stores(@current_scope.user.id) == 0 do %>
           <li>
-            <.link href={~p"/stores/new"} class="btn btn-ghost btn-sm">Create Store</.link>
-          </li>
-        <% else %>
-          <li>
-            <.link href={~p"/my/stores"} class="btn btn-ghost btn-sm">
-              My Stores
+            <.link href={~p"/my/products"} class="btn btn-ghost btn-sm">
+              My Products
               <span class="badge badge-sm badge-primary ml-1">
-                <%= Shomp.Stores.count_user_stores(@current_scope.user.id) %>
+                <%= length(Shomp.Products.list_user_products(@current_scope.user)) %>
               </span>
             </.link>
           </li>
-        <% end %>
-        
         <!-- Notification Bell -->
         <li>
           <div class="relative">
@@ -193,13 +186,11 @@
                 📦 My Purchases
               </.link>
             </li>
-            <%= if Shomp.Stores.count_user_stores(@current_scope.user.id) > 0 do %>
-              <li>
-                <.link href={~p"/stores/new"} class="btn btn-ghost btn-sm justify-start">
-                  🏪 Create Store
-                </.link>
-              </li>
-            <% end %>
+            <li>
+              <.link href={~p"/my/products"} class="btn btn-ghost btn-sm justify-start">
+                🏪 My Products
+              </.link>
+            </li>
             <li>
               <.link href={~p"/dashboard/store/balance"} class="btn btn-ghost btn-sm justify-start">
                 💰 Store Balance
@@ -278,13 +269,6 @@
             <span>🛒</span>
             <span class="cart-count" id="cart-count">(0)</span>
           </.link>
-        </li>
-      <% else %>
-        <li>
-          <.link href={~p"/users/register"} class="btn btn-ghost btn-sm">Register</.link>
-        </li>
-        <li>
-          <.link href={~p"/users/log-in"} class="btn btn-ghost btn-sm">Log in</.link>
         </li>
       <% end %>
     </ul>

@@ -118,23 +118,16 @@ defmodule ShompWeb.PageHTML do
 
   def get_product_url(product) do
     if product.store do
-      if product.slug do
-        # Check if custom_category is loaded and has a slug
-        custom_category_slug = case product do
-          %{custom_category: %Ecto.Association.NotLoaded{}} -> nil
-          %{custom_category: nil} -> nil
-          %{custom_category: custom_category} when is_map(custom_category) ->
-            Map.get(custom_category, :slug)
-          _ -> nil
-        end
-
-        if custom_category_slug do
-          "/stores/#{product.store.slug}/#{custom_category_slug}/#{product.slug}"
+      # Get the store owner's username
+      store_owner = Shomp.Accounts.get_user_by_id(product.store.user_id)
+      if store_owner do
+        if product.slug do
+          "/#{store_owner.username}/#{product.slug}"
         else
-          "/stores/#{product.store.slug}/products/#{product.slug}"
+          "/#{store_owner.username}/#{product.id}"
         end
       else
-        "/stores/#{product.store.slug}/products/#{product.id}"
+        "#"
       end
     else
       "#"

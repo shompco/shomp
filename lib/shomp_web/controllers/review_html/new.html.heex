@@ -19,7 +19,7 @@
         </div>
         
         <div class="px-6 py-6">
-          <.form for={@changeset} action={~p"/stores/#{@product.store.slug}/products/#{@product.id}/reviews"} method="post">
+          <.form for={@changeset} action={~p"/#{@product.store.user.username}/#{@product.slug || @product.id}/reviews"} method="post">
             <!-- Product Info -->
             <div class="mb-6 p-4 bg-gray-50 rounded-lg">
               <h3 class="font-semibold text-gray-900 mb-2"><%= @product.title %></h3>

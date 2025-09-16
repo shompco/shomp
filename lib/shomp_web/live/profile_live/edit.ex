@@ -5,11 +5,11 @@ defmodule ShompWeb.ProfileLive.Edit do
 
   def mount(_params, _session, socket) do
     user = socket.assigns.current_scope.user
-    
+
     {:ok,
      socket
      |> assign(:user, user)
-     |> assign(:page_title, "Edit Profile")}
+     |> assign(:page_title, "Update My Store & Profile")}
   end
 
   def render(assigns) do
@@ -37,10 +37,22 @@ defmodule ShompWeb.ProfileLive.Edit do
             My Orders
           </a>
         </div>
-        
+
         <div class="bg-base-100 rounded-lg shadow-lg p-8">
-          <h1 class="text-3xl font-bold mb-8">Edit Profile</h1>
-          
+          <div class="flex items-center justify-between mb-8">
+            <h1 class="text-3xl font-bold">Update My Store & Profile</h1>
+            <.link
+              navigate={~p"/#{@user.username}"}
+              class="btn btn-primary"
+            >
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              View My Store
+            </.link>
+          </div>
+
           <form phx-submit="update_profile" class="space-y-6">
             <!-- Username -->
             <div class="form-control">
@@ -131,10 +143,10 @@ defmodule ShompWeb.ProfileLive.Edit do
             <div class="form-control pt-4">
               <div class="flex gap-4">
                 <button type="submit" class="btn btn-primary flex-1">
-                  Update Profile
+                  Update Store and Profile page
                 </button>
                 <.link href={~p"/#{@user.username}"} class="btn btn-outline flex-1">
-                  View Profile
+                  View My Store
                 </.link>
               </div>
             </div>
@@ -142,7 +154,7 @@ defmodule ShompWeb.ProfileLive.Edit do
 
           <!-- Current Profile Info -->
           <div class="divider">Current Profile</div>
-          
+
           <div class="bg-base-200 rounded-lg p-6">
             <div class="flex items-center gap-4 mb-4">
               <div class="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center text-2xl font-bold text-primary">
@@ -157,13 +169,13 @@ defmodule ShompWeb.ProfileLive.Edit do
                 </p>
               </div>
             </div>
-            
+
             <%= if @user.bio do %>
               <p class="text-base-content/80 mb-3">
                 <%= @user.bio %>
               </p>
             <% end %>
-            
+
             <div class="flex flex-wrap gap-2 text-sm">
               <%= if @user.location do %>
                 <div class="badge badge-outline gap-2">
@@ -173,7 +185,7 @@ defmodule ShompWeb.ProfileLive.Edit do
                   <%= @user.location %>
                 </div>
               <% end %>
-              
+
               <%= if @user.website do %>
                 <div class="badge badge-outline gap-2">
                   <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -183,11 +195,11 @@ defmodule ShompWeb.ProfileLive.Edit do
                 </div>
               <% end %>
             </div>
-            
+
             <!-- View Profile Button -->
             <div class="mt-4">
               <.link href={~p"/#{@user.username}"} class="btn btn-outline btn-sm w-full">
-                View Public Profile
+                View My Store
               </.link>
             </div>
           </div>
@@ -199,7 +211,7 @@ defmodule ShompWeb.ProfileLive.Edit do
 
   def handle_event("update_profile", %{"username" => username, "name" => name, "bio" => bio, "location" => location, "website" => website}, socket) do
     user = socket.assigns.current_scope.user
-    
+
     case Accounts.update_user(user, %{
       username: username,
       name: name,

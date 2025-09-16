@@ -54,6 +54,42 @@ defmodule Shomp.Products do
   end
 
   @doc """
+  Lists products for a user's default store.
+  """
+  def list_user_products(user) do
+    store = Shomp.Stores.get_user_default_store(user)
+    if store do
+      list_products_by_store(store.store_id)
+    else
+      []
+    end
+  end
+
+  @doc """
+  Creates a product for a user's default store.
+  """
+  def create_user_product(user, attrs) do
+    store = Shomp.Stores.get_user_default_store(user)
+    if store do
+      create_product(Map.put(attrs, :store_id, store.store_id))
+    else
+      {:error, :no_store}
+    end
+  end
+
+  @doc """
+  Gets a product by username and product slug.
+  """
+  def get_product_by_username_and_slug(username, product_slug) do
+    from(p in Product)
+    |> join(:inner, [p], s in Shomp.Stores.Store, on: p.store_id == s.store_id)
+    |> join(:inner, [p, s], u in Shomp.Accounts.User, on: s.user_id == u.id)
+    |> where([p, s, u], u.username == ^username and p.slug == ^product_slug)
+    |> preload([:store, :category, store: :user])
+    |> Repo.one()
+  end
+
+  @doc """
   Gets a single product.
 
   Raises `Ecto.NoResultsError` if the Product does not exist.

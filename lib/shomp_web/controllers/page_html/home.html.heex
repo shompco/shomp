@@ -176,7 +176,7 @@
         <div class="text-6xl mb-4">🏪</div>
         <h3 class="text-xl font-semibold mb-2">No Stores Yet</h3>
         <p class="text-base-content/70 mb-6">Be the first to create a store and start selling!</p>
-        <a href="/stores/new" class="btn btn-primary">Create Your Store</a>
+        <a href="/dashboard/products/new" class="btn btn-primary">Start Selling</a>
       </div>
     <% else %>
       <!-- Stores as full-width rows -->
@@ -351,8 +351,8 @@
       Join creators who are ready to take control of their earnings
     </p>
      <div class="flex flex-col sm:flex-row gap-4 justify-center">
-       <a href="/stores/new" class="btn btn-secondary btn-lg">
-         Create Your Store
+       <a href="/dashboard/products/new" class="btn btn-secondary btn-lg">
+         Start Selling
        </a>
        <a href="/about" class="btn btn-outline btn-lg text-primary-content border-primary-content hover:bg-primary-content hover:text-primary">
          Learn More
@@ -395,11 +395,11 @@
         </div>
       </a>
       
-      <a href={~p"/my/stores"} class="card bg-base-200 shadow hover:shadow-lg transition-shadow">
+      <a href={~p"/my/products"} class="card bg-base-200 shadow hover:shadow-lg transition-shadow">
         <div class="card-body text-center">
           <div class="text-4xl mb-4">🏪</div>
-          <h3 class="card-title justify-center">My Stores</h3>
-          <p class="text-sm text-base-content/70">Manage your store and products</p>
+          <h3 class="card-title justify-center">My Products</h3>
+          <p class="text-sm text-base-content/70">Manage your products and store</p>
         </div>
       </a>
     </div>
