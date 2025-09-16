@@ -92,7 +92,7 @@ defmodule ShompWeb.UserLive.Registration do
       {:ok, user} ->
         # Automatically log in the user after successful registration
         {:ok, token, _claims} = Accounts.generate_user_session_token(user)
-        
+
         {:noreply,
          socket
          |> put_flash(

@@ -18,8 +18,12 @@ defmodule ShompWeb.UserSessionController do
       {:ok, {user, tokens_to_disconnect}} ->
         UserAuth.disconnect_sessions(tokens_to_disconnect)
 
+        # Get return_to parameter from query params
+        return_to = conn.params["return_to"] || "/"
+
         conn
         |> put_flash(:info, info)
+        |> put_session(:user_return_to, return_to)
         |> UserAuth.log_in_user(user, user_params)
 
       _ ->

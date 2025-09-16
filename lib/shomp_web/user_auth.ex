@@ -215,31 +215,47 @@ defmodule ShompWeb.UserAuth do
     {:cont, mount_current_scope(socket, session)}
   end
 
-  def on_mount(:require_authenticated, _params, session, socket) do
+  def on_mount(:require_authenticated, params, session, socket) do
     socket = mount_current_scope(socket, session)
 
     if socket.assigns.current_scope && socket.assigns.current_scope.user do
       {:cont, socket}
     else
+      # Get the current URL from the socket's view context
+      current_url = case socket.view do
+        %{__live__: %{uri: %{path: path}}} -> path
+        _ -> "/"
+      end
+
+      return_to = params["return_to"] || current_url
+
       socket =
         socket
         |> Phoenix.LiveView.put_flash(:error, "You must log in to access this page.")
-        |> Phoenix.LiveView.redirect(to: ~p"/users/log-in")
+        |> Phoenix.LiveView.redirect(to: ~p"/users/log-in?return_to=#{URI.encode_www_form(return_to)}")
 
       {:halt, socket}
     end
   end
 
-  def on_mount(:require_sudo_mode, _params, session, socket) do
+  def on_mount(:require_sudo_mode, params, session, socket) do
     socket = mount_current_scope(socket, session)
 
     if Accounts.sudo_mode?(socket.assigns.current_scope.user, -10) do
       {:cont, socket}
     else
+      # Get the current URL from the socket's view context
+      current_url = case socket.view do
+        %{__live__: %{uri: %{path: path}}} -> path
+        _ -> "/"
+      end
+
+      return_to = params["return_to"] || current_url
+
       socket =
         socket
         |> Phoenix.LiveView.put_flash(:error, "You must re-authenticate to access this page.")
-        |> Phoenix.LiveView.redirect(to: ~p"/users/log-in")
+        |> Phoenix.LiveView.redirect(to: ~p"/users/log-in?return_to=#{URI.encode_www_form(return_to)}")
 
       {:halt, socket}
     end
@@ -248,8 +264,8 @@ defmodule ShompWeb.UserAuth do
   def on_mount(:require_admin, _params, session, socket) do
     socket = mount_current_scope(socket, session)
 
-    if socket.assigns.current_scope && 
-       socket.assigns.current_scope.user && 
+    if socket.assigns.current_scope &&
+       socket.assigns.current_scope.user &&
        socket.assigns.current_scope.user.role == "admin" do
       {:cont, socket}
     else
@@ -284,6 +300,23 @@ defmodule ShompWeb.UserAuth do
   end
 
   def signed_in_path(_), do: ~p"/"
+
+  @doc """
+  Helper function to redirect to login with a return URL.
+  This can be used in LiveViews when you need to redirect to login.
+  """
+  def redirect_to_login_with_return(socket, return_to \\ nil) do
+    current_url = case socket.view do
+      %{__live__: %{uri: %{path: path}}} -> path
+      _ -> "/"
+    end
+
+    return_to = return_to || current_url
+
+    socket
+    |> Phoenix.LiveView.put_flash(:error, "You must log in to access this page.")
+    |> Phoenix.LiveView.redirect(to: ~p"/users/log-in?return_to=#{URI.encode_www_form(return_to)}")
+  end
 
   @doc """
   Plug for routes that require the user to be authenticated.
