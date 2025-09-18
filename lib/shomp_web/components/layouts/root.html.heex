@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="csrf-token" content={get_csrf_token()} />
-    <.live_title default="Shomp" suffix=" · Digital and Physical Marketplace">
+    <.live_title default="Shomp" suffix=" | Sell Anything Online — Free">
       {assigns[:page_title]}
     </.live_title>
     <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
@@ -70,7 +70,7 @@
     </script>
   </head>
   <body>
-    <ul class="menu menu-horizontal w-full relative z-10 flex items-center gap-4 px-4 sm:px-6 lg:px-8">
+    <ul class="menu menu-horizontal w-full relative z-[10000] flex items-center gap-4 px-4 sm:px-6 lg:px-8">
       <li class="mr-auto flex items-center gap-2">
         <div class="flex items-center gap-2">
           <.link href={~p"/"} class="text-xl font-bold text-primary">Shomp</.link>
@@ -100,7 +100,7 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
           </svg>
         </div>
-        <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow-2xl bg-base-100 rounded-box w-64 border border-base-300">
+        <ul tabindex="0" class="dropdown-content z-[9999] menu p-2 shadow-2xl bg-base-100 rounded-box w-64 border border-base-300">
           <li class="menu-title">
             <span>One-time Donations</span>
           </li>
@@ -180,7 +180,7 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
             </svg>
           </div>
-          <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
+          <ul tabindex="0" class="dropdown-content z-[9999] menu p-2 shadow bg-base-100 rounded-box w-52">
             <li>
               <.link href={~p"/purchases"} class="btn btn-ghost btn-sm justify-start">
                 📦 Purchases
@@ -269,6 +269,7 @@
     </ul>
     {@inner_content}
     
+    
          <!-- Footer -->
      <footer class="bg-base-200 mt-20">
        <div class="container mx-auto px-4 py-16">
@@ -277,11 +278,30 @@
         <div class="border-t border-base-300 pt-8">
           <div class="flex flex-col md:flex-row justify-between items-center">
             <div class="text-center md:text-left mb-4 md:mb-0">
-              <p class="text-sm text-base-content/70">
+              <p class="text-sm text-base-content/70 mb-3">
                 © 2025 Shomp. Empowering US artists and creatives.
               </p>
+                <!-- Newsletter Signup -->
+                <div class="flex items-center gap-2">
+                  <form class="flex items-center gap-2">
+                    <input
+                      type="email"
+                      name="email"
+                      placeholder="Email for Monthly Products Newsletter"
+                      class="input input-xs input-bordered w-60"
+                      required
+                    />
+                    <button
+                      type="submit"
+                      class="btn btn-xs btn-primary"
+                    >
+                      Subscribe
+                    </button>
+                  </form>
+                </div>
             </div>
             <div class="flex space-x-6">
+              <a href="/" class="text-sm text-base-content/70 hover:text-primary">Home</a>
               <a href="/about" class="text-sm text-base-content/70 hover:text-primary">About</a>
               <a href="/mission" class="text-sm text-base-content/70 hover:text-primary">Mission</a>
               <a href="/requests" class="text-sm text-base-content/70 hover:text-primary">Feature Requests</a>

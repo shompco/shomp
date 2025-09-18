@@ -13,7 +13,7 @@ defmodule ShompWeb.PageController do
     render(conn, :home,
       categories: categories_with_products,
       categories_with_products: categories_for_dropdown,
-      page_title: "Sell Anything Online — Free"
+      page_title: "Shomp"
     )
   end
 

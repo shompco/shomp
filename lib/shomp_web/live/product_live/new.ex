@@ -334,6 +334,7 @@ defmodule ShompWeb.ProductLive.New do
       changeset = Ecto.Changeset.put_change(changeset, :store_id, store.store_id)
       changeset = Ecto.Changeset.put_change(changeset, :type, "physical")
       changeset = Ecto.Changeset.put_change(changeset, :us_citizen_confirmation, false)
+      changeset = Ecto.Changeset.put_change(changeset, :quantity, 1)
 
         # Load physical categories by default
         physical_categories = Categories.get_categories_by_type("physical")

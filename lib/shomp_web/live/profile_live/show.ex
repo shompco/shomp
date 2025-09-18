@@ -18,7 +18,46 @@ defmodule ShompWeb.ProfileLive.Show do
          socket
          |> assign(:creator, user)
          |> assign(:products, user.products || [])
-         |> assign(:page_title, "#{user.username || user.name}'s Store")}
+         |> assign(:page_title, "#{user.username || user.name}'s store")
+         |> assign(:subscribed, false)}
+    end
+  end
+
+  def handle_event("subscribe_to_creator", %{"email" => email}, socket) do
+    creator = socket.assigns.creator
+
+    # Create subscription with creator info in metadata
+    subscription_attrs = %{
+      email: email,
+      source: "creator_page",
+      metadata: %{
+        creator_username: creator.username,
+        creator_name: creator.name,
+        creator_id: creator.id
+      }
+    }
+
+    case Shomp.EmailSubscriptions.create_email_subscription(subscription_attrs) do
+      {:ok, _subscription} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Thanks for subscribing! You'll be notified when #{creator.username || creator.name} adds new products.")
+         |> assign(:subscribed, true)}
+
+      {:error, changeset} ->
+        error_message = get_error_message(changeset)
+        {:noreply, socket |> put_flash(:error, error_message)}
+    end
+  end
+
+  defp get_error_message(changeset) do
+    case changeset.errors do
+      [email: {"has already been taken", _}] ->
+        "This email is already subscribed to updates from this creator."
+      [email: {"has invalid format", _}] ->
+        "Please enter a valid email address."
+      _ ->
+        "There was an error subscribing. Please try again."
     end
   end
 
@@ -175,6 +214,40 @@ defmodule ShompWeb.ProfileLive.Show do
                   </svg>
                   <%= length(@products) %> Product<%= if length(@products) != 1, do: "s", else: "" %>
                 </div>
+              </div>
+
+              <!-- Email Signup Form -->
+              <div class="mt-6 p-4 bg-base-200 rounded-lg">
+                <%= if @subscribed do %>
+                  <div class="text-center">
+                    <div class="text-green-600 mb-2">
+                      <svg class="w-8 h-8 mx-auto" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                      </svg>
+                    </div>
+                    <h3 class="text-lg font-semibold text-green-600 mb-2">You're subscribed!</h3>
+                    <p class="text-sm text-base-content/70">
+                      You'll receive email updates when <%= @creator.username || @creator.name %> adds new products.
+                    </p>
+                  </div>
+                <% else %>
+                  <h3 class="text-lg font-semibold mb-3">Sign up for email updates on new products from this creator</h3>
+                  <form phx-submit="subscribe_to_creator" class="flex gap-2">
+                    <input
+                      type="email"
+                      name="email"
+                      placeholder="Enter your email address"
+                      class="input input-bordered flex-1"
+                      required
+                    />
+                    <button type="submit" class="btn btn-primary">
+                      Subscribe
+                    </button>
+                  </form>
+                  <p class="text-xs text-base-content/60 mt-2">
+                    Get notified when <%= @creator.username || @creator.name %> adds new products to their store.
+                  </p>
+                <% end %>
               </div>
             </div>
           </div>

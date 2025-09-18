@@ -23,7 +23,9 @@ config :shomp, :scopes,
 config :shomp,
   ecto_repos: [Shomp.Repo],
   generators: [timestamp_type: :utc_datetime],
-  stripe_publishable_key: System.get_env("STRIPE_PUBLISHABLE_KEY")
+  stripe_publishable_key: System.get_env("STRIPE_PUBLISHABLE_KEY"),
+  beehiiv_api_key: System.get_env("BEEHIIV_API_KEY"),
+  beehiiv_publication_id: System.get_env("BEEHIIV_PUBLICATION_ID")
 
 # Configures the endpoint
 config :shomp, ShompWeb.Endpoint,

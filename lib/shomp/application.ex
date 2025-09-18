@@ -25,10 +25,12 @@ defmodule Shomp.Application do
     # Log Stripe configuration
     stripe_api_key = Application.get_env(:stripity_stripe, :api_key)
     stripe_publishable = Application.get_env(:shomp, :stripe_publishable_key)
+    stripe_wh_secret = System.get_env("STRIPE_WH_SECRET_KEY")
 
     IO.puts("=== STRIPE CONFIGURATION ===")
     IO.puts("API Key: #{if stripe_api_key, do: String.slice(stripe_api_key, 0, 20) <> "...", else: "NOT SET"}")
     IO.puts("Publishable Key: #{if stripe_publishable, do: String.slice(stripe_publishable, 0, 20) <> "...", else: "NOT SET"}")
+    IO.puts("Webhook Secret: #{if stripe_wh_secret, do: String.slice(stripe_wh_secret, 0, 20) <> "...", else: "NOT SET"}")
     IO.puts("=============================")
 
     # Log R2 configuration
@@ -45,6 +47,17 @@ defmodule Shomp.Application do
     IO.puts("Secret Access Key: #{if r2_secret_access_key, do: String.slice(r2_secret_access_key, 0, 20) <> "...", else: "NOT SET"}")
     IO.puts("Region: #{r2_region}")
     IO.puts("=========================")
+
+    # Log Beehiiv configuration
+    beehiv_api_key = System.get_env("BEEHIIV_API_KEY")
+    beehiv_pub_id_v1 = System.get_env("BEEHIIV_PUB_ID_V1")
+    beehiv_pub_id_v2 = System.get_env("BEEHIIV_PUB_ID_V2")
+
+    IO.puts("=== BEEHIIV CONFIGURATION ===")
+    IO.puts("API Key: #{if beehiv_api_key, do: String.slice(beehiv_api_key, 0, 20) <> "...", else: "NOT SET"}")
+    IO.puts("Publication ID V1: #{if beehiv_pub_id_v1, do: beehiv_pub_id_v1, else: "NOT SET"}")
+    IO.puts("Publication ID V2: #{if beehiv_pub_id_v2, do: beehiv_pub_id_v2, else: "NOT SET"}")
+    IO.puts("=============================")
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
