@@ -1358,6 +1358,63 @@
       opacity: 20%;
     }
   }
+  .radio {
+    position: relative;
+    flex-shrink: 0;
+    cursor: pointer;
+    appearance: none;
+    border-radius: calc(infinity * 1px);
+    padding: calc(0.25rem * 1);
+    vertical-align: middle;
+    border: var(--border) solid var(--input-color, currentColor);
+    @supports (color: color-mix(in lab, red, red)) {
+      border: var(--border) solid var(--input-color, color-mix(in srgb, currentColor 20%, #0000));
+    }
+    box-shadow: 0 1px oklch(0% 0 0 / calc(var(--depth) * 0.1)) inset;
+    --size: calc(var(--size-selector, 0.25rem) * 6);
+    width: var(--size);
+    height: var(--size);
+    color: var(--input-color, currentColor);
+    &:before {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border-radius: calc(infinity * 1px);
+      --tw-content: "";
+      content: var(--tw-content);
+      background-size: auto, calc(var(--noise) * 100%);
+      background-image: none, var(--fx-noise);
+    }
+    &:focus-visible {
+      outline: 2px solid currentColor;
+    }
+    &:checked, &[aria-checked="true"] {
+      animation: radio 0.2s ease-out;
+      border-color: currentColor;
+      background-color: var(--color-base-100);
+      &:before {
+        background-color: currentColor;
+        box-shadow: 0 -1px oklch(0% 0 0 / calc(var(--depth) * 0.1)) inset, 0 8px 0 -4px oklch(100% 0 0 / calc(var(--depth) * 0.1)) inset, 0 1px oklch(0% 0 0 / calc(var(--depth) * 0.1));
+      }
+      @media (forced-colors: active) {
+        &:before {
+          outline-style: var(--tw-outline-style);
+          outline-width: 1px;
+          outline-offset: calc(1px * -1);
+        }
+      }
+      @media print {
+        &:before {
+          outline: 0.25rem solid;
+          outline-offset: -1rem;
+        }
+      }
+    }
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 20%;
+    }
+  }
   .rating {
     position: relative;
     display: inline-flex;
@@ -1593,15 +1650,6 @@
   .left-4 {
     left: calc(var(--spacing) * 4);
   }
-  .hero-content {
-    isolation: isolate;
-    display: flex;
-    max-width: 80rem;
-    align-items: center;
-    justify-content: center;
-    gap: calc(0.25rem * 4);
-    padding: calc(0.25rem * 4);
-  }
   .textarea {
     border: var(--border) solid #0000;
     min-height: calc(0.25rem * 20);
@@ -1696,17 +1744,6 @@
     grid-row-start: 1;
     place-self: center;
     justify-self: flex-end;
-  }
-  .hero {
-    display: grid;
-    width: 100%;
-    place-items: center;
-    background-size: cover;
-    background-position: center;
-    & > * {
-      grid-column-start: 1;
-      grid-row-start: 1;
-    }
   }
   .stat-value {
     grid-column-start: 1;
@@ -2568,17 +2605,11 @@
   .min-h-\[50px\] {
     min-height: 50px;
   }
-  .min-h-\[60vh\] {
-    min-height: 60vh;
-  }
   .min-h-screen {
     min-height: 100vh;
   }
   .loading-lg {
     width: calc(var(--size-selector, 0.25rem) * 7);
-  }
-  .loading-xs {
-    width: calc(var(--size-selector, 0.25rem) * 4);
   }
   .w-0 {
     width: calc(var(--spacing) * 0);
@@ -3093,6 +3124,9 @@
   }
   .border-green-200 {
     border-color: var(--color-green-200);
+  }
+  .border-indigo-600 {
+    border-color: var(--color-indigo-600);
   }
   .border-info {
     border-color: var(--color-info);
@@ -4443,6 +4477,9 @@
       --input-color: var(--color-error);
     }
   }
+  .radio-primary {
+    --input-color: var(--color-primary);
+  }
   .select-error {
     &, &:focus, &:focus-within {
       --input-color: var(--color-error);
@@ -4953,6 +4990,11 @@
       border-color: var(--color-blue-500);
     }
   }
+  .focus\:border-indigo-500 {
+    &:focus {
+      border-color: var(--color-indigo-500);
+    }
+  }
   .focus\:border-primary {
     &:focus {
       border-color: var(--color-primary);
@@ -4967,6 +5009,11 @@
   .focus\:ring-blue-500 {
     &:focus {
       --tw-ring-color: var(--color-blue-500);
+    }
+  }
+  .focus\:ring-indigo-500 {
+    &:focus {
+      --tw-ring-color: var(--color-indigo-500);
     }
   }
   .focus\:ring-primary {
@@ -5070,6 +5117,12 @@
   .sm\:px-10 {
     @media (width >= 40rem) {
       padding-inline: calc(var(--spacing) * 10);
+    }
+  }
+  .sm\:text-sm {
+    @media (width >= 40rem) {
+      font-size: var(--text-sm);
+      line-height: var(--tw-leading, var(--text-sm--line-height));
     }
   }
   .md\:col-span-2 {

@@ -179,6 +179,56 @@ defmodule ShompWeb.ProductLive.New do
             />
           <% end %>
 
+          <!-- Shipping Information (only for physical products) -->
+          <%= if @product_type == "physical" do %>
+            <div class="space-y-4">
+              <h3 class="text-lg font-medium text-gray-900">Shipping Information</h3>
+              <p class="text-sm text-gray-600">Required for accurate shipping cost calculation</p>
+              
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <.input
+                  field={@form[:weight]}
+                  type="number"
+                  label="Weight (lbs)"
+                  placeholder="1.0"
+                  step="0.1"
+                  min="0.1"
+                  required
+                />
+                
+                <.input
+                  field={@form[:length]}
+                  type="number"
+                  label="Length (inches)"
+                  placeholder="6.0"
+                  step="0.1"
+                  min="0.1"
+                  required
+                />
+                
+                <.input
+                  field={@form[:width]}
+                  type="number"
+                  label="Width (inches)"
+                  placeholder="4.0"
+                  step="0.1"
+                  min="0.1"
+                  required
+                />
+                
+                <.input
+                  field={@form[:height]}
+                  type="number"
+                  label="Height (inches)"
+                  placeholder="2.0"
+                  step="0.1"
+                  min="0.1"
+                  required
+                />
+              </div>
+            </div>
+          <% end %>
+
           <!-- Category Selection Section -->
           <div class="space-y-4">
             <h3 class="text-lg font-medium text-gray-900">Product Categories</h3>

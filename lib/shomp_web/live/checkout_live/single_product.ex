@@ -4,6 +4,7 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
   on_mount {ShompWeb.UserAuth, :mount_current_scope}
 
   alias Shomp.Products
+  alias Shomp.ShippingCalculator
 
   @impl true
   def mount(%{"product_id" => product_id} = params, _session, socket) do
@@ -36,6 +37,20 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
     # Generate universal order ID
     universal_order_id = generate_universal_order_id()
 
+    # Initialize shipping form for physical products
+    shipping_form = if product.type == "physical" do
+      to_form(%{
+        "name" => "",
+        "street1" => "",
+        "city" => "",
+        "state" => "",
+        "zip" => "",
+        "country" => "US"
+      })
+    else
+      nil
+    end
+
     socket = assign(socket,
       product: product,
       platform_fee_rate: platform_fee_rate,
@@ -47,7 +62,12 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
       payment_status: "pending",
       error_message: nil,
       from: from,
-      store_slug: store_slug
+      store_slug: store_slug,
+      shipping_form: shipping_form,
+      shipping_options: [],
+      selected_shipping_option: nil,
+      shipping_cost: 0.0,
+      shipping_loading: false
     )
 
     {:ok, socket}
@@ -62,21 +82,12 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div class="flex items-center justify-between">
             <h1 class="text-2xl font-bold text-base-content">Checkout</h1>
-            <%= if @from == "cart" do %>
-              <.link
-                navigate={~p"/cart"}
-                class="text-primary hover:text-primary-focus transition-colors"
-              >
-                ← Back to Cart
-              </.link>
-            <% else %>
-              <.link
-                navigate={~p"/stores/#{@product.store.slug}"}
-                class="text-primary hover:text-primary-focus transition-colors"
-              >
-                ← Back to Store
-              </.link>
-            <% end %>
+            <button
+              onclick="history.back()"
+              class="text-primary hover:text-primary-focus transition-colors"
+            >
+              ← Back
+            </button>
           </div>
         </div>
       </div>
@@ -118,9 +129,30 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
                   <span class="text-base-content/70">Donation to Shomp (5%)</span>
                   <span class="donation-amount text-base-content/70">$<%= format_amount(@platform_fee_amount) %></span>
                 </div>
+
+                <!-- Shipping Cost (only for physical products) -->
+                <%= if @product.type == "physical" do %>
+                  <div class="flex justify-between items-center mb-2">
+                    <span class="text-base-content/70">Shipping</span>
+                    <span class="text-base-content/70">
+                      <%= if @shipping_cost > 0 do %>
+                        $<%= :erlang.float_to_binary(@shipping_cost, decimals: 2) %>
+                      <% else %>
+                        TBD
+                      <% end %>
+                    </span>
+                  </div>
+                <% end %>
+
                 <div class="total-row flex justify-between items-center text-lg font-semibold">
                   <span>Total</span>
-                  <span class="total-amount">$<%= if @donate, do: format_amount(@total_amount), else: format_amount(@product.price) %></span>
+                  <span class="total-amount">
+                    <%= if @product.type == "physical" && @shipping_cost > 0 do %>
+                      $<%= :erlang.float_to_binary(Decimal.to_float(@product.price) + @shipping_cost + (if @donate, do: Decimal.to_float(@platform_fee_amount), else: 0), decimals: 2) %>
+                    <% else %>
+                      $<%= if @donate, do: format_amount(@total_amount), else: format_amount(@product.price) %><%= if @product.type == "physical", do: " + shipping" %>
+                    <% end %>
+                  </span>
                 </div>
               </div>
             </div>
@@ -167,7 +199,7 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
                         required
                         class="input input-bordered w-full"
                         placeholder="John Doe"
-                        value={@current_scope.user.name || ""}
+                        value={if @current_scope && @current_scope.user, do: @current_scope.user.name || "", else: ""}
                       />
                     </div>
                     <div>
@@ -180,7 +212,7 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
                         required
                         class="input input-bordered w-full"
                         placeholder="your@email.com"
-                        value={@current_scope.user.email}
+                        value={if @current_scope && @current_scope.user, do: @current_scope.user.email || "", else: ""}
                       />
                     </div>
                   </div>
@@ -304,6 +336,71 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
                   </div>
                 <% end %>
 
+                <!-- Shipping Calculator Section (only for physical products) -->
+                <%= if @product.type == "physical" do %>
+                  <div>
+                    <h3 class="text-lg font-medium text-base-content mb-4">Shipping Method</h3>
+
+                    <!-- Calculate Shipping Button -->
+                    <div class="mb-4">
+                      <button
+                        type="button"
+                        id="calculate-shipping-btn"
+                        class="btn btn-primary"
+                        phx-click="calculate_shipping"
+                        phx-disable-with="Calculating..."
+                      >
+                        Calculate Shipping Rates
+                      </button>
+                    </div>
+
+                    <!-- Shipping Options -->
+                    <div id="shipping-options" class="space-y-3">
+                      <%= if @shipping_loading do %>
+                        <div class="flex items-center justify-center py-4">
+                          <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                          <span class="ml-2 text-sm text-base-content/70">Calculating shipping rates...</span>
+                        </div>
+                      <% else %>
+                        <%= if not Enum.empty?(@shipping_options) do %>
+                          <%= for option <- @shipping_options do %>
+                            <label class="flex items-center p-3 border border-base-300 rounded-lg cursor-pointer hover:bg-base-200">
+                              <input
+                                type="radio"
+                                name="shipping_option"
+                                value={option.id}
+                                checked={@selected_shipping_option && @selected_shipping_option.id == option.id}
+                                phx-click="select_shipping_option"
+                                phx-value-option_id={option.id}
+                                class="radio radio-primary"
+                              />
+                              <div class="ml-3 flex-1">
+                                <div class="flex justify-between items-center">
+                                  <span class="text-sm font-medium text-base-content">
+                                    <%= option.name %>
+                                  </span>
+                                  <span class="text-sm font-semibold text-base-content">
+                                    $<%= :erlang.float_to_binary(option.cost, decimals: 2) %>
+                                  </span>
+                                </div>
+                                <%= if option.estimated_days do %>
+                                  <p class="text-xs text-base-content/60">
+                                    Estimated delivery: <%= option.estimated_days %> business days
+                                  </p>
+                                <% end %>
+                              </div>
+                            </label>
+                          <% end %>
+                        <% else %>
+                          <div class="text-center py-4">
+                            <p class="text-sm text-base-content/60">Click "Calculate Shipping Rates" to see available options</p>
+                          </div>
+                        <% end %>
+                      <% end %>
+                    </div>
+                  </div>
+                <% end %>
+
                 <!-- Card Information Section -->
                 <div>
                   <h3 class="text-lg font-medium text-base-content mb-4">Payment Information</h3>
@@ -326,13 +423,17 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
                 <button
                   id="submit-payment"
                   type="button"
-                  disabled={@payment_status == "processing"}
+                  disabled={@payment_status == "processing" || (@product.type == "physical" && @selected_shipping_option == nil)}
                   class="w-full bg-primary hover:bg-primary-focus text-primary-content font-semibold py-3 px-6 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   <%= if @payment_status == "processing" do %>
                     Processing Payment...
                   <% else %>
-                    <%= if @product.type == "physical", do: "Complete Order", else: "Complete Purchase" %> - $<%= if @donate, do: format_amount(@total_amount), else: format_amount(@product.price) %>
+                    <%= if @product.type == "physical" && @selected_shipping_option == nil do %>
+                      Select Shipping Method
+                    <% else %>
+                      <%= if @product.type == "physical", do: "Complete Order", else: "Complete Purchase" %> - $<%= if @donate, do: format_amount(@total_amount), else: format_amount(@product.price) %>
+                    <% end %>
                   <% end %>
                 </button>
               </div>
@@ -723,6 +824,7 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
           }
         }
 
+
         // Initialize when ready
         if (document.readyState === 'loading') {
           document.addEventListener('DOMContentLoaded', function() {
@@ -750,6 +852,63 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
     # This will be handled by the JavaScript on the client side
     {:noreply, socket}
   end
+
+  def handle_event("calculate_shipping", _params, socket) do
+    if socket.assigns.product.type == "physical" do
+      # For now, we'll use a default address for testing
+      # In a real implementation, you'd collect this from the form
+      address_data = %{
+        "name" => "Test Customer",
+        "street1" => "123 Main St",
+        "city" => "New York",
+        "state" => "NY",
+        "zip" => "10001",
+        "country" => "US"
+      }
+
+      socket = assign(socket, :shipping_loading, true)
+
+      # Send async message to calculate shipping
+      send(self(), {:calculate_shipping, address_data})
+
+      {:noreply, socket}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_event("select_shipping_option", %{"option_id" => option_id}, socket) do
+    selected_option = Enum.find(socket.assigns.shipping_options, &(&1.id == option_id))
+
+    socket =
+      socket
+      |> assign(:selected_shipping_option, selected_option)
+      |> assign(:shipping_cost, selected_option.cost)
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:calculate_shipping, shipping_address}, socket) do
+    case ShippingCalculator.calculate_product_shipping(socket.assigns.product, shipping_address) do
+      {:ok, shipping_options} ->
+        socket =
+          socket
+          |> assign(:shipping_options, shipping_options)
+          |> assign(:shipping_loading, false)
+
+        {:noreply, socket}
+
+      {:error, _reason} ->
+        socket =
+          socket
+          |> assign(:shipping_loading, false)
+          |> put_flash(:error, "Failed to calculate shipping rates. Please try again.")
+
+        {:noreply, socket}
+    end
+  end
+
 
   # Helper function to generate universal order ID
   defp generate_universal_order_id do

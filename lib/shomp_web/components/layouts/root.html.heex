@@ -146,7 +146,20 @@
           </li>
         </ul>
       </li>
-      <%= if @current_scope do %>
+      <%= if !@current_scope || !@current_scope.user do %>
+        <!-- Login and Sign Up buttons for logged out users -->
+        <li>
+          <.link href={~p"/users/log-in"} class="btn btn-ghost btn-sm">
+            Log In
+          </.link>
+        </li>
+        <li>
+          <.link href={~p"/users/register"} class="btn btn-primary btn-sm">
+            Sign Up
+          </.link>
+        </li>
+      <% end %>
+      <%= if @current_scope && @current_scope.user do %>
         <!-- Conditional Store Display -->
           <li>
             <.link href={~p"/my/products"} class="btn btn-ghost btn-sm">

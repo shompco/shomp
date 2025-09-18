@@ -109,6 +109,56 @@ defmodule ShompWeb.ProductLive.Edit do
             />
           </div>
 
+          <!-- Shipping Information (only for physical products) -->
+          <div id="shipping-section" class={if @product.type == "physical", do: "", else: "hidden"}>
+            <div class="space-y-4">
+              <h3 class="text-lg font-medium text-gray-900">Shipping Information</h3>
+              <p class="text-sm text-gray-600">Required for accurate shipping cost calculation</p>
+              
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <.input
+                  field={@form[:weight]}
+                  type="number"
+                  label="Weight (lbs)"
+                  placeholder="1.0"
+                  step="0.1"
+                  min="0.1"
+                  required
+                />
+                
+                <.input
+                  field={@form[:length]}
+                  type="number"
+                  label="Length (inches)"
+                  placeholder="6.0"
+                  step="0.1"
+                  min="0.1"
+                  required
+                />
+                
+                <.input
+                  field={@form[:width]}
+                  type="number"
+                  label="Width (inches)"
+                  placeholder="4.0"
+                  step="0.1"
+                  min="0.1"
+                  required
+                />
+                
+                <.input
+                  field={@form[:height]}
+                  type="number"
+                  label="Height (inches)"
+                  placeholder="2.0"
+                  step="0.1"
+                  min="0.1"
+                  required
+                />
+              </div>
+            </div>
+          </div>
+
           <.input
             field={@form[:category_id]}
             type="select"
@@ -381,15 +431,17 @@ defmodule ShompWeb.ProductLive.Edit do
       Categories.get_main_category_options()
     end
 
-    # Show/hide quantity section based on product type
-    quantity_js = if product_type == "physical" do
+    # Show/hide quantity and shipping sections based on product type
+    js_commands = if product_type == "physical" do
       JS.show(to: "#quantity-section")
+      |> JS.show(to: "#shipping-section")
     else
       JS.hide(to: "#quantity-section")
+      |> JS.hide(to: "#shipping-section")
     end
 
     socket = assign(socket, filtered_category_options: filtered_category_options)
-    {:noreply, push_event(socket, "js", %{exec: quantity_js})}
+    {:noreply, push_event(socket, "js", %{exec: js_commands})}
   end
 
   def handle_event("cancel-upload", %{"ref" => ref}, socket) do

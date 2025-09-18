@@ -59,6 +59,20 @@ defmodule Shomp.Application do
     IO.puts("Publication ID V2: #{if beehiv_pub_id_v2, do: beehiv_pub_id_v2, else: "NOT SET"}")
     IO.puts("=============================")
 
+    # Log Shippo configuration
+    shippo_api_key = System.get_env("SHIPPO_API_KEY")
+
+    IO.puts("=== SHIPPO CONFIGURATION ===")
+    IO.puts("API Key: #{if shippo_api_key, do: String.slice(shippo_api_key, 0, 20) <> "...", else: "NOT SET"}")
+    IO.puts("============================")
+
+    # Log MessageBird configuration
+    messagebird_api_key = System.get_env("MESSAGEBIRD_API_KEY")
+
+    IO.puts("=== MESSAGEBIRD CONFIGURATION ===")
+    IO.puts("API Key: #{if messagebird_api_key, do: String.slice(messagebird_api_key, 0, 20) <> "...", else: "NOT SET"}")
+    IO.puts("=================================")
+
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: Shomp.Supervisor]

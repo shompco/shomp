@@ -16,6 +16,14 @@ defmodule Shomp.Products.Product do
     field :sold_out, :boolean, default: false  # For physical products
     field :quantity, :integer, default: 0  # Available quantity for physical products
 
+    # Shipping fields for physical products
+    field :weight, :decimal, default: 1.0
+    field :length, :decimal, default: 6.0
+    field :width, :decimal, default: 4.0
+    field :height, :decimal, default: 2.0
+    field :weight_unit, :string, default: "lb"
+    field :distance_unit, :string, default: "in"
+
     # Product images
     field :image_original, :string
     field :image_thumb, :string
@@ -42,7 +50,7 @@ defmodule Shomp.Products.Product do
   """
   def changeset(product, attrs) do
     product
-    |> cast(attrs, [:title, :description, :price, :type, :file_path, :digital_file_url, :digital_file_type, :store_id, :stripe_product_id, :category_id, :custom_category_id, :slug, :image_original, :image_thumb, :image_medium, :image_large, :image_extra_large, :image_ultra, :additional_images, :primary_image_index, :sold_out, :quantity])
+    |> cast(attrs, [:title, :description, :price, :type, :file_path, :digital_file_url, :digital_file_type, :store_id, :stripe_product_id, :category_id, :custom_category_id, :slug, :image_original, :image_thumb, :image_medium, :image_large, :image_extra_large, :image_ultra, :additional_images, :primary_image_index, :sold_out, :quantity, :weight, :length, :width, :height, :weight_unit, :distance_unit])
     |> cast(attrs, [:us_citizen_confirmation], [])
     |> validate_required([:title, :price, :type, :store_id])
     |> validate_length(:title, min: 2, max: 200)

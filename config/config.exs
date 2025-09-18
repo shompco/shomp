@@ -25,7 +25,8 @@ config :shomp,
   generators: [timestamp_type: :utc_datetime],
   stripe_publishable_key: System.get_env("STRIPE_PUBLISHABLE_KEY"),
   beehiiv_api_key: System.get_env("BEEHIIV_API_KEY"),
-  beehiiv_publication_id: System.get_env("BEEHIIV_PUBLICATION_ID")
+  beehiiv_publication_id: System.get_env("BEEHIIV_PUBLICATION_ID"),
+  shippo_api_key: System.get_env("SHIPPO_API_KEY")
 
 # Configures the endpoint
 config :shomp, ShompWeb.Endpoint,
