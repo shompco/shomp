@@ -29,7 +29,7 @@ defmodule Shomp.BeehiivApi do
       {:error, "API credentials not configured"}
     else
       url = "#{@base_url}/publications/#{publication_id}/subscribers"
-      
+
       headers = [
         {"Authorization", "Bearer #{api_key}"},
         {"Content-Type", "application/json"}
@@ -117,7 +117,7 @@ defmodule Shomp.BeehiivApi do
       {:error, "API credentials not configured"}
     else
       url = "#{@base_url}/publications/#{publication_id}/subscribers"
-      
+
       headers = [
         {"Authorization", "Bearer #{api_key}"}
       ]
@@ -165,7 +165,7 @@ defmodule Shomp.BeehiivApi do
       {:error, "API credentials not configured"}
     else
       url = "#{@base_url}/publications/#{publication_id}"
-      
+
       headers = [
         {"Authorization", "Bearer #{api_key}"}
       ]
@@ -192,7 +192,7 @@ defmodule Shomp.BeehiivApi do
     api_key = get_api_key()
 
     url = "#{@base_url}/publications/#{publication_id}/subscribers/#{subscriber_id}"
-    
+
     headers = [
       {"Authorization", "Bearer #{api_key}"},
       {"Content-Type", "application/json"}
