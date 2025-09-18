@@ -126,35 +126,8 @@ defmodule ShompWeb.ProfileLive.Show do
           <% end %>
         </div>
 
-        <!-- Links Section -->
-        <%= if @creator.website || @creator.location do %>
-          <div class="bg-base-100 rounded-lg shadow-lg p-8 mb-8">
-            <h2 class="text-2xl font-bold mb-4">Links & Info</h2>
-            <div class="space-y-4">
-              <%= if @creator.website do %>
-                <div class="flex items-center gap-3">
-                  <svg class="w-5 h-5 text-primary flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 2 2 0 002.828 0l3-3a2 2 0 012.828 0zM5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" clip-rule="evenodd" />
-                  </svg>
-                  <.link href={@creator.website} target="_blank" class="text-primary hover:underline break-all">
-                    <%= @creator.website %>
-                  </.link>
-                </div>
-              <% end %>
-
-              <%= if @creator.location do %>
-                <div class="flex items-center gap-3">
-                  <svg class="w-5 h-5 text-primary flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" />
-                  </svg>
-                  <span class="text-base-content/80">
-                    <%= @creator.location %>
-                  </span>
-                </div>
-              <% end %>
-            </div>
-          </div>
-        <% end %>
+        <!-- Spacing between sections -->
+        <div class="h-8"></div>
 
         <!-- Profile Header -->
         <div class="bg-base-100 rounded-lg shadow-lg p-8 mb-8">
