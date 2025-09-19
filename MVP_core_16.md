@@ -22,23 +22,9 @@ This MVP covers the remaining miscellaneous features needed to complete the plat
 ### 3. Enhanced SMS Notifications
 - **MessageBird Integration**: SMS notifications using MessageBird API
 - **Physical Order Alerts**: SMS to sellers for new physical product sales
-- **Order Status Updates**: SMS notifications for order status changes
-- **Phone Number Collection**: Add phone number field to user profiles
-- **SMS Preferences**: User control over SMS notifications
 
-### 4. Comprehensive Email Notifications
-- **Email Templates**: Professional HTML email templates
-- **Transactional Emails**: Order confirmations, receipts, shipping updates
-- **Marketing Emails**: Product updates, promotions, newsletters
-- **Admin Notifications**: System alerts and reports
-- **Email Delivery**: Reliable email delivery with bounce handling
-
-### 5. Notification Preferences System
+### 4. Notification Preferences System
 - **User Control Panel**: Notification preferences page
-- **Channel Selection**: Choose email, SMS, in-app notifications
-- **Frequency Settings**: Control notification frequency
-- **Quiet Hours**: Set quiet hours for notifications
-- **Unsubscribe Management**: Easy unsubscribe options
 
 ## Implementation Tasks
 
@@ -68,20 +54,15 @@ This MVP covers the remaining miscellaneous features needed to complete the plat
    - Create SMS context for message sending
    - Handle SMS delivery and error tracking
 
-3. **SMS Notification System**
+2. **SMS Notification System**
    - SMS alerts to Seller for new physical orders
 
-
-### Phase 3: Email Notification System
-
-
-### Phase 4: Notification Preferences
+### Phase 3: Notification Preferences
 1. **Preferences Database Schema**
    - Notification preferences table
    - User preferences page
 
-
-3. **Admin Controls**
+2. **Admin Controls**
    - Delivery monitoring dashboard
 
 ## Database Schema
