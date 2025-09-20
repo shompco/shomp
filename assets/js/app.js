@@ -279,7 +279,7 @@ const PurchaseToaster = {
     const toasterId = `toaster-${activity.id}-${Date.now()}`;
     const toaster = document.createElement('div');
     toaster.id = toasterId;
-    toaster.className = 'toast toast-bottom toast-start animate-slide-up mb-2 fixed bottom-4 left-4 z-50';
+    toaster.className = 'toast toast-bottom toast-start animate-slide-up mb-2 fixed bottom-4 left-4 z-50 transition-opacity duration-500 cursor-pointer hover:shadow-xl';
     
     toaster.innerHTML = `
       <div class="alert alert-info shadow-lg">
@@ -297,10 +297,7 @@ const PurchaseToaster = {
               ${activity.buyer_location} • Just now
             </p>
           </div>
-          <div class="text-right">
-            <p class="text-sm font-bold text-primary">$${this.formatAmount(activity.amount)}</p>
-          </div>
-          <button class="btn btn-ghost btn-xs" onclick="this.closest('.toast').remove()">
+          <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation(); this.closest('.toast').remove()">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -309,15 +306,33 @@ const PurchaseToaster = {
       </div>
     `;
     
+    // Add click handler to navigate to product detail page
+    toaster.addEventListener('click', () => {
+      console.log('Toaster clicked, activity data:', activity);
+      if (activity.product_url) {
+        console.log('Navigating to product URL:', activity.product_url);
+        window.location.href = activity.product_url;
+      } else {
+        console.log('No product_url available in activity data');
+      }
+    });
+    
     document.body.appendChild(toaster);
     
-    // Auto-remove after 15 seconds
+    // Auto-remove after 18 seconds with fade-out effect
     setTimeout(() => {
       const element = document.getElementById(toasterId);
       if (element) {
-        element.remove();
+        // Add fade-out class
+        element.classList.add('opacity-0');
+        // Remove from DOM after fade animation completes
+        setTimeout(() => {
+          if (element.parentNode) {
+            element.remove();
+          }
+        }, 500); // Match the transition duration
       }
-    }, 15000);
+    }, 18000);
   },
   
   formatAmount(amount) {

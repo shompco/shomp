@@ -11,6 +11,7 @@ defmodule Shomp.PurchaseActivities.PurchaseActivity do
     field :buyer_initials, :string
     field :buyer_location, :string
     field :product_title, :string
+    field :product_url, :string
     field :amount, :decimal
     field :is_public, :boolean, default: true
     field :displayed_at, :utc_datetime
@@ -29,6 +30,7 @@ defmodule Shomp.PurchaseActivities.PurchaseActivity do
       :buyer_initials,
       :buyer_location,
       :product_title,
+      :product_url,
       :amount,
       :is_public,
       :displayed_at,

@@ -352,10 +352,10 @@ defmodule ShompWeb.PaymentIntentController do
       nil ->
         # User doesn't exist, create a guest user
         IO.puts("Creating guest user for email: #{email}")
-        
+
         # Generate a unique username
         username = generate_guest_username(email)
-        
+
         user_attrs = %{
           email: email,
           username: username,
@@ -363,7 +363,7 @@ defmodule ShompWeb.PaymentIntentController do
           confirmed_at: DateTime.utc_now(),
           show_purchase_activity: true  # Default to showing purchase activity
         }
-        
+
         case Accounts.register_user(user_attrs) do
           {:ok, user} ->
             IO.puts("Guest user created successfully: #{user.id}")
@@ -372,7 +372,7 @@ defmodule ShompWeb.PaymentIntentController do
             IO.puts("Failed to create guest user: #{inspect(changeset.errors)}")
             {:error, changeset}
         end
-      
+
       user ->
         # User exists, return them
         IO.puts("Found existing user: #{user.id}")
@@ -388,7 +388,7 @@ defmodule ShompWeb.PaymentIntentController do
     |> String.replace(~r/[^a-zA-Z0-9]/, "")
     |> String.downcase()
     |> String.slice(0, 10)
-    
+
     random_suffix = :crypto.strong_rand_bytes(3) |> Base.encode16(case: :lower) |> String.slice(0, 6)
     "guest_#{base_name}_#{random_suffix}"
   end

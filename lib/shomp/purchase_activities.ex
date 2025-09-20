@@ -20,6 +20,7 @@ defmodule Shomp.PurchaseActivities do
         buyer_initials: get_buyer_initials(buyer),
         buyer_location: get_buyer_location(buyer),
         product_title: product.title,
+        product_url: build_product_url(product),
         amount: order.total_amount,
         is_public: buyer.show_purchase_activity != false
       }
@@ -71,7 +72,7 @@ defmodule Shomp.PurchaseActivities do
   """
   def cleanup_old_activities do
     cutoff_time = DateTime.add(DateTime.utc_now(), -48, :hour)
-    
+
     from(pa in PurchaseActivity,
       where: pa.inserted_at < ^cutoff_time
     )
@@ -94,5 +95,14 @@ defmodule Shomp.PurchaseActivities do
     # This would come from user profile or order shipping address
     # For now, return a placeholder or get from user's location setting
     buyer.location || "Unknown Location"
+  end
+
+  defp build_product_url(product) do
+    # Build the product URL using the product slug
+    if product.slug do
+      "/products/#{product.slug}"
+    else
+      "/products/#{product.id}"
+    end
   end
 end

@@ -1788,6 +1788,8 @@ defmodule Shomp.Payments do
         buyer_initials: get_buyer_initials(user),
         buyer_location: get_buyer_location(user),
         product_title: product.title,
+        product_slug: product.slug,
+        product_url: build_product_url(product),
         amount: Decimal.to_float(payment.amount),
         inserted_at: DateTime.utc_now()
       }
@@ -1815,6 +1817,15 @@ defmodule Shomp.Payments do
 
   defp get_buyer_location(user) do
     user.location || "Unknown Location"
+  end
+
+  defp build_product_url(product) do
+    # Build the product URL using the product slug
+    if product.slug do
+      "/products/#{product.slug}"
+    else
+      "/products/#{product.id}"
+    end
   end
 
   @doc """
@@ -1849,6 +1860,8 @@ defmodule Shomp.Payments do
           buyer_initials: get_buyer_initials(user),
           buyer_location: get_buyer_location(user),
           product_title: product.title,
+          product_slug: product.slug,
+          product_url: build_product_url(product),
           amount: Decimal.to_float(universal_order.total_amount),
           inserted_at: DateTime.utc_now()
         }

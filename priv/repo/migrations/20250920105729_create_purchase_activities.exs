@@ -14,7 +14,7 @@ defmodule Shomp.Repo.Migrations.CreatePurchaseActivities do
       add :is_public, :boolean, default: true
       add :displayed_at, :utc_datetime, null: true
       add :display_count, :integer, default: 0
-      
+
       timestamps()
     end
 

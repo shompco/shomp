@@ -147,10 +147,10 @@ defmodule ShompWeb.ProfileLive.Edit do
               <div class="space-y-4">
                 <div class="form-control">
                   <label class="label cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      name="show_purchase_activity" 
-                      class="checkbox checkbox-primary" 
+                    <input
+                      type="checkbox"
+                      name="show_purchase_activity"
+                      class="checkbox checkbox-primary"
                       checked={@user.show_purchase_activity != false}
                     />
                     <span class="label-text ml-3">Show my purchases in activity feed</span>
