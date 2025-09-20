@@ -28,7 +28,7 @@ tiers = [
   },
   %{
     name: "Plus",
-    slug: "plus", 
+    slug: "plus",
     store_limit: 3,
     product_limit_per_store: 500,
     monthly_price: Decimal.new("10.00"),
@@ -66,7 +66,7 @@ test_user = case Repo.get_by(User, email: "test@example.com") do
       username: "testuser"
     })
     |> Repo.insert!()
-  
+
   user -> user
 end
 
@@ -113,7 +113,7 @@ admin_user = case Repo.get_by(User, email: "admin@shomp.co") do
       username: "admin"
     })
     |> Repo.insert!()
-  
+
   user -> user
 end
 
@@ -139,7 +139,7 @@ vincent_admin = case Repo.get_by(User, email: "v1nc3ntpull1ng@gmail.com") do
       username: "vincent"
     })
     |> Repo.insert!()
-  
+
   user -> user
 end
 
@@ -152,3 +152,6 @@ if vincent_admin.role != "admin" do
 else
   IO.puts("Vincent admin user already exists with admin role")
 end
+
+# Load donation seeds
+Code.eval_file("priv/repo/seeds_donations.exs")

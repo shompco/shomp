@@ -181,6 +181,9 @@ defmodule ShompWeb.Router do
       live "/admin/support", AdminLive.SupportDashboard, :index
       live "/admin/support/:ticket_number", SupportLive.Show, :show
 
+      # Admin donation routes
+      live "/admin/donations", AdminLive.Donations, :index
+
       # Universal orders and payment splits
       live "/admin/universal-orders", AdminLive.UniversalOrders, :index
       live "/admin/payment-splits/:universal_order_id", AdminLive.PaymentSplits, :show
