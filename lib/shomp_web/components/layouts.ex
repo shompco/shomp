@@ -4,7 +4,7 @@ defmodule ShompWeb.Layouts do
   used by your application.
   """
   use ShompWeb, :html
-  
+
   import ShompWeb.Components.DonationsThermometer
 
   # Embed all files in layouts/* within this module.

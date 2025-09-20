@@ -10,7 +10,21 @@ defmodule ShompWeb.Components.DonationsThermometer do
     assigns = assign(assigns, goal: goal, donor_count: donor_count)
 
     ~H"""
-    <div class="bg-base-200 py-6 mt-48">
+    <!-- Mission Statement -->
+    <div class="py-12 bg-base-100">
+      <div class="container mx-auto px-4 text-center">
+        <div class="max-w-4xl mx-auto">
+          <blockquote class="text-lg md:text-xl font-light text-base-content/90 leading-relaxed italic">
+            <span class="text-6xl text-primary/30 leading-none">"</span>
+            Shomp is organized exclusively for charitable and educational purposes, including supporting U.S. artists and creators by providing access to a nonprofit e-commerce platform that eliminates exploitative fees, promotes fair compensation, and fosters opportunities for public engagement with the arts. Through open-source tools, educational resources, and community programs, Shomp seeks to empower creators of all backgrounds, expand public access to creative works, and strengthen the cultural and economic vitality of communities.
+            <span class="text-6xl text-primary/30 leading-none">"</span>
+          </blockquote>
+        </div>
+      </div>
+    </div>
+
+    <!-- Donations Thermometer -->
+    <div class="bg-base-200 py-6">
       <div class="mx-auto max-w-6xl px-4">
         <%= if @goal do %>
           <div class="mb-6">
