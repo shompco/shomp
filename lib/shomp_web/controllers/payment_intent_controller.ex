@@ -5,6 +5,7 @@ defmodule ShompWeb.PaymentIntentController do
   alias Shomp.Stores
   alias Shomp.UniversalOrders
   alias Shomp.PaymentSplits
+  alias Shomp.Accounts
 
   def create(conn, %{"product_id" => product_id, "universal_order_id" => universal_order_id, "donate" => donate, "customer_email" => customer_email, "customer_name" => customer_name} = params) do
     IO.puts("=== PAYMENT INTENT CONTROLLER DEBUG ===")
@@ -14,7 +15,6 @@ defmodule ShompWeb.PaymentIntentController do
     IO.puts("Donate: #{donate}")
     IO.puts("Customer Email: #{customer_email}")
     IO.puts("Customer Name: #{customer_name}")
-    IO.puts("User ID: #{conn.assigns.current_scope.user.id}")
 
     # Convert product_id to integer
     product_id = String.to_integer(product_id)
@@ -27,7 +27,17 @@ defmodule ShompWeb.PaymentIntentController do
       |> put_status(:bad_request)
       |> json(%{error: "Email address is required"})
     else
-      process_payment_intent(conn, product_id, universal_order_id, donate, customer_email, customer_name, params)
+      # Get or create user for guest purchases
+      case get_or_create_guest_user(customer_email, customer_name) do
+        {:ok, user} ->
+          IO.puts("User ID: #{user.id}")
+          process_payment_intent(conn, product_id, universal_order_id, donate, customer_email, customer_name, params, user)
+        {:error, reason} ->
+          IO.puts("ERROR: Failed to create user: #{inspect(reason)}")
+          conn
+          |> put_status(:unprocessable_entity)
+          |> json(%{error: "Failed to create user account: #{inspect(reason)}"})
+      end
     end
   end
 
@@ -37,9 +47,9 @@ defmodule ShompWeb.PaymentIntentController do
     |> json(%{error: "Missing required fields: product_id, universal_order_id, donate, customer_email, customer_name"})
   end
 
-  defp process_payment_intent(conn, product_id, universal_order_id, donate, customer_email, customer_name, params) do
+  defp process_payment_intent(conn, product_id, universal_order_id, donate, customer_email, customer_name, params, user) do
     IO.puts("=== PROCESSING PAYMENT INTENT ===")
-    user_id = conn.assigns.current_scope.user.id
+    user_id = user.id
     IO.puts("User ID: #{user_id}")
 
     IO.puts("Fetching product with ID: #{product_id}")
@@ -332,5 +342,54 @@ defmodule ShompWeb.PaymentIntentController do
         new_pending = Decimal.add(store.pending_balance, amount)
         Shomp.Stores.update_store(store, %{pending_balance: new_pending})
     end
+  end
+
+  defp get_or_create_guest_user(email, name) do
+    alias Shomp.Accounts
+
+    # Try to find existing user by email
+    case Accounts.get_user_by_email(email) do
+      nil ->
+        # User doesn't exist, create a guest user
+        IO.puts("Creating guest user for email: #{email}")
+        
+        # Generate a unique username
+        username = generate_guest_username(email)
+        
+        user_attrs = %{
+          email: email,
+          username: username,
+          name: name || "",
+          confirmed_at: DateTime.utc_now(),
+          show_purchase_activity: true  # Default to showing purchase activity
+        }
+        
+        case Accounts.register_user(user_attrs) do
+          {:ok, user} ->
+            IO.puts("Guest user created successfully: #{user.id}")
+            {:ok, user}
+          {:error, changeset} ->
+            IO.puts("Failed to create guest user: #{inspect(changeset.errors)}")
+            {:error, changeset}
+        end
+      
+      user ->
+        # User exists, return them
+        IO.puts("Found existing user: #{user.id}")
+        {:ok, user}
+    end
+  end
+
+  defp generate_guest_username(email) do
+    # Extract the part before @ and add a random suffix
+    base_name = email
+    |> String.split("@")
+    |> List.first()
+    |> String.replace(~r/[^a-zA-Z0-9]/, "")
+    |> String.downcase()
+    |> String.slice(0, 10)
+    
+    random_suffix = :crypto.strong_rand_bytes(3) |> Base.encode16(case: :lower) |> String.slice(0, 6)
+    "guest_#{base_name}_#{random_suffix}"
   end
 end

@@ -139,6 +139,31 @@ defmodule ShompWeb.ProfileLive.Edit do
               </label>
             </div>
 
+            <!-- Privacy Settings -->
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">Privacy Settings</span>
+              </label>
+              <div class="space-y-4">
+                <div class="form-control">
+                  <label class="label cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      name="show_purchase_activity" 
+                      class="checkbox checkbox-primary" 
+                      checked={@user.show_purchase_activity != false}
+                    />
+                    <span class="label-text ml-3">Show my purchases in activity feed</span>
+                  </label>
+                  <label class="label">
+                    <span class="label-text-alt">
+                      When enabled, your purchases will appear as anonymous activity notifications to other users
+                    </span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
             <!-- Submit Button -->
             <div class="form-control pt-4">
               <div class="flex gap-4">
@@ -209,7 +234,7 @@ defmodule ShompWeb.ProfileLive.Edit do
     """
   end
 
-  def handle_event("update_profile", %{"username" => username, "name" => name, "bio" => bio, "location" => location, "website" => website}, socket) do
+  def handle_event("update_profile", %{"username" => username, "name" => name, "bio" => bio, "location" => location, "website" => website} = params, socket) do
     user = socket.assigns.current_scope.user
 
     case Accounts.update_user(user, %{
@@ -217,7 +242,8 @@ defmodule ShompWeb.ProfileLive.Edit do
       name: name,
       bio: bio,
       location: location,
-      website: website
+      website: website,
+      show_purchase_activity: params["show_purchase_activity"] == "on"
     }) do
       {:ok, updated_user} ->
         {:noreply,

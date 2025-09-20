@@ -85,12 +85,12 @@ defmodule ShompWeb.Router do
     post "/webhook", PaymentController, :webhook
   end
 
-  # API routes
-  scope "/api", ShompWeb do
-    pipe_through :browser
+    # API routes
+    scope "/api", ShompWeb do
+      pipe_through :browser
 
-    post "/create-payment-intent", PaymentIntentController, :create
-  end
+      post "/create-payment-intent", PaymentIntentController, :create
+    end
 
   # Checkout routes
   scope "/checkout", ShompWeb do
@@ -254,4 +254,5 @@ defmodule ShompWeb.Router do
       live "/:username/:product_slug", ProductLive.Show, :show_by_username_product
     end
   end
+
 end

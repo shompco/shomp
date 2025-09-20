@@ -114,7 +114,7 @@ defmodule ShompWeb.ProductLive.Edit do
             <div class="space-y-4">
               <h3 class="text-lg font-medium text-gray-900">Shipping Information</h3>
               <p class="text-sm text-gray-600">Required for accurate shipping cost calculation</p>
-              
+
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <.input
                   field={@form[:weight]}
@@ -125,7 +125,7 @@ defmodule ShompWeb.ProductLive.Edit do
                   min="0.1"
                   required
                 />
-                
+
                 <.input
                   field={@form[:length]}
                   type="number"
@@ -135,7 +135,7 @@ defmodule ShompWeb.ProductLive.Edit do
                   min="0.1"
                   required
                 />
-                
+
                 <.input
                   field={@form[:width]}
                   type="number"
@@ -145,7 +145,7 @@ defmodule ShompWeb.ProductLive.Edit do
                   min="0.1"
                   required
                 />
-                
+
                 <.input
                   field={@form[:height]}
                   type="number"

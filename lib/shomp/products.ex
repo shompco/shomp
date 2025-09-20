@@ -258,7 +258,7 @@ defmodule Shomp.Products do
     IO.puts("Product ID: #{product.id}")
     IO.puts("Update attrs: #{inspect(attrs)}")
 
-    changeset = product |> Product.changeset(attrs)
+    changeset = product |> Product.update_changeset(attrs)
     IO.puts("Changeset changes: #{inspect(changeset.changes)}")
     IO.puts("Changeset errors: #{inspect(changeset.errors)}")
 
@@ -298,7 +298,7 @@ defmodule Shomp.Products do
 
   """
   def change_product(%Product{} = product, attrs \\ %{}) do
-    Product.changeset(product, attrs)
+    Product.update_changeset(product, attrs)
   end
 
   @doc """

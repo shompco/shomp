@@ -66,6 +66,24 @@ defmodule Shomp.Products.Product do
   end
 
   @doc """
+  A product changeset for updates (without US citizen confirmation).
+  """
+  def update_changeset(product, attrs) do
+    product
+    |> cast(attrs, [:title, :description, :price, :type, :file_path, :digital_file_url, :digital_file_type, :store_id, :stripe_product_id, :category_id, :custom_category_id, :slug, :image_original, :image_thumb, :image_medium, :image_large, :image_extra_large, :image_ultra, :additional_images, :primary_image_index, :sold_out, :quantity, :weight, :length, :width, :height, :weight_unit, :distance_unit])
+    |> validate_required([:title, :price, :type, :store_id])
+    |> validate_length(:title, min: 2, max: 200)
+    |> validate_length(:description, max: 2000)
+    |> validate_number(:price, greater_than: 0)
+    |> validate_inclusion(:type, ["digital", "physical"])
+    |> validate_number(:quantity, greater_than_or_equal_to: 0)
+    |> validate_length(:file_path, max: 500)
+    |> validate_length(:store_id, min: 1)
+    |> validate_slug_format()
+    |> validate_image_paths()
+  end
+
+  @doc """
   A product changeset for creation.
   """
   def create_changeset(product, attrs) do

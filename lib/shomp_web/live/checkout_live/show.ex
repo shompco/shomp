@@ -268,13 +268,8 @@ defmodule ShompWeb.CheckoutLive.Show do
                     phx-click="checkout"
                     phx-disable-with="Creating checkout..."
                     class="w-full btn btn-primary btn-lg"
-                    disabled={@product.type == "physical" && @selected_shipping_option == nil}
                   >
-                    <%= if @product.type == "physical" && @selected_shipping_option == nil do %>
-                      Select Shipping Method
-                    <% else %>
-                      Proceed to Payment
-                    <% end %>
+                    Proceed to Payment
                   </button>
 
                   <div class="mt-4 text-center">

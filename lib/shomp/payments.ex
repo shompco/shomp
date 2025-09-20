@@ -539,6 +539,9 @@ defmodule Shomp.Payments do
             order_result = create_order_from_payment(updated_payment, session.id)
             IO.puts("Universal order creation result: #{inspect(order_result)}")
 
+            # Broadcast purchase event for real-time toaster
+            broadcast_purchase_event(updated_payment)
+
             # Try to create download, but don't fail if it doesn't work
             case create_download_for_product(updated_payment) do
               {:ok, _download} ->
@@ -611,6 +614,9 @@ defmodule Shomp.Payments do
                 # Create universal order for review tracking
                 order_result = create_order_from_payment(updated_payment, session.id)
                 IO.puts("Universal order creation result: #{inspect(order_result)}")
+
+                # Broadcast purchase event for real-time toaster
+                broadcast_purchase_event(updated_payment)
 
                 # Create download for digital products
                 case create_download_for_product(updated_payment) do
@@ -704,6 +710,8 @@ defmodule Shomp.Payments do
           # Notify seller of new order
           notify_seller_of_purchase(payment)
           # Notify buyer of successful purchase
+          # Broadcast purchase event for real-time toaster
+          broadcast_purchase_event(payment)
         end)
 
         # Complete the cart
@@ -785,12 +793,19 @@ defmodule Shomp.Payments do
         end)
 
         # Update universal order status
-        UniversalOrders.update_universal_order(universal_order, %{
+        case UniversalOrders.update_universal_order(universal_order, %{
           status: "completed",
           payment_status: "paid"
-        })
-
-        {:ok, :payment_processed}
+        }) do
+          {:ok, updated_order} ->
+        # Record purchase activity and broadcast for toaster
+        IO.puts("=== WEBHOOK: About to call record_purchase_activity_from_webhook ===")
+        record_purchase_activity_from_webhook(updated_order, payment_intent_metadata)
+            {:ok, :payment_processed}
+          {:error, reason} ->
+            IO.puts("ERROR: Failed to update universal order: #{inspect(reason)}")
+            {:ok, :payment_processed}  # Still return success since payment was processed
+        end
     end
   end
 
@@ -1177,6 +1192,10 @@ defmodule Shomp.Payments do
             case UniversalOrders.update_universal_order_status(universal_order, "completed") do
               {:ok, updated_order} ->
                 IO.puts("Universal order status updated to completed")
+
+                # Record purchase activity for toaster notifications
+                record_purchase_activity(updated_order, product, user)
+
                 # Preload associations before broadcasting
                 order_with_details = Shomp.Repo.preload(updated_order, [universal_order_items: :product])
                 # Broadcast to LiveView that order is ready
@@ -1208,6 +1227,12 @@ defmodule Shomp.Payments do
         case UniversalOrders.update_universal_order_status(existing_order, "completed") do
           {:ok, updated_order} ->
             IO.puts("Existing universal order status updated to completed")
+
+            # Record purchase activity for toaster notifications
+            product = Shomp.Products.get_product!(payment.product_id)
+            user = Shomp.Accounts.get_user!(payment.user_id)
+            record_purchase_activity(updated_order, product, user)
+
             {:ok, updated_order}
           {:error, reason} ->
             IO.puts("Warning: Failed to update existing universal order status: #{inspect(reason)}")
@@ -1731,6 +1756,112 @@ defmodule Shomp.Payments do
     rescue
       error ->
         IO.puts("Error broadcasting payment processed event: #{inspect(error)}")
+    end
+  end
+
+  @doc """
+  Records purchase activity for toaster notifications.
+  """
+  defp record_purchase_activity(order, product, buyer) do
+    try do
+      alias Shomp.PurchaseActivities
+      PurchaseActivities.record_purchase(order, product, buyer)
+      IO.puts("Recorded purchase activity for order #{order.id}")
+    rescue
+      error ->
+        IO.puts("Error recording purchase activity: #{inspect(error)}")
+    end
+  end
+
+  @doc """
+  Broadcasts a purchase event for real-time toaster notifications.
+  """
+  defp broadcast_purchase_event(payment) do
+    try do
+      # Get the product and user details for the toaster
+      product = Products.get_product!(payment.product_id)
+      user = Accounts.get_user!(payment.user_id)
+
+      # Create the purchase activity data for the toaster
+      activity_data = %{
+        id: payment.id,
+        buyer_initials: get_buyer_initials(user),
+        buyer_location: get_buyer_location(user),
+        product_title: product.title,
+        amount: Decimal.to_float(payment.amount),
+        inserted_at: DateTime.utc_now()
+      }
+
+        # Broadcast to all connected clients (both LiveView and Channel)
+        Phoenix.PubSub.broadcast(Shomp.PubSub, "purchase_activities", {:purchase_completed, activity_data})
+        IO.puts("Broadcasted purchase event for payment #{payment.id}")
+    rescue
+      error ->
+        IO.puts("Error broadcasting purchase event: #{inspect(error)}")
+    end
+  end
+
+  defp get_buyer_initials(user) do
+    if user.name do
+      user.name
+      |> String.split()
+      |> Enum.map(&String.first/1)
+      |> Enum.join("")
+      |> String.upcase()
+    else
+      String.first(user.email) |> String.upcase()
+    end
+  end
+
+  defp get_buyer_location(user) do
+    user.location || "Unknown Location"
+  end
+
+  @doc """
+  Records purchase activity and broadcasts toaster event from webhook data.
+  """
+  defp record_purchase_activity_from_webhook(universal_order, metadata) do
+    IO.puts("=== WEBHOOK: record_purchase_activity_from_webhook called ===")
+    IO.puts("Universal Order ID: #{universal_order.id}")
+    IO.puts("Metadata: #{inspect(metadata)}")
+
+    try do
+      # Extract product and user info from metadata
+      product_id = case metadata do
+        %{"product_id" => id} when is_binary(id) -> String.to_integer(id)
+        %{"product_id" => id} when is_integer(id) -> id
+        _ -> nil
+      end
+
+      IO.puts("Extracted product_id: #{inspect(product_id)}")
+
+      if product_id do
+        # Get product and user
+        product = Products.get_product!(product_id)
+        user = Accounts.get_user!(universal_order.user_id)
+
+        # Record purchase activity
+        record_purchase_activity(universal_order, product, user)
+
+        # Broadcast toaster event
+        activity_data = %{
+          id: universal_order.id,
+          buyer_initials: get_buyer_initials(user),
+          buyer_location: get_buyer_location(user),
+          product_title: product.title,
+          amount: Decimal.to_float(universal_order.total_amount),
+          inserted_at: DateTime.utc_now()
+        }
+
+          # Broadcast to all connected clients (both LiveView and Channel)
+          Phoenix.PubSub.broadcast(Shomp.PubSub, "purchase_activities", {:purchase_completed, activity_data})
+          IO.puts("Broadcasted purchase event from webhook for order #{universal_order.id}")
+      else
+        IO.puts("No product_id in metadata, skipping toaster broadcast")
+      end
+    rescue
+      error ->
+        IO.puts("Error recording purchase activity from webhook: #{inspect(error)}")
     end
   end
 

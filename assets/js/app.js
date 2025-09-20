@@ -238,6 +238,94 @@ const ShowHideOnTypeChange = {
   }
 }
 
+// Purchase Toaster Hook
+const PurchaseToaster = {
+  mounted() {
+    console.log('PurchaseToaster hook mounted');
+    this.loadToasters();
+    this.setupPubSub();
+  },
+  
+  destroyed() {
+    if (this.socket) {
+      this.socket.disconnect();
+    }
+  },
+  
+  async loadToasters() {
+    // No need to load initial toasters since we're using real-time events
+    console.log('Toaster system ready for real-time events');
+  },
+  
+  setupPubSub() {
+    console.log('Setting up PubSub connection');
+    // Use Phoenix PubSub for real-time updates
+    this.socket = new Socket("/socket", {})
+    this.socket.connect()
+    
+    this.channel = this.socket.channel("purchase_activities", {})
+    this.channel.join()
+      .receive("ok", resp => { console.log("Joined purchase_activities channel", resp) })
+      .receive("error", resp => { console.log("Unable to join purchase_activities channel", resp) })
+    
+    this.channel.on("purchase_completed", (payload) => {
+      console.log("Received purchase_completed event:", payload);
+      this.addToaster(payload);
+    });
+  },
+  
+  addToaster(activity) {
+    console.log('Adding toaster for activity:', activity);
+    const toasterId = `toaster-${activity.id}-${Date.now()}`;
+    const toaster = document.createElement('div');
+    toaster.id = toasterId;
+    toaster.className = 'toast toast-bottom toast-start animate-slide-up mb-2 fixed bottom-4 left-4 z-50';
+    
+    toaster.innerHTML = `
+      <div class="alert alert-info shadow-lg">
+        <div class="flex items-center space-x-3">
+          <div class="avatar placeholder">
+            <div class="bg-primary text-primary-content rounded-full w-8">
+              <span class="text-xs font-bold">${activity.buyer_initials}</span>
+            </div>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-base-content">
+              Just purchased <span class="font-semibold">${activity.product_title}</span>
+            </p>
+            <p class="text-xs text-base-content/70">
+              ${activity.buyer_location} • Just now
+            </p>
+          </div>
+          <div class="text-right">
+            <p class="text-sm font-bold text-primary">$${this.formatAmount(activity.amount)}</p>
+          </div>
+          <button class="btn btn-ghost btn-xs" onclick="this.closest('.toast').remove()">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(toaster);
+    
+    // Auto-remove after 15 seconds
+    setTimeout(() => {
+      const element = document.getElementById(toasterId);
+      if (element) {
+        element.remove();
+      }
+    }, 15000);
+  },
+  
+  formatAmount(amount) {
+    return Math.round(parseFloat(amount));
+  }
+}
+
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
@@ -249,7 +337,8 @@ const liveSocket = new LiveSocket("/live", Socket, {
     CartDonationHook,
     UsCitizenshipValidation,
     DigitalFileUpload,
-    ShowHideOnTypeChange
+    ShowHideOnTypeChange,
+    PurchaseToaster
   },
 })
 

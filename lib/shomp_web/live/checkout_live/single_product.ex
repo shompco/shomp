@@ -423,17 +423,13 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
                 <button
                   id="submit-payment"
                   type="button"
-                  disabled={@payment_status == "processing" || (@product.type == "physical" && @selected_shipping_option == nil)}
+                  disabled={@payment_status == "processing"}
                   class="w-full bg-primary hover:bg-primary-focus text-primary-content font-semibold py-3 px-6 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   <%= if @payment_status == "processing" do %>
                     Processing Payment...
                   <% else %>
-                    <%= if @product.type == "physical" && @selected_shipping_option == nil do %>
-                      Select Shipping Method
-                    <% else %>
-                      <%= if @product.type == "physical", do: "Complete Order", else: "Complete Purchase" %> - $<%= if @donate, do: format_amount(@total_amount), else: format_amount(@product.price) %>
-                    <% end %>
+                    <%= if @product.type == "physical", do: "Complete Order", else: "Complete Purchase" %> - $<%= if @donate, do: format_amount(@total_amount), else: format_amount(@product.price) %>
                   <% end %>
                 </button>
               </div>
@@ -580,12 +576,7 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
           }
 
           <%= if @product.type == "physical" do %>
-          // Shipping address validation
-          if (!formData.shipping_address.line1) {
-            errors.push('Street address is required');
-          } else if (formData.shipping_address.line1.trim().length < 5) {
-            errors.push('Please enter a complete street address');
-          }
+          // Shipping address validation (street address optional)
 
           if (!formData.shipping_address.city) {
             errors.push('City is required');

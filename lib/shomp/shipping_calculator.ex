@@ -58,7 +58,7 @@ defmodule Shomp.ShippingCalculator do
         width: convert_to_float(Map.get(product, :width, 4.0)),
         height: convert_to_float(Map.get(product, :height, 2.0))
       }]
-      
+
       calculate_shipping(items, shipping_address, store_address)
     end
   end
@@ -80,7 +80,7 @@ defmodule Shomp.ShippingCalculator do
         height: convert_to_float(Map.get(cart_item.product, :height, 2.0))
       }
     end)
-    
+
     if Enum.empty?(physical_items) do
       {:ok, []}
     else
@@ -94,20 +94,20 @@ defmodule Shomp.ShippingCalculator do
       weight = convert_to_float(Map.get(item, :weight, 1.0))
       acc + (weight * item.quantity)
     end)
-    
-    max_length = Enum.max_by(items, fn item -> 
+
+    max_length = Enum.max_by(items, fn item ->
       convert_to_float(Map.get(item, :length, 6.0))
     end, fn -> 6.0 end) |> Map.get(:length, 6.0) |> convert_to_float()
-    
-    max_width = Enum.max_by(items, fn item -> 
+
+    max_width = Enum.max_by(items, fn item ->
       convert_to_float(Map.get(item, :width, 4.0))
     end, fn -> 4.0 end) |> Map.get(:width, 4.0) |> convert_to_float()
-    
+
     max_height = Enum.reduce(items, 0, fn item, acc ->
       height = convert_to_float(Map.get(item, :height, 2.0))
       acc + (height * item.quantity)
     end)
-    
+
     %{
       weight: total_weight,
       length: max_length,

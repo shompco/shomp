@@ -8,6 +8,33 @@
       {assigns[:page_title]}
     </.live_title>
     <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
+    <style>
+      .animate-slide-up {
+        animation: slideUp 0.5s ease-out;
+      }
+      
+      @keyframes slideUp {
+        from {
+          transform: translateY(100%);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+      
+      @keyframes slideDown {
+        from {
+          transform: translateY(0);
+          opacity: 1;
+        }
+        to {
+          transform: translateY(100%);
+          opacity: 0;
+        }
+      }
+    </style>
     <script>
       window.stripePublishableKey = "<%= Application.get_env(:shomp, :stripe_publishable_key) %>";
     </script>
@@ -48,6 +75,8 @@
       window.addEventListener("phx:notification-count-updated", (e) => {
         updateNotificationCount(e.detail.count);
       });
+      
+      
     </script>
     <script>
       (() => {
@@ -284,6 +313,11 @@
     
     <!-- Donations Thermometer -->
     <.donations_thermometer />
+    
+    <!-- Purchase Toaster LiveView -->
+    <div id="purchase-toaster-container" phx-hook="PurchaseToaster">
+      <!-- Toasters will be rendered here -->
+    </div>
     
          <!-- Footer -->
      <footer class="bg-base-200 mt-20">

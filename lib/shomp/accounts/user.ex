@@ -16,6 +16,7 @@ defmodule Shomp.Accounts.User do
     field :confirmed_at, :utc_datetime
     field :authenticated_at, :utc_datetime, virtual: true
     field :trial_ends_at, :utc_datetime
+    field :show_purchase_activity, :boolean, default: true
 
     belongs_to :tier, Shomp.Accounts.Tier, type: :binary_id
     has_many :stores, Shomp.Stores.Store
@@ -108,7 +109,7 @@ defmodule Shomp.Accounts.User do
   """
   def profile_changeset(user, attrs, opts \\ []) do
     user
-    |> cast(attrs, [:username, :name, :bio, :location, :website])
+    |> cast(attrs, [:username, :name, :bio, :location, :website, :show_purchase_activity])
     |> validate_required([:username])
     |> validate_length(:username, min: 3, max: 30)
     |> validate_length(:name, min: 2, max: 100)
