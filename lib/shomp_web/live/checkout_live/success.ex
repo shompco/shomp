@@ -128,7 +128,7 @@ defmodule ShompWeb.CheckoutLive.Success do
                 </li>
                 <li class="flex items-start space-x-2">
                   <span class="text-primary mt-1">•</span>
-                  <span>For digital products, download links will be sent to your email</span>
+                  <span>Download digital products up to 5 times. Login with email.</span>
                 </li>
                 <li class="flex items-start space-x-2">
                   <span class="text-primary mt-1">•</span>
