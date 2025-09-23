@@ -123,16 +123,42 @@ defmodule Shomp.ShippoApi do
 
   defp format_parcel(parcel) do
     # Ensure minimum realistic dimensions for Shippo
-    length = max(Map.get(parcel, :length) || Map.get(parcel, "length") || 6.0, 1.0)
-    width = max(Map.get(parcel, :width) || Map.get(parcel, "width") || 4.0, 1.0)
-    height = max(Map.get(parcel, :height) || Map.get(parcel, "height") || 2.0, 1.0)
-    weight = max(Map.get(parcel, :weight) || Map.get(parcel, "weight") || 1.0, 0.1)
+    # Convert Decimal values to floats for JSON encoding
+    length_raw = Map.get(parcel, :length) || Map.get(parcel, "length") || 6.0
+    width_raw = Map.get(parcel, :width) || Map.get(parcel, "width") || 4.0
+    height_raw = Map.get(parcel, :height) || Map.get(parcel, "height") || 2.0
+    weight_raw = Map.get(parcel, :weight) || Map.get(parcel, "weight") || 1.0
+
+    # Convert to float if it's a Decimal
+    length = case length_raw do
+      %Decimal{} = d -> Decimal.to_float(d)
+      n when is_number(n) -> n
+      _ -> 6.0
+    end
+
+    width = case width_raw do
+      %Decimal{} = d -> Decimal.to_float(d)
+      n when is_number(n) -> n
+      _ -> 4.0
+    end
+
+    height = case height_raw do
+      %Decimal{} = d -> Decimal.to_float(d)
+      n when is_number(n) -> n
+      _ -> 2.0
+    end
+
+    weight = case weight_raw do
+      %Decimal{} = d -> Decimal.to_float(d)
+      n when is_number(n) -> n
+      _ -> 1.0
+    end
 
     %{
-      "length" => length,
-      "width" => width,
-      "height" => height,
-      "weight" => weight,
+      "length" => max(length, 1.0),
+      "width" => max(width, 1.0),
+      "height" => max(height, 1.0),
+      "weight" => max(weight, 0.1),
       "mass_unit" => Map.get(parcel, :weight_unit) || Map.get(parcel, "weight_unit") || "lb",
       "distance_unit" => Map.get(parcel, :distance_unit) || Map.get(parcel, "distance_unit") || "in"
     }
@@ -213,6 +239,151 @@ defmodule Shomp.ShippoApi do
       {:error, reason} ->
         Logger.error("Shippo API request failed: #{inspect(reason)}")
         {:error, reason}
+    end
+  end
+
+  @doc """
+  Generate a shipping label for a shipment.
+
+  ## Parameters
+  - `from_address`: Map with sender address details
+  - `to_address`: Map with recipient address details
+  - `parcel`: Map with package details
+  - `service_token`: Service level token (e.g., "ups_ground", "fedex_ground")
+  - `carrier_account`: Carrier account ID (optional)
+
+  ## Returns
+  - `{:ok, label_data}` - Success with label information
+  - `{:error, reason}` - Error with reason
+  """
+  def generate_label(from_address, to_address, parcel, service_token, carrier_account \\ nil) do
+    require Logger
+
+    Logger.info("=== SHIPPO LABEL GENERATION ===")
+    Logger.info("From address: #{inspect(from_address)}")
+    Logger.info("To address: #{inspect(to_address)}")
+    Logger.info("Parcel: #{inspect(parcel)}")
+    Logger.info("Service token: #{service_token}")
+    Logger.info("Carrier account: #{inspect(carrier_account)}")
+
+    api_key = Application.get_env(:shomp, :shippo_api_key)
+
+    if is_nil(api_key) or api_key == "" do
+      Logger.error("Shippo API key not configured")
+      {:error, :api_key_missing}
+    else
+      # Step 1: Create shipment to get rates
+      shipment_url = "#{@base_url}/shipments"
+
+      shipment_body = %{
+        "address_from" => format_address(from_address),
+        "address_to" => format_address(to_address),
+        "parcels" => [format_parcel(parcel)],
+        "async" => false
+      }
+
+      Logger.info("Step 1 - Creating shipment...")
+      Logger.info("Shipment URL: #{shipment_url}")
+      Logger.info("Shipment body: #{inspect(shipment_body)}")
+
+      case Req.post(shipment_url,
+        json: shipment_body,
+        headers: %{
+          "Authorization" => "ShippoToken #{api_key}",
+          "Content-Type" => "application/json",
+          "Shippo-API-Version" => @api_version
+        }
+      ) do
+        {:ok, %{status: status_code, body: shipment_response}} when status_code in 200..299 ->
+          IO.puts("=== SHIPMENT CREATED SUCCESSFULLY ===")
+          IO.puts("Status: #{status_code}")
+
+          # Step 2: Find the rate with the matching service token
+          rates = Map.get(shipment_response, "rates", [])
+          IO.puts("Available rates: #{length(rates)}")
+
+          matching_rate = Enum.find(rates, fn rate ->
+            rate_service_token = get_in(rate, ["servicelevel", "token"])
+            IO.puts("Checking rate: #{rate_service_token} vs #{service_token}")
+            rate_service_token == service_token
+          end)
+
+          if matching_rate do
+            IO.puts("=== FOUND MATCHING RATE ===")
+            IO.puts("Rate ID: #{matching_rate["object_id"]}")
+            IO.puts("Rate Amount: #{matching_rate["amount"]}")
+
+            # Step 3: Purchase the rate to generate the label
+            transaction_url = "#{@base_url}/transactions"
+
+            transaction_body = %{
+              "rate" => matching_rate["object_id"],
+              "async" => false
+            }
+
+            IO.puts("Step 3 - Purchasing rate to generate label...")
+            IO.puts("Transaction URL: #{transaction_url}")
+            IO.puts("Transaction body: #{inspect(transaction_body)}")
+
+            case Req.post(transaction_url,
+              json: transaction_body,
+              headers: %{
+                "Authorization" => "ShippoToken #{api_key}",
+                "Content-Type" => "application/json",
+                "Shippo-API-Version" => @api_version
+              }
+            ) do
+              {:ok, %{status: trans_status, body: transaction_response}} when trans_status in 200..299 ->
+                IO.puts("=== TRANSACTION SUCCESS ===")
+                IO.puts("Transaction Status: #{trans_status}")
+                IO.puts("Transaction Response: #{inspect(transaction_response)}")
+
+                # Extract label URL from transaction response
+                label_url = get_in(transaction_response, ["label_url"]) ||
+                           get_in(transaction_response, ["commercial_invoice_url"])
+
+                tracking_number = get_in(transaction_response, ["tracking_number"])
+
+                IO.puts("Final label_url: #{inspect(label_url)}")
+                IO.puts("Final tracking_number: #{inspect(tracking_number)}")
+
+                {:ok, %{
+                  label_url: label_url,
+                  tracking_number: tracking_number,
+                  transaction: transaction_response,
+                  shipment: shipment_response
+                }}
+
+              {:ok, %{status: trans_status, body: transaction_response}} ->
+                IO.puts("=== TRANSACTION ERROR ===")
+                IO.puts("Status: #{trans_status}")
+                IO.puts("Response: #{inspect(transaction_response)}")
+                {:error, :transaction_failed}
+
+              {:error, reason} ->
+                IO.puts("=== TRANSACTION REQUEST FAILED ===")
+                IO.puts("Error: #{inspect(reason)}")
+                {:error, reason}
+            end
+          else
+            IO.puts("=== NO MATCHING RATE FOUND ===")
+            IO.puts("Requested service token: #{service_token}")
+            IO.puts("Available service tokens:")
+            Enum.each(rates, fn rate ->
+              token = get_in(rate, ["servicelevel", "token"])
+              IO.puts("  - #{token}")
+            end)
+            {:error, :rate_not_found}
+          end
+
+        {:ok, %{status: status_code, body: response_body}} ->
+          Logger.error("Shippo label generation error: #{status_code} - #{inspect(response_body)}")
+          {:error, :api_error}
+
+        {:error, reason} ->
+          Logger.error("Shippo label generation request failed: #{inspect(reason)}")
+          {:error, reason}
+      end
     end
   end
 end

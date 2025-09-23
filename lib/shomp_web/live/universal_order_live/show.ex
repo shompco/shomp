@@ -43,7 +43,7 @@ defmodule ShompWeb.UniversalOrderLive.Show do
         import Ecto.Query
         order_items = from(u in Shomp.UniversalOrders.UniversalOrderItem,
           where: u.universal_order_id == ^universal_order_id,
-          preload: [:product]
+          preload: [product: :store]
         ) |> Shomp.Repo.all()
 
         # Manually set the order items
@@ -171,6 +171,37 @@ defmodule ShompWeb.UniversalOrderLive.Show do
                 <h2 class="text-lg font-semibold text-base-content">Order Management</h2>
               </div>
               <div class="p-6 space-y-6">
+                <!-- Print Shipping Label -->
+                <%= if @universal_order.shipping_cost && Decimal.gt?(@universal_order.shipping_cost, Decimal.new("0")) do %>
+                  <!-- DEBUG: Shipping cost exists and is > 0 -->
+                  <div>
+                    <h3 class="text-md font-medium text-base-content mb-3">Shipping Label</h3>
+                    <div class="space-y-3">
+                      <button
+                        type="button"
+                        class="btn btn-primary"
+                        phx-click="print_shipping_label"
+                        onclick="console.log('=== PRINT SHIPPING LABEL BUTTON CLICKED ==='); console.log('Timestamp:', new Date().toISOString());"
+                      >
+                        📦 Print Shipping Label
+                      </button>
+                      <p class="text-sm text-base-content/60">
+                        When you print a shipping label you will get a PDF in a new tab. The buyer will get a notification that a label has been printed.
+                      </p>
+                    </div>
+                  </div>
+                <% else %>
+                  <!-- DEBUG: Button not visible -->
+                  <div class="bg-warning/10 border border-warning/20 rounded-lg p-4">
+                    <h3 class="text-md font-medium text-warning mb-2">Debug: Print Shipping Label Button Not Visible</h3>
+                    <p class="text-sm text-warning/80">
+                      Shipping Cost: <%= inspect(@universal_order.shipping_cost) %><br/>
+                      Condition Check: <%= if @universal_order.shipping_cost, do: "shipping_cost exists", else: "shipping_cost is nil" %>
+                      <%= if @universal_order.shipping_cost && Decimal.gt?(@universal_order.shipping_cost, Decimal.new("0")), do: "AND > 0", else: "BUT NOT > 0" %>
+                    </p>
+                  </div>
+                <% end %>
+
                 <!-- Status Update -->
                 <div>
                   <h3 class="text-md font-medium text-base-content mb-3">Update Order Status</h3>
@@ -232,6 +263,7 @@ defmodule ShompWeb.UniversalOrderLive.Show do
                     <button type="submit" class="btn btn-outline">Save Notes</button>
                   </.form>
                 </div>
+
               </div>
             </div>
           </div>
@@ -260,16 +292,38 @@ defmodule ShompWeb.UniversalOrderLive.Show do
                   <span class="text-base-content/70">Email</span>
                   <span class="text-sm"><%= @universal_order.customer_email %></span>
                 </div>
-                <div class="flex justify-between">
-                  <span class="text-base-content/70">Total Amount</span>
-                  <span class="font-semibold">$<%= Decimal.to_string(@universal_order.total_amount, :normal) %></span>
+                <!-- Payment Breakdown -->
+                <div class="border-t border-base-300 pt-4 mt-4">
+                  <h3 class="text-sm font-medium text-base-content mb-3">Payment Breakdown</h3>
+
+                  <!-- Product Total -->
+                  <div class="flex justify-between text-sm">
+                    <span class="text-base-content/70">Product Total</span>
+                    <span>$<%= Decimal.to_string(Decimal.sub(@universal_order.total_amount, Decimal.add(@universal_order.platform_fee_amount || Decimal.new("0"), @universal_order.shipping_cost || Decimal.new("0"))), :normal) %></span>
+                  </div>
+
+                  <!-- Donation -->
+                  <%= if Decimal.gt?(@universal_order.platform_fee_amount, Decimal.new("0")) do %>
+                    <div class="flex justify-between text-sm">
+                      <span class="text-base-content/70">Shomp Donation (5%)</span>
+                      <span class="text-success">$<%= Decimal.to_string(@universal_order.platform_fee_amount, :normal) %></span>
+                    </div>
+                  <% end %>
+
+                  <!-- Shipping -->
+                  <%= if @universal_order.shipping_cost && Decimal.gt?(@universal_order.shipping_cost, Decimal.new("0")) do %>
+                    <div class="flex justify-between text-sm">
+                      <span class="text-base-content/70">Shipping (<%= @universal_order.shipping_method_name || @universal_order.carrier || "Standard" %>)</span>
+                      <span>$<%= Decimal.to_string(@universal_order.shipping_cost, :normal) %></span>
+                    </div>
+                  <% end %>
+
+                  <!-- Total Amount -->
+                  <div class="flex justify-between font-semibold border-t border-base-300 pt-2 mt-2">
+                    <span>Total Amount</span>
+                    <span>$<%= Decimal.to_string(@universal_order.total_amount, :normal) %></span>
+                  </div>
                 </div>
-            <%= if Decimal.gt?(@universal_order.platform_fee_amount, Decimal.new("0")) do %>
-              <div class="flex justify-between">
-                <span class="text-base-content/70">Shomp Donation (5%) - Thank you!</span>
-                <span class="text-success">$<%= Decimal.to_string(@universal_order.platform_fee_amount, :normal) %></span>
-              </div>
-            <% end %>
                 <div class="flex justify-between">
                   <span class="text-base-content/70">Status</span>
                   <.status_badge status={@universal_order.shipping_status} class="badge-sm" />
@@ -310,6 +364,23 @@ defmodule ShompWeb.UniversalOrderLive.Show do
         </div>
       </div>
     </Layouts.app>
+
+    <script>
+      // Handle opening shipping label PDF in new tab
+      window.addEventListener("phx:open_label_pdf", (e) => {
+        console.log("=== PDF OPEN EVENT RECEIVED ===");
+        console.log("Event detail:", e.detail);
+        console.log("Label URL:", e.detail.url);
+        console.log("Opening PDF in new tab...");
+
+        if (e.detail.url && e.detail.url.trim() !== "") {
+          window.open(e.detail.url, '_blank');
+          console.log("PDF window opened successfully");
+        } else {
+          console.error("No valid label URL provided! URL:", e.detail.url);
+        }
+      });
+    </script>
     """
   end
 
@@ -385,6 +456,178 @@ defmodule ShompWeb.UniversalOrderLive.Show do
 
       {:error, _changeset} ->
         {:noreply, put_flash(socket, :error, "Failed to update notes")}
+    end
+  end
+
+  @impl true
+  def handle_event("print_shipping_label", _params, socket) do
+    IO.puts("=== PRINT SHIPPING LABEL EVENT RECEIVED ===")
+    IO.puts("Socket assigns: #{inspect(socket.assigns)}")
+
+    universal_order = socket.assigns.universal_order
+
+    IO.puts("=== PRINT SHIPPING LABEL EVENT HANDLER ===")
+    IO.puts("Order ID: #{universal_order.universal_order_id}")
+    IO.puts("Customer: #{universal_order.customer_name}")
+    IO.puts("Customer Email: #{universal_order.customer_email}")
+    IO.puts("Shipping Cost: #{universal_order.shipping_cost}")
+    IO.puts("Order Items Count: #{length(universal_order.universal_order_items)}")
+    IO.puts("Timestamp: #{DateTime.utc_now()}")
+
+    # Get the first order item to get product details
+    case universal_order.universal_order_items do
+      [order_item | _] ->
+        product = order_item.product
+
+        IO.puts("=== PRODUCT DETAILS ===")
+        IO.puts("Product Title: #{product.title}")
+        IO.puts("Product Type: #{product.type}")
+        IO.puts("Store ZIP Code: #{product.store.shipping_zip_code}")
+        IO.puts("Product Dimensions: #{product.length}x#{product.width}x#{product.height}")
+        IO.puts("Product Weight: #{product.weight} #{product.weight_unit}")
+
+        # Create from address using store ZIP code
+        from_address = %{
+          name: "Store",
+          street1: "123 Main St",
+          city: "Store",
+          state: "NY",
+          zip: product.store.shipping_zip_code || "10001",
+          country: "US"
+        }
+
+        # Create to address from order
+        to_address = %{
+          name: universal_order.customer_name,
+          street1: universal_order.shipping_address_line1,
+          street2: universal_order.shipping_address_line2,
+          city: universal_order.shipping_address_city,
+          state: universal_order.shipping_address_state,
+          zip: universal_order.shipping_address_postal_code,
+          country: universal_order.shipping_address_country
+        }
+
+        # Create parcel from product dimensions
+        parcel = %{
+          length: product.length || 6.0,
+          width: product.width || 4.0,
+          height: product.height || 2.0,
+          weight: product.weight || 1.0,
+          weight_unit: product.weight_unit || "lb",
+          distance_unit: product.distance_unit || "in"
+        }
+
+        IO.puts("=== ADDRESS DETAILS ===")
+        IO.puts("From Address: #{inspect(from_address)}")
+        IO.puts("To Address: #{inspect(to_address)}")
+        IO.puts("Parcel: #{inspect(parcel)}")
+
+        # Use the actual shipping method from the order
+        service_token = case universal_order.shipping_method_name do
+          nil ->
+            IO.puts("No shipping method name found, using carrier: #{universal_order.carrier}")
+            case universal_order.carrier do
+              "UPS" -> "ups_ground"
+              "USPS" -> "usps_ground_advantage"
+              "FedEx" -> "fedex_ground"
+              _ ->
+                IO.puts("ERROR: No valid shipping method found!")
+                {:error, :no_shipping_method}
+            end
+          method_name ->
+            IO.puts("Using shipping method name: #{method_name}")
+            # Convert method name to service token (remove special characters for matching)
+            clean_method = method_name
+            |> String.downcase()
+            |> String.replace(~r/[®™©]/, "")  # Remove trademark symbols
+            |> String.replace(~r/\s+/, " ")   # Normalize whitespace
+            |> String.trim()
+
+            IO.puts("Cleaned method name: '#{clean_method}'")
+
+            case clean_method do
+              method when method in ["ups ground", "ups_ground"] -> "ups_ground"
+              method when method in ["ups next day air", "ups_next_day_air"] -> "ups_ground_saver"
+              method when method in ["ups 2nd day air", "ups_2nd_day_air"] -> "ups_2nd_day_air"
+              method when method in ["ups 3 day select", "ups_3_day_select"] -> "ups_3_day_select"
+              method when method in ["usps priority", "usps_priority"] -> "usps_priority"
+              method when method in ["usps ground advantage", "usps_ground_advantage"] -> "usps_ground_advantage"
+              method when method in ["fedex ground", "fedex_ground"] -> "fedex_ground"
+              method when method in ["fedex 2 day", "fedex_2_day"] -> "fedex_2_day"
+              method when method in ["fedex overnight", "fedex_overnight"] -> "fedex_overnight"
+              _ ->
+                IO.puts("ERROR: Unknown method name: '#{method_name}' (cleaned: '#{clean_method}')")
+                {:error, :unknown_shipping_method}
+            end
+        end
+
+        case service_token do
+          {:error, reason} ->
+            IO.puts("=== SHIPPING METHOD ERROR ===")
+            IO.puts("Error: #{inspect(reason)}")
+            {:noreply,
+             socket
+             |> put_flash(:error, "Cannot generate label: #{inspect(reason)}")}
+
+          service_token ->
+            # Check if we already have a label URL saved
+            case universal_order.label_url do
+              nil ->
+                IO.puts("=== NO EXISTING LABEL FOUND - GENERATING NEW ONE ===")
+                IO.puts("=== CALLING SHIPPO API ===")
+                IO.puts("Service Token: #{service_token}")
+
+                case Shomp.ShippoApi.generate_label(from_address, to_address, parcel, service_token) do
+                  {:ok, %{label_url: label_url, tracking_number: tracking_number}} ->
+                    IO.puts("=== SHIPPO API SUCCESS ===")
+                    IO.puts("Label URL: #{label_url}")
+                    IO.puts("Tracking Number: #{tracking_number}")
+
+                    # Update the order with tracking number and label URL
+                    UniversalOrders.update_universal_order(universal_order, %{
+                      tracking_number: tracking_number,
+                      shipping_status: "label_printed",
+                      label_url: label_url
+                    })
+
+                    IO.puts("=== ORDER UPDATED ===")
+                    IO.puts("Updated order with tracking number, status, and label URL")
+
+                    # Send JavaScript to open PDF in new tab
+                    IO.puts("=== SENDING PDF OPEN EVENT ===")
+                    IO.puts("Label URL to open: #{label_url}")
+                    IO.puts("Is label_url nil? #{is_nil(label_url)}")
+
+                    {:noreply,
+                     socket
+                     |> put_flash(:info, "Shipping label generated successfully!")
+                     |> push_event("open_label_pdf", %{url: label_url})}
+
+                  {:error, reason} ->
+                    IO.puts("=== SHIPPO API ERROR ===")
+                    IO.puts("Error: #{inspect(reason)}")
+
+                    {:noreply,
+                     socket
+                     |> put_flash(:error, "Failed to generate shipping label: #{inspect(reason)}")}
+                end
+
+              existing_label_url ->
+                IO.puts("=== EXISTING LABEL FOUND ===")
+                IO.puts("Label URL: #{existing_label_url}")
+                IO.puts("Opening existing label...")
+
+                {:noreply,
+                 socket
+                 |> put_flash(:info, "Opening existing shipping label...")
+                 |> push_event("open_label_pdf", %{url: existing_label_url})}
+            end
+        end
+
+      [] ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "No order items found")}
     end
   end
 

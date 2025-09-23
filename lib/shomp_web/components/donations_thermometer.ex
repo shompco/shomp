@@ -16,7 +16,7 @@ defmodule ShompWeb.Components.DonationsThermometer do
         <div class="max-w-4xl mx-auto">
           <blockquote class="text-lg md:text-xl font-light text-base-content/90 leading-relaxed italic">
             <span class="text-6xl text-primary/30 leading-none">"</span>
-            Shomp is organized exclusively for charitable and educational purposes, including promoting public access to the arts and supporting U.S. artists and creators through a nonprofit e-commerce platform. By eliminating exploitative fees, providing educational resources, open-source tools, and community programs, Shomp seeks to empower creators, broaden public engagement with creative works, and strengthen the cultural and economic vitality of communities.
+            Our mission is to advance economic education and entrepreneurship training by providing a fee-free marketplace where creators gain hands-on business experience while accessing free resources in financial literacy and entrepreneurial training. We aim to reduce barriers to entry, foster economic self-sufficiency, and build lasting business skills for individuals and communities.
             <span class="text-6xl text-primary/30 leading-none">"</span>
           </blockquote>
         </div>
