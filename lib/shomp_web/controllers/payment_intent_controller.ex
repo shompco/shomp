@@ -15,6 +15,8 @@ defmodule ShompWeb.PaymentIntentController do
     IO.puts("Donate: #{donate}")
     IO.puts("Customer Email: #{customer_email}")
     IO.puts("Customer Name: #{customer_name}")
+    IO.puts("Shipping Method: #{inspect(params["shipping_method"])}")
+    IO.puts("Shipping Address: #{inspect(params["shipping_address"])}")
 
     # Convert product_id to integer
     product_id = String.to_integer(product_id)
@@ -228,6 +230,10 @@ defmodule ShompWeb.PaymentIntentController do
       shipping = params["shipping_address"]
       shipping_method = params["shipping_method"]
 
+      IO.puts("=== SHIPPING DATA DEBUG ===")
+      IO.puts("Shipping address: #{inspect(shipping)}")
+      IO.puts("Shipping method: #{inspect(shipping_method)}")
+
       base_shipping_data = %{
         shipping_address_line1: shipping["line1"],
         shipping_address_line2: shipping["line2"],
@@ -239,6 +245,7 @@ defmodule ShompWeb.PaymentIntentController do
 
       # Add shipping method details if provided
       shipping_data = if shipping_method do
+        IO.puts("Adding shipping method data: #{inspect(shipping_method)}")
         Map.merge(base_shipping_data, %{
           carrier: shipping_method["carrier"],
           shipping_status: "ordered",
@@ -247,11 +254,14 @@ defmodule ShompWeb.PaymentIntentController do
           shipping_method_name: shipping_method["name"]
         })
       else
+        IO.puts("No shipping method provided")
         base_shipping_data
       end
 
+      IO.puts("Final shipping data: #{inspect(shipping_data)}")
       Map.merge(order_data, shipping_data)
     else
+      IO.puts("Not a physical product or no shipping address")
       order_data
     end
 

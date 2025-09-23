@@ -134,7 +134,7 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
                 <%= if @product.type == "physical" do %>
                   <div class="flex justify-between items-center mb-2">
                     <span class="text-base-content/70">Shipping</span>
-                    <span class="text-base-content/70">
+                    <span id="shipping-cost-display" class="text-base-content/70">
                       <%= if @shipping_cost > 0 do %>
                         $<%= :erlang.float_to_binary(@shipping_cost, decimals: 2) %>
                       <% else %>
@@ -558,12 +558,25 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
         function updateTotalPrice(shippingCost = <%= @shipping_cost %>) {
           console.log('updateTotalPrice called with shipping cost:', shippingCost);
 
+          // Get current shipping cost from selected option if available
+          const selectedShippingOption = document.querySelector('input[name="shipping_option"]:checked');
+          if (selectedShippingOption && window.shippingOptions) {
+            const selectedOption = window.shippingOptions.find(option => option.id === selectedShippingOption.value);
+            if (selectedOption) {
+              shippingCost = parseFloat(selectedOption.cost);
+              console.log('Updated shipping cost from selected option:', shippingCost);
+            }
+          }
+
           const productPrice = <%= Decimal.to_float(@product.price) %>;
-          const donate = <%= @donate %>;
+
+          // Get current donation state from checkbox
+          const donateCheckbox = document.getElementById('donate_checkbox');
+          const donate = donateCheckbox ? donateCheckbox.checked : <%= @donate %>;
 
           console.log('Product price:', productPrice);
           console.log('Donate enabled:', donate);
-          console.log('Shipping cost:', shippingCost);
+          console.log('Final shipping cost:', shippingCost);
 
           // Calculate total based on donation setting
           let totalAmount;
@@ -585,6 +598,16 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
             const newText = '$' + totalAmount.toFixed(2);
             console.log('Updating total element text to:', newText);
             totalElement.textContent = newText;
+          }
+
+          // Update the shipping cost display
+          const shippingCostDisplay = document.getElementById('shipping-cost-display');
+          console.log('Shipping cost display element found:', !!shippingCostDisplay);
+
+          if (shippingCostDisplay) {
+            const shippingText = '$' + shippingCost.toFixed(2);
+            console.log('Updating shipping cost display to:', shippingText);
+            shippingCostDisplay.textContent = shippingText;
           }
 
           // Update the checkout button text
@@ -634,12 +657,16 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
 
           // Add selected shipping method
           const selectedShippingOption = document.querySelector('input[name="shipping_option"]:checked');
+          console.log('Selected shipping option:', selectedShippingOption);
           if (selectedShippingOption) {
             const optionId = selectedShippingOption.value;
+            console.log('Selected option ID:', optionId);
             // Get shipping option data from global variable
             if (window.shippingOptions) {
               const shippingOptions = window.shippingOptions;
+              console.log('Available shipping options:', shippingOptions);
               const selectedOption = shippingOptions.find(option => option.id === optionId);
+              console.log('Found selected option:', selectedOption);
               if (selectedOption) {
                 formData.shipping_method = {
                   id: selectedOption.id,
@@ -649,8 +676,13 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
                   estimated_days: selectedOption.estimated_days,
                   service_token: selectedOption.service_token
                 };
+                console.log('Added shipping method to form data:', formData.shipping_method);
               }
+            } else {
+              console.log('No shipping options available in window.shippingOptions');
             }
+          } else {
+            console.log('No shipping option selected');
           }
           <% end %>
 
@@ -855,20 +887,14 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
 
         // Function to update button text based on donation state
         function updateButtonText() {
-          const donateCheckbox = document.getElementById('donate_checkbox');
-          const submitButton = document.getElementById('submit-payment');
-          const productPrice = <%= Decimal.to_float(@product.price) %>;
-          const donationAmount = donateCheckbox.checked ? productPrice * 0.05 : 0;
-          const totalAmount = productPrice + donationAmount;
-          const buttonText = '<%= if @product.type == "physical", do: "Complete Order", else: "Complete Purchase" %> - $' + totalAmount.toFixed(2);
-          submitButton.textContent = buttonText;
+          // Use updateTotalPrice to ensure shipping is included
+          updateTotalPrice();
         }
 
         // Function to handle donation toggle
         function handleDonationToggle() {
           const donateCheckbox = document.getElementById('donate_checkbox');
           const donationRow = document.querySelector('.donation-row');
-          const totalRow = document.querySelector('.total-row');
           const productPrice = <%= Decimal.to_float(@product.price) %>;
           const donationAmount = productPrice * 0.05;
 
@@ -881,28 +907,15 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
                 donationAmountEl.textContent = '$' + donationAmount.toFixed(2);
               }
             }
-            // Update total
-            if (totalRow) {
-              const totalAmountEl = totalRow.querySelector('.total-amount');
-              if (totalAmountEl) {
-                totalAmountEl.textContent = '$' + (productPrice + donationAmount).toFixed(2);
-              }
-            }
           } else {
-            // Hide donation row and reset amounts
+            // Hide donation row
             if (donationRow) {
               donationRow.classList.add('hidden');
             }
-            // Update total
-            if (totalRow) {
-              const totalAmountEl = totalRow.querySelector('.total-amount');
-              if (totalAmountEl) {
-                totalAmountEl.textContent = '$' + productPrice.toFixed(2);
-              }
-            }
           }
 
-          updateButtonText();
+          // Use updateTotalPrice to ensure shipping is included in all calculations
+          updateTotalPrice();
         }
 
         // Add event listener to donation checkbox
