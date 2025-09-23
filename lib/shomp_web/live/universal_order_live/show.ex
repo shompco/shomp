@@ -584,24 +584,34 @@ defmodule ShompWeb.UniversalOrderLive.Show do
                     IO.puts("Tracking Number: #{tracking_number}")
 
                     # Update the order with tracking number and label URL
-                    UniversalOrders.update_universal_order(universal_order, %{
+                    case UniversalOrders.update_universal_order(universal_order, %{
                       tracking_number: tracking_number,
                       shipping_status: "label_printed",
                       label_url: label_url
-                    })
+                    }) do
+                      {:ok, updated_order} ->
+                        IO.puts("=== ORDER UPDATED ===")
+                        IO.puts("Updated order with tracking number, status, and label URL")
 
-                    IO.puts("=== ORDER UPDATED ===")
-                    IO.puts("Updated order with tracking number, status, and label URL")
+                        # Send JavaScript to open PDF in new tab
+                        IO.puts("=== SENDING PDF OPEN EVENT ===")
+                        IO.puts("Label URL to open: #{label_url}")
+                        IO.puts("Is label_url nil? #{is_nil(label_url)}")
 
-                    # Send JavaScript to open PDF in new tab
-                    IO.puts("=== SENDING PDF OPEN EVENT ===")
-                    IO.puts("Label URL to open: #{label_url}")
-                    IO.puts("Is label_url nil? #{is_nil(label_url)}")
+                        # Update the socket with the new order data for real-time UI update
+                        updated_socket = assign(socket, :universal_order, updated_order)
 
-                    {:noreply,
-                     socket
-                     |> put_flash(:info, "Shipping label generated successfully!")
-                     |> push_event("open_label_pdf", %{url: label_url})}
+                        {:noreply,
+                         updated_socket
+                         |> put_flash(:info, "Shipping label generated successfully!")
+                         |> push_event("open_label_pdf", %{url: label_url})}
+
+                      {:error, _changeset} ->
+                        IO.puts("=== ORDER UPDATE FAILED ===")
+                        {:noreply,
+                         socket
+                         |> put_flash(:error, "Label generated but failed to update order status")}
+                    end
 
                   {:error, reason} ->
                     IO.puts("=== SHIPPO API ERROR ===")
