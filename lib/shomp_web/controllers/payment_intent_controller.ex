@@ -7,7 +7,7 @@ defmodule ShompWeb.PaymentIntentController do
   alias Shomp.PaymentSplits
   alias Shomp.Accounts
 
-  def create(conn, %{"product_id" => product_id, "universal_order_id" => universal_order_id, "donate" => donate, "customer_email" => customer_email, "customer_name" => customer_name} = params) do
+  def create(conn, %{"product_id" => product_id, "universal_order_id" => universal_order_id, "donate" => donate, "customer_email" => customer_email, "customer_name" => customer_name, "total_amount" => form_total_amount} = params) do
     IO.puts("=== PAYMENT INTENT CONTROLLER DEBUG ===")
     IO.puts("Received params: #{inspect(params)}")
     IO.puts("Product ID: #{product_id}")
@@ -31,7 +31,7 @@ defmodule ShompWeb.PaymentIntentController do
       case get_or_create_guest_user(customer_email, customer_name) do
         {:ok, user} ->
           IO.puts("User ID: #{user.id}")
-          process_payment_intent(conn, product_id, universal_order_id, donate, customer_email, customer_name, params, user)
+          process_payment_intent(conn, product_id, universal_order_id, donate, customer_email, customer_name, form_total_amount, params, user)
         {:error, reason} ->
           IO.puts("ERROR: Failed to create user: #{inspect(reason)}")
           conn
@@ -47,7 +47,7 @@ defmodule ShompWeb.PaymentIntentController do
     |> json(%{error: "Missing required fields: product_id, universal_order_id, donate, customer_email, customer_name"})
   end
 
-  defp process_payment_intent(conn, product_id, universal_order_id, donate, customer_email, customer_name, params, user) do
+  defp process_payment_intent(conn, product_id, universal_order_id, donate, customer_email, customer_name, form_total_amount, params, user) do
     IO.puts("=== PROCESSING PAYMENT INTENT ===")
     user_id = user.id
     IO.puts("User ID: #{user_id}")
@@ -58,22 +58,22 @@ defmodule ShompWeb.PaymentIntentController do
     IO.puts("Product price: #{product.price}")
     IO.puts("Product store ID: #{product.store_id}")
 
-    # Calculate amounts
+    # Use total amount from form data (includes shipping and donation)
+    total_amount = Decimal.new(to_string(form_total_amount))
+
+    # Calculate platform fee amount for tracking
     platform_fee_rate = Decimal.new("0.05")
     platform_fee_amount = if donate do
-      Decimal.mult(product.price, platform_fee_rate)
+      # Calculate platform fee as 5% of (product price + shipping)
+      # Since total_amount = (product_price + shipping) * 1.05, we can calculate the fee
+      product_and_shipping = Decimal.div(total_amount, Decimal.new("1.05"))
+      Decimal.sub(total_amount, product_and_shipping)
     else
       Decimal.new("0")
     end
 
-    total_amount = if donate do
-      Decimal.add(product.price, platform_fee_amount)
-    else
-      product.price
-    end
-
+    IO.puts("Total amount from form: #{total_amount}")
     IO.puts("Platform fee amount: #{platform_fee_amount}")
-    IO.puts("Total amount: #{total_amount}")
 
     # Convert to cents for Stripe
     total_amount_cents = total_amount
@@ -223,17 +223,34 @@ defmodule ShompWeb.PaymentIntentController do
       customer_name: customer_name
     }
 
-    # Add shipping address for physical products
+    # Add shipping address and method for physical products
     order_data = if product.type == "physical" && params["shipping_address"] do
       shipping = params["shipping_address"]
-      Map.merge(order_data, %{
+      shipping_method = params["shipping_method"]
+
+      base_shipping_data = %{
         shipping_address_line1: shipping["line1"],
         shipping_address_line2: shipping["line2"],
         shipping_address_city: shipping["city"],
         shipping_address_state: shipping["state"],
         shipping_address_postal_code: shipping["postal_code"],
         shipping_address_country: shipping["country"]
-      })
+      }
+
+      # Add shipping method details if provided
+      shipping_data = if shipping_method do
+        Map.merge(base_shipping_data, %{
+          carrier: shipping_method["carrier"],
+          shipping_status: "ordered",
+          estimated_delivery: shipping_method["estimated_days"] && Date.add(Date.utc_today(), shipping_method["estimated_days"]),
+          shipping_cost: Decimal.new(to_string(shipping_method["cost"])),
+          shipping_method_name: shipping_method["name"]
+        })
+      else
+        base_shipping_data
+      end
+
+      Map.merge(order_data, shipping_data)
     else
       order_data
     end

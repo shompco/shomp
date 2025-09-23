@@ -8,6 +8,8 @@ defmodule ShompWeb.ProductLive.New do
   alias Shomp.Categories
   alias Shomp.StoreCategories
 
+  import Phoenix.LiveView.JS
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -168,7 +170,7 @@ defmodule ShompWeb.ProductLive.New do
           <% end %>
 
           <!-- Quantity Available (only for physical products) -->
-          <%= if @product_type == "physical" do %>
+          <div id="quantity-section" class={if @product_type == "physical", do: "", else: "hidden"}>
             <.input
               field={@form[:quantity]}
               type="number"
@@ -177,10 +179,10 @@ defmodule ShompWeb.ProductLive.New do
               min="0"
               step="1"
             />
-          <% end %>
+          </div>
 
           <!-- Shipping Information (only for physical products) -->
-          <%= if @product_type == "physical" do %>
+          <div id="shipping-section" class={if @product_type == "physical", do: "", else: "hidden"}>
             <div class="space-y-4">
               <h3 class="text-lg font-medium text-gray-900">Shipping Information</h3>
               <p class="text-sm text-gray-600">Required for accurate shipping cost calculation</p>
@@ -226,8 +228,23 @@ defmodule ShompWeb.ProductLive.New do
                   required
                 />
               </div>
+
+              <!-- Shipping ZIP Code -->
+              <div class="mt-4">
+                <.input
+                  field={@form[:shipping_zip_code]}
+                  type="text"
+                  label="Which ZIP will you ship products from? (This is used in shipping cost calculations)"
+                  placeholder="12345"
+                  maxlength="10"
+                  required
+                />
+                <p class="text-sm text-base-content/60 mt-1">
+                  This will be saved as your store's default shipping ZIP code for all products.
+                </p>
+              </div>
             </div>
-          <% end %>
+          </div>
 
           <!-- Category Selection Section -->
           <div class="space-y-4">
@@ -385,6 +402,7 @@ defmodule ShompWeb.ProductLive.New do
       changeset = Ecto.Changeset.put_change(changeset, :type, "physical")
       changeset = Ecto.Changeset.put_change(changeset, :us_citizen_confirmation, false)
       changeset = Ecto.Changeset.put_change(changeset, :quantity, 1)
+      changeset = Ecto.Changeset.put_change(changeset, :shipping_zip_code, store.shipping_zip_code)
 
         # Load physical categories by default
         physical_categories = Categories.get_categories_by_type("physical")
@@ -447,13 +465,11 @@ defmodule ShompWeb.ProductLive.New do
     # Update the form with the new type
     changeset = socket.assigns.form.source
     |> Ecto.Changeset.put_change(:type, product_type)
-    |> Map.put(:action, :validate)
 
     form = to_form(changeset, as: "product")
 
-    {:noreply,
-     socket
-     |> assign(form: form, filtered_category_options: filtered_category_options, product_type: product_type)}
+    socket = assign(socket, form: form, filtered_category_options: filtered_category_options, product_type: product_type)
+    {:noreply, socket}
   end
 
   def handle_event("cancel-upload", %{"ref" => ref}, socket) do

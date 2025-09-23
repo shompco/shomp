@@ -174,6 +174,7 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
                 </label>
               </div>
             </div>
+
           </div>
 
           <!-- Right Column: Payment Form -->
@@ -333,73 +334,35 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
                         </select>
                       </div>
                     </div>
-                  </div>
-                <% end %>
 
-                <!-- Shipping Calculator Section (only for physical products) -->
-                <%= if @product.type == "physical" do %>
-                  <div>
-                    <h3 class="text-lg font-medium text-base-content mb-4">Shipping Method</h3>
+                    <!-- Shipping Calculator Section -->
+                    <%= if @product.type == "physical" do %>
+                      <div class="mt-6">
+                        <h3 class="text-lg font-medium text-base-content mb-4">Shipping Method</h3>
 
-                    <!-- Calculate Shipping Button -->
-                    <div class="mb-4">
-                      <button
-                        type="button"
-                        id="calculate-shipping-btn"
-                        class="btn btn-primary"
-                        phx-click="calculate_shipping"
-                        phx-disable-with="Calculating..."
-                      >
-                        Calculate Shipping Rates
-                      </button>
-                    </div>
-
-                    <!-- Shipping Options -->
-                    <div id="shipping-options" class="space-y-3">
-                      <%= if @shipping_loading do %>
-                        <div class="flex items-center justify-center py-4">
-                          <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-                          <span class="ml-2 text-sm text-base-content/70">Calculating shipping rates...</span>
+                        <!-- Calculate Shipping Button -->
+                        <div class="mb-4">
+                          <button
+                            type="button"
+                            id="calculate-shipping-btn"
+                            class="btn btn-primary"
+                            onclick="calculateShippingWithAddress()"
+                          >
+                            Calculate Shipping Rates
+                          </button>
                         </div>
-                      <% else %>
-                        <%= if not Enum.empty?(@shipping_options) do %>
-                          <%= for option <- @shipping_options do %>
-                            <label class="flex items-center p-3 border border-base-300 rounded-lg cursor-pointer hover:bg-base-200">
-                              <input
-                                type="radio"
-                                name="shipping_option"
-                                value={option.id}
-                                checked={@selected_shipping_option && @selected_shipping_option.id == option.id}
-                                phx-click="select_shipping_option"
-                                phx-value-option_id={option.id}
-                                class="radio radio-primary"
-                              />
-                              <div class="ml-3 flex-1">
-                                <div class="flex justify-between items-center">
-                                  <span class="text-sm font-medium text-base-content">
-                                    <%= option.name %>
-                                  </span>
-                                  <span class="text-sm font-semibold text-base-content">
-                                    $<%= :erlang.float_to_binary(option.cost, decimals: 2) %>
-                                  </span>
-                                </div>
-                                <%= if option.estimated_days do %>
-                                  <p class="text-xs text-base-content/60">
-                                    Estimated delivery: <%= option.estimated_days %> business days
-                                  </p>
-                                <% end %>
-                              </div>
-                            </label>
-                          <% end %>
-                        <% else %>
+
+                        <!-- Shipping Options Container -->
+                        <div id="shipping-options-container">
                           <div class="text-center py-4">
                             <p class="text-sm text-base-content/60">Click "Calculate Shipping Rates" to see available options</p>
                           </div>
-                        <% end %>
-                      <% end %>
-                    </div>
+                        </div>
+                      </div>
+                    <% end %>
                   </div>
                 <% end %>
+
 
                 <!-- Card Information Section -->
                 <div>
@@ -416,6 +379,9 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
                 </div>
               </div>
 
+              <!-- Hidden inputs for shipping data -->
+              <div id="shipping-data" style="display: none;"></div>
+
               <!-- Payment Button -->
               <div class="space-y-4">
 
@@ -429,7 +395,9 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
                   <%= if @payment_status == "processing" do %>
                     Processing Payment...
                   <% else %>
-                    <%= if @product.type == "physical", do: "Complete Order", else: "Complete Purchase" %> - $<%= if @donate, do: format_amount(@total_amount), else: format_amount(@product.price) %>
+                    <span id="checkout-button-text">
+                      <%= if @product.type == "physical", do: "Complete Order", else: "Complete Purchase" %> - $<%= if @donate, do: format_amount(@total_amount), else: format_amount(@product.price) %>
+                    </span>
                   <% end %>
                 </button>
               </div>
@@ -460,6 +428,12 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
 
       <!-- Stripe Elements Script -->
       <script src="https://js.stripe.com/v3/"></script>
+
+      <!-- Shipping Options Data -->
+      <script>
+        window.shippingOptions = <%= if @shipping_options, do: Jason.encode!(@shipping_options), else: "[]" %>;
+      </script>
+
       <script>
         console.log('=== STRIPE CHECKOUT DEBUG ===');
         console.log('Script loaded at:', new Date().toISOString());
@@ -498,6 +472,13 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
                   // Set up payment button
                   setupPaymentButton();
 
+                  // Set up shipping price updates (with error handling)
+                  try {
+                    setupShippingPriceUpdates();
+                  } catch (error) {
+                    console.error('Error setting up shipping price updates:', error);
+                  }
+
                   // Test if element is visible
                   setTimeout(() => {
                     const mountedElement = document.querySelector('#card-element .StripeElement');
@@ -532,17 +513,115 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
           }
         }
 
+        // Set up shipping price updates
+        function setupShippingPriceUpdates() {
+          console.log('Setting up shipping price updates...');
+
+          // Listen for shipping option changes
+          document.addEventListener('change', function(event) {
+            console.log('Change event detected:', event.target.name, event.target.value);
+
+            if (event.target.name === 'shipping_option') {
+              console.log('Shipping option selected:', event.target.value);
+
+              console.log('Shipping options available:', window.shippingOptions);
+
+              if (window.shippingOptions && window.shippingOptions.length > 0) {
+                console.log('Shipping options:', window.shippingOptions);
+
+                try {
+                  const shippingOptions = window.shippingOptions;
+                  console.log('Parsed shipping options:', shippingOptions);
+
+                  const selectedOption = shippingOptions.find(option => option.id === event.target.value);
+                  console.log('Selected option:', selectedOption);
+
+                  if (selectedOption) {
+                    console.log('Updating total price with shipping cost:', selectedOption.cost);
+                    updateTotalPrice(parseFloat(selectedOption.cost));
+                  } else {
+                    console.log('Selected option not found in shipping options');
+                  }
+                } catch (error) {
+                  console.error('Error parsing shipping options:', error);
+                }
+              } else {
+                console.log('Shipping data input not found or empty');
+              }
+            }
+          });
+
+          console.log('Shipping price updates setup complete');
+        }
+
+        // Function to update total price
+        function updateTotalPrice(shippingCost = <%= @shipping_cost %>) {
+          console.log('updateTotalPrice called with shipping cost:', shippingCost);
+
+          const productPrice = <%= Decimal.to_float(@product.price) %>;
+          const donate = <%= @donate %>;
+
+          console.log('Product price:', productPrice);
+          console.log('Donate enabled:', donate);
+          console.log('Shipping cost:', shippingCost);
+
+          // Calculate total based on donation setting
+          let totalAmount;
+          if (donate) {
+            // (item cost + shipping cost) * 1.05
+            totalAmount = (productPrice + shippingCost) * 1.05;
+          } else {
+            // (item cost + shipping cost)
+            totalAmount = productPrice + shippingCost;
+          }
+
+          console.log('Calculated total amount:', totalAmount);
+
+          // Update the total display element
+          const totalElement = document.querySelector('.total-amount');
+          console.log('Total element found:', !!totalElement);
+
+          if (totalElement) {
+            const newText = '$' + totalAmount.toFixed(2);
+            console.log('Updating total element text to:', newText);
+            totalElement.textContent = newText;
+          }
+
+          // Update the checkout button text
+          const checkoutButtonText = document.getElementById('checkout-button-text');
+          console.log('Checkout button text element found:', !!checkoutButtonText);
+
+          if (checkoutButtonText) {
+            const buttonText = '<%= if @product.type == "physical", do: "Complete Order", else: "Complete Purchase" %> - $' + totalAmount.toFixed(2);
+            console.log('Updating checkout button text to:', buttonText);
+            checkoutButtonText.textContent = buttonText;
+          }
+        }
+
         // Collect form data
         function collectFormData() {
+          // Calculate current total with shipping
+          const productPrice = <%= Decimal.to_float(@product.price) %>;
+          const donate = <%= @donate %>;
+          const shippingCost = <%= @shipping_cost %>;
+
+          let currentTotal;
+          if (donate) {
+            currentTotal = (productPrice + shippingCost) * 1.05;
+          } else {
+            currentTotal = productPrice + shippingCost;
+          }
+
           const formData = {
             product_id: '<%= @product.id %>',
             universal_order_id: '<%= @universal_order_id %>',
-            donate: <%= @donate %>,
+            donate: donate,
             customer_email: document.getElementById('customer-email').value,
-            customer_name: document.getElementById('customer-name').value
+            customer_name: document.getElementById('customer-name').value,
+            total_amount: currentTotal
           };
 
-          // Add shipping address for physical products
+          // Add shipping address and method for physical products
           <%= if @product.type == "physical" do %>
           formData.shipping_address = {
             line1: document.getElementById('address-line1').value,
@@ -552,6 +631,27 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
             postal_code: document.getElementById('postal-code').value,
             country: document.getElementById('country').value
           };
+
+          // Add selected shipping method
+          const selectedShippingOption = document.querySelector('input[name="shipping_option"]:checked');
+          if (selectedShippingOption) {
+            const optionId = selectedShippingOption.value;
+            // Get shipping option data from global variable
+            if (window.shippingOptions) {
+              const shippingOptions = window.shippingOptions;
+              const selectedOption = shippingOptions.find(option => option.id === optionId);
+              if (selectedOption) {
+                formData.shipping_method = {
+                  id: selectedOption.id,
+                  name: selectedOption.name,
+                  carrier: selectedOption.carrier,
+                  cost: selectedOption.cost,
+                  estimated_days: selectedOption.estimated_days,
+                  service_token: selectedOption.service_token
+                };
+              }
+            }
+          }
           <% end %>
 
           return formData;
@@ -827,6 +927,265 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
           setupDonationToggle();
         }
 
+        // Re-initialize Stripe after LiveView updates
+        document.addEventListener('phx:updated', function() {
+          console.log('LiveView updated, checking Stripe element...');
+          const existingElement = document.querySelector('#card-element .StripeElement');
+          if (!existingElement) {
+            console.log('Stripe element missing after update, re-initializing...');
+            setTimeout(testStripe, 100);
+          }
+        });
+
+        // LiveView hook for calculate shipping button
+        const CalculateShipping = {
+          mounted() {
+            console.log('CalculateShipping hook mounted');
+          },
+
+          handleEvent(event, payload) {
+            console.log('CalculateShipping hook received event:', event);
+
+            if (event === 'calculate_shipping') {
+              // Collect address data from the form
+              const addressData = {
+                name: document.getElementById('customer-name')?.value || 'Customer',
+                street1: document.getElementById('address-line1')?.value || '',
+                city: document.getElementById('city')?.value || '',
+                state: document.getElementById('state')?.value || '',
+                zip: document.getElementById('postal-code')?.value || '',
+                country: document.getElementById('country')?.value || 'US'
+              };
+
+              console.log('Collected address data:', addressData);
+
+              // Validate required fields
+              if (!addressData.street1 || !addressData.city || !addressData.state || !addressData.zip) {
+                alert('Please fill in all required address fields before calculating shipping.');
+                return;
+              }
+
+              // Show loading state
+              const container = document.getElementById('shipping-options-container');
+              if (container) {
+                container.innerHTML = `
+                  <div class="flex items-center justify-center py-4">
+                    <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                    <span class="ml-2 text-sm text-base-content/70">Calculating shipping rates...</span>
+                  </div>
+                `;
+              }
+
+              // Make API call to calculate shipping
+              fetch('/api/calculate-shipping', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
+                },
+                body: JSON.stringify({
+                  product_id: '<%= @product.id %>',
+                  shipping_address: addressData
+                })
+              })
+              .then(response => response.json())
+              .then(data => {
+                console.log('Shipping API response:', data);
+
+                if (data.error) {
+                  throw new Error(data.error);
+                }
+
+                // Update the shipping options container
+                if (container && data.shipping_options) {
+                  let optionsHtml = '';
+                  data.shipping_options.forEach(option => {
+                    optionsHtml += `
+                      <div class="flex items-center p-3 border border-base-300 rounded-lg cursor-pointer hover:bg-base-200 mb-2"
+                           onclick="selectShippingOption('${option.id}', ${option.cost})">
+                        <input
+                          type="radio"
+                          name="shipping_option"
+                          value="${option.id}"
+                          class="radio radio-primary"
+                        />
+                        <div class="ml-3 flex-1">
+                          <div class="flex justify-between items-center">
+                            <span class="text-sm font-medium text-base-content">
+                              ${option.name}
+                            </span>
+                            <span class="text-sm font-semibold text-base-content">
+                              $${parseFloat(option.cost).toFixed(2)}
+                            </span>
+                          </div>
+                          ${option.estimated_days ? `
+                            <p class="text-xs text-base-content/60">
+                              Estimated delivery: ${option.estimated_days} business days
+                            </p>
+                          ` : ''}
+                        </div>
+                      </div>
+                    `;
+                  });
+
+                  container.innerHTML = optionsHtml;
+
+                  // Store shipping options for later use
+                  window.shippingOptions = data.shipping_options;
+                }
+              })
+              .catch(error => {
+                console.error('Shipping calculation error:', error);
+                if (container) {
+                  container.innerHTML = `
+                    <div class="text-center py-4">
+                      <p class="text-sm text-error">Failed to calculate shipping rates. Please try again.</p>
+                    </div>
+                  `;
+                }
+              });
+            }
+          }
+        };
+
+        // Function to select shipping option
+        function selectShippingOption(optionId, cost) {
+          console.log('Selected shipping option:', optionId, cost);
+
+          // Update radio button
+          document.querySelectorAll('input[name="shipping_option"]').forEach(radio => {
+            radio.checked = radio.value === optionId;
+          });
+
+          // Update total price
+          updateTotalPrice(parseFloat(cost));
+
+          // Store selected option
+          window.selectedShippingOption = { id: optionId, cost: cost };
+        }
+
+        // Register LiveView hooks
+        window.CalculateShipping = CalculateShipping;
+
+        // Function to calculate shipping with address from form
+        function calculateShippingWithAddress() {
+          console.log('Calculating shipping with address from form...');
+
+          // Collect address data from the form
+          const addressData = {
+            name: document.getElementById('customer-name')?.value || 'Customer',
+            street1: document.getElementById('address-line1')?.value || '',
+            city: document.getElementById('city')?.value || '',
+            state: document.getElementById('state')?.value || '',
+            zip: document.getElementById('postal-code')?.value || '',
+            country: document.getElementById('country')?.value || 'US'
+          };
+
+          console.log('Collected address data:', addressData);
+
+          // Validate required fields
+          if (!addressData.street1 || !addressData.city || !addressData.state || !addressData.zip) {
+            alert('Please fill in all required address fields before calculating shipping.');
+            return;
+          }
+
+          // Show loading state
+          const container = document.getElementById('shipping-options-container');
+          if (container) {
+            container.innerHTML = `
+              <div class="flex items-center justify-center py-4">
+                <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                <span class="ml-2 text-sm text-base-content/70">Calculating shipping rates...</span>
+              </div>
+            `;
+          }
+
+          // Make API call to calculate shipping
+          fetch('/api/calculate-shipping', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({
+              product_id: '<%= @product.id %>',
+              shipping_address: addressData
+            })
+          })
+          .then(response => response.json())
+          .then(data => {
+            console.log('Shipping API response:', data);
+
+            if (data.error) {
+              throw new Error(data.error);
+            }
+
+            // Update the shipping options container
+            if (container && data.shipping_options) {
+              let optionsHtml = '';
+              data.shipping_options.forEach(option => {
+                optionsHtml += `
+                  <div class="flex items-center p-3 border border-base-300 rounded-lg cursor-pointer hover:bg-base-200 mb-2"
+                       onclick="selectShippingOption('${option.id}', ${option.cost})">
+                    <input
+                      type="radio"
+                      name="shipping_option"
+                      value="${option.id}"
+                      class="radio radio-primary"
+                    />
+                    <div class="ml-3 flex-1">
+                      <div class="flex justify-between items-center">
+                        <span class="text-sm font-medium text-base-content">
+                          ${option.name}
+                        </span>
+                        <span class="text-sm font-semibold text-base-content">
+                          $${parseFloat(option.cost).toFixed(2)}
+                        </span>
+                      </div>
+                      ${option.estimated_days ? `
+                        <p class="text-xs text-base-content/60">
+                          Estimated delivery: ${option.estimated_days} business days
+                        </p>
+                      ` : ''}
+                    </div>
+                  </div>
+                `;
+              });
+
+              container.innerHTML = optionsHtml;
+
+              // Store shipping options for later use
+              window.shippingOptions = data.shipping_options;
+            }
+          })
+          .catch(error => {
+            console.error('Shipping calculation error:', error);
+            if (container) {
+              container.innerHTML = `
+                <div class="text-center py-4">
+                  <p class="text-sm text-error">Failed to calculate shipping rates. Please try again.</p>
+                </div>
+              `;
+            }
+          });
+        }
+
+        // Function to select shipping option
+        function selectShippingOption(optionId, cost) {
+          console.log('Selected shipping option:', optionId, cost);
+
+          // Update radio button
+          document.querySelectorAll('input[name="shipping_option"]').forEach(radio => {
+            radio.checked = radio.value === optionId;
+          });
+
+          // Update total price
+          updateTotalPrice(parseFloat(cost));
+
+          // Store selected option
+          window.selectedShippingOption = { id: optionId, cost: cost };
+        }
+
         // Fallback test
         setTimeout(function() {
           testStripe();
@@ -844,45 +1203,114 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
     {:noreply, socket}
   end
 
-  def handle_event("calculate_shipping", _params, socket) do
+  def handle_event("calculate_shipping", params, socket) do
+    require Logger
+
+    Logger.info("=== CHECKOUT - CALCULATE SHIPPING EVENT ===")
+    Logger.info("Product type: #{socket.assigns.product.type}")
+    Logger.info("Product: #{inspect(socket.assigns.product)}")
+    Logger.info("Params: #{inspect(params)}")
+
     if socket.assigns.product.type == "physical" do
-      # For now, we'll use a default address for testing
-      # In a real implementation, you'd collect this from the form
-      address_data = %{
-        "name" => "Test Customer",
-        "street1" => "123 Main St",
-        "city" => "New York",
-        "state" => "NY",
-        "zip" => "10001",
-        "country" => "US"
-      }
+      # Use address data from JavaScript or fallback to default
+      address_data = case params do
+        %{"street1" => street1} when street1 != "" ->
+          %{
+            "name" => Map.get(params, "name", "Customer"),
+            "street1" => street1,
+            "city" => Map.get(params, "city", ""),
+            "state" => Map.get(params, "state", ""),
+            "zip" => Map.get(params, "zip", ""),
+            "country" => Map.get(params, "country", "US")
+          }
+        _ ->
+          # Fallback to default address if no form data
+          %{
+            "name" => "Customer",
+            "street1" => "123 Main St",
+            "city" => "New York",
+            "state" => "NY",
+            "zip" => "10001",
+            "country" => "US"
+          }
+      end
+
+      Logger.info("Using address: #{inspect(address_data)}")
 
       socket = assign(socket, :shipping_loading, true)
 
       # Send async message to calculate shipping
+      Logger.info("Sending async message to calculate shipping...")
       send(self(), {:calculate_shipping, address_data})
 
       {:noreply, socket}
     else
+      Logger.info("Digital product - no shipping calculation needed")
       {:noreply, socket}
     end
   end
 
   def handle_event("select_shipping_option", %{"option_id" => option_id}, socket) do
+    require Logger
+
+    Logger.info("=== SELECTING SHIPPING OPTION ===")
+    Logger.info("Option ID: #{option_id}")
+    Logger.info("Available options: #{inspect(socket.assigns.shipping_options)}")
+
     selected_option = Enum.find(socket.assigns.shipping_options, &(&1.id == option_id))
 
-    socket =
-      socket
-      |> assign(:selected_shipping_option, selected_option)
-      |> assign(:shipping_cost, selected_option.cost)
+    Logger.info("Selected option: #{inspect(selected_option)}")
 
-    {:noreply, socket}
+    if selected_option do
+      # Convert cost to float if it's a string
+      shipping_cost = if is_binary(selected_option.cost), do: String.to_float(selected_option.cost), else: selected_option.cost
+
+      socket =
+        socket
+        |> assign(:selected_shipping_option, selected_option)
+        |> assign(:shipping_cost, shipping_cost)
+
+      Logger.info("Updated shipping cost: #{shipping_cost}")
+      {:noreply, socket}
+    else
+      Logger.error("Shipping option not found!")
+      {:noreply, socket}
+    end
   end
 
   @impl true
   def handle_info({:calculate_shipping, shipping_address}, socket) do
-    case ShippingCalculator.calculate_product_shipping(socket.assigns.product, shipping_address) do
+    require Logger
+
+    Logger.info("=== CHECKOUT - HANDLE INFO CALCULATE SHIPPING ===")
+    Logger.info("Shipping address: #{inspect(shipping_address)}")
+    Logger.info("Product: #{inspect(socket.assigns.product)}")
+
+      # Use store's ZIP code for shipping calculation
+      store_address = case socket.assigns.product.store.shipping_zip_code do
+        nil -> %{
+          "name" => socket.assigns.product.store.name,
+          "street1" => "123 Main St",
+          "city" => "San Francisco",
+          "state" => "CA",
+          "zip" => "94105",
+          "country" => "US"
+        }
+        zip_code ->
+          base_address = Shomp.ZipCodeLookup.create_address_from_zip(zip_code)
+          Map.merge(base_address, %{
+            "name" => socket.assigns.product.store.name,
+            "street1" => "123 Main St"
+          })
+      end
+
+    Logger.info("Using store address: #{inspect(store_address)}")
+
+    case ShippingCalculator.calculate_product_shipping(socket.assigns.product, shipping_address, store_address) do
       {:ok, shipping_options} ->
+        Logger.info("Shipping calculation successful!")
+        Logger.info("Shipping options: #{inspect(shipping_options)}")
+
         socket =
           socket
           |> assign(:shipping_options, shipping_options)
@@ -890,7 +1318,9 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
 
         {:noreply, socket}
 
-      {:error, _reason} ->
+      {:error, reason} ->
+        Logger.error("Shipping calculation failed: #{inspect(reason)}")
+
         socket =
           socket
           |> assign(:shipping_loading, false)
@@ -913,5 +1343,12 @@ defmodule ShompWeb.CheckoutLive.SingleProduct do
     amount
     |> Decimal.round(2)
     |> Decimal.to_string()
+  end
+
+  # Helper function to format shipping cost (handles both string and float)
+  defp format_cost(cost) do
+    cost
+    |> (fn c -> if is_binary(c), do: String.to_float(c), else: c end).()
+    |> :erlang.float_to_binary(decimals: 2)
   end
 end

@@ -182,6 +182,24 @@ defmodule Shomp.Products do
       {:ok, product} ->
         IO.puts("Product created in DB with ID: #{product.id}")
 
+        # Update store's shipping ZIP code if provided
+        if attrs["shipping_zip_code"] && product.type == "physical" do
+          case Shomp.Stores.get_store_by_store_id(product.store_id) do
+            store ->
+              store
+              |> Shomp.Stores.Store.changeset(%{shipping_zip_code: attrs["shipping_zip_code"]})
+              |> Repo.update()
+              |> case do
+                {:ok, _updated_store} ->
+                  IO.puts("Updated store shipping ZIP code to: #{attrs["shipping_zip_code"]}")
+                {:error, changeset} ->
+                  IO.puts("Failed to update store shipping ZIP code: #{inspect(changeset.errors)}")
+              end
+            nil ->
+              IO.puts("Store not found for store_id: #{product.store_id}")
+          end
+        end
+
         # Create Stripe product
         case create_stripe_product(product) do
           {:ok, stripe_product} ->
@@ -266,6 +284,24 @@ defmodule Shomp.Products do
     |> Repo.update()
     |> case do
       {:ok, updated_product} ->
+        # Update store's shipping ZIP code if provided
+        if attrs["shipping_zip_code"] && updated_product.type == "physical" do
+          case Shomp.Stores.get_store_by_store_id(updated_product.store_id) do
+            store ->
+              store
+              |> Shomp.Stores.Store.changeset(%{shipping_zip_code: attrs["shipping_zip_code"]})
+              |> Repo.update()
+              |> case do
+                {:ok, _updated_store} ->
+                  IO.puts("Updated store shipping ZIP code to: #{attrs["shipping_zip_code"]}")
+                {:error, changeset} ->
+                  IO.puts("Failed to update store shipping ZIP code: #{inspect(changeset.errors)}")
+              end
+            nil ->
+              IO.puts("Store not found for store_id: #{updated_product.store_id}")
+          end
+        end
+
         # Update Stripe product if price or description changed
         if Map.has_key?(attrs, :price) or Map.has_key?(attrs, :description) or Map.has_key?(attrs, :title) do
           update_stripe_product(updated_product)

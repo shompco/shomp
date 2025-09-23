@@ -34,6 +34,7 @@ defmodule Shomp.Products.Product do
     field :additional_images, {:array, :string}, default: []
     field :primary_image_index, :integer, default: 0
     field :us_citizen_confirmation, :boolean, virtual: true  # Virtual field for US citizen checkbox
+    field :shipping_zip_code, :string, virtual: true  # Virtual field for store ZIP code
 
     belongs_to :store, Shomp.Stores.Store, foreign_key: :store_id, references: :store_id, type: :string
     belongs_to :category, Shomp.Categories.Category  # Global platform category
@@ -51,7 +52,7 @@ defmodule Shomp.Products.Product do
   def changeset(product, attrs) do
     product
     |> cast(attrs, [:title, :description, :price, :type, :file_path, :digital_file_url, :digital_file_type, :store_id, :stripe_product_id, :category_id, :custom_category_id, :slug, :image_original, :image_thumb, :image_medium, :image_large, :image_extra_large, :image_ultra, :additional_images, :primary_image_index, :sold_out, :quantity, :weight, :length, :width, :height, :weight_unit, :distance_unit])
-    |> cast(attrs, [:us_citizen_confirmation], [])
+    |> cast(attrs, [:us_citizen_confirmation, :shipping_zip_code], [])
     |> validate_required([:title, :price, :type, :store_id])
     |> validate_length(:title, min: 2, max: 200)
     |> validate_length(:description, max: 2000)

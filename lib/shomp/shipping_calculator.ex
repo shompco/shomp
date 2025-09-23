@@ -18,25 +18,42 @@ defmodule Shomp.ShippingCalculator do
   - `{:error, reason}` on failure
   """
   def calculate_shipping(items, shipping_address, store_address \\ nil) do
+    require Logger
+
+    Logger.info("=== SHIPPING CALCULATOR - CALCULATE SHIPPING ===")
+    Logger.info("Items: #{inspect(items)}")
+    Logger.info("Shipping address: #{inspect(shipping_address)}")
+    Logger.info("Store address: #{inspect(store_address)}")
+
     # Filter to only physical products
     physical_items = Enum.filter(items, fn item ->
       is_map(item) && Map.get(item, :type) == "physical"
     end)
 
+    Logger.info("Physical items: #{inspect(physical_items)}")
+
     if Enum.empty?(physical_items) do
+      Logger.info("No physical items - returning empty rates")
       {:ok, []}
     else
       # Use default store address if not provided
       store_address = store_address || default_store_address()
+      Logger.info("Using store address: #{inspect(store_address)}")
 
       # Calculate combined package dimensions and weight
       package = calculate_package_dimensions(physical_items)
+      Logger.info("Calculated package: #{inspect(package)}")
 
       # Get shipping rates from Shippo
+      Logger.info("Calling ShippoApi.calculate_rates...")
       case ShippoApi.calculate_rates(store_address, shipping_address, package) do
         {:ok, rates} ->
-          {:ok, format_shipping_options(rates)}
+          Logger.info("ShippoApi returned rates: #{inspect(rates)}")
+          formatted_options = format_shipping_options(rates)
+          Logger.info("Formatted shipping options: #{inspect(formatted_options)}")
+          {:ok, formatted_options}
         {:error, reason} ->
+          Logger.error("ShippoApi error: #{inspect(reason)}")
           {:error, reason}
       end
     end
@@ -46,10 +63,24 @@ defmodule Shomp.ShippingCalculator do
   Calculate shipping for a single product.
   """
   def calculate_product_shipping(product, shipping_address, store_address \\ nil) do
+    require Logger
+
+    Logger.info("=== SHIPPING CALCULATOR - PRODUCT SHIPPING ===")
+    Logger.info("Product type: #{product.type}")
+    Logger.info("Product: #{inspect(product)}")
+    Logger.info("Shipping address: #{inspect(shipping_address)}")
+    Logger.info("Store address: #{inspect(store_address)}")
+
     # Digital products don't need shipping
     if product.type == "digital" do
+      Logger.info("Digital product - no shipping needed")
       {:ok, []}
     else
+      # Use provided store address or fallback to default
+      store_address = store_address || default_store_address()
+
+      Logger.info("Using store address: #{inspect(store_address)}")
+
       items = [%{
         type: product.type,
         quantity: 1,
@@ -59,6 +90,7 @@ defmodule Shomp.ShippingCalculator do
         height: convert_to_float(Map.get(product, :height, 2.0))
       }]
 
+      Logger.info("Calculated items: #{inspect(items)}")
       calculate_shipping(items, shipping_address, store_address)
     end
   end
@@ -144,14 +176,27 @@ defmodule Shomp.ShippingCalculator do
     |> Enum.sort_by(& &1.cost)
   end
 
-  defp default_store_address do
-    %{
-      name: "Shomp Store",
-      street1: "123 Main St",
-      city: "San Francisco",
-      state: "CA",
-      zip: "94105",
-      country: "US"
-    }
-  end
+    defp default_store_address do
+      # Use the actual store address from the product's store
+      # This should be configurable per store
+      %{
+        name: "Shomp Store",
+        street1: "123 Main St",
+        city: "San Francisco",
+        state: "CA",
+        zip: "94105",
+        country: "US"
+      }
+    end
+
+    defp get_store_address_from_zip(zip_code) do
+      # Create a minimal address from just the ZIP code
+      # This is sufficient for Shippo API calculations
+      base_address = Shomp.ZipCodeLookup.create_address_from_zip(zip_code)
+
+      Map.merge(base_address, %{
+        name: "Store",
+        street1: "123 Main St"
+      })
+    end
 end

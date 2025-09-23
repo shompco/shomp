@@ -2611,6 +2611,9 @@
   .loading-lg {
     width: calc(var(--size-selector, 0.25rem) * 7);
   }
+  .loading-sm {
+    width: calc(var(--size-selector, 0.25rem) * 5);
+  }
   .w-0 {
     width: calc(var(--spacing) * 0);
   }

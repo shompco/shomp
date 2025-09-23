@@ -13,6 +13,7 @@ defmodule Shomp.Stores.Store do
     field :pending_balance, :decimal, default: 0
     field :available_balance, :decimal, default: 0
     field :is_default, :boolean, default: false
+    field :shipping_zip_code, :string  # ZIP code for shipping calculations
     field :us_citizen_confirmation, :boolean, virtual: true  # Virtual field for checkbox
     belongs_to :user, User
     has_many :products, Shomp.Products.Product, foreign_key: :store_id, references: :store_id
@@ -28,7 +29,7 @@ defmodule Shomp.Stores.Store do
   """
   def changeset(store, attrs) do
     store
-    |> cast(attrs, [:name, :slug, :description, :user_id, :merchant_status, :pending_balance, :available_balance])
+    |> cast(attrs, [:name, :slug, :description, :user_id, :merchant_status, :pending_balance, :available_balance, :shipping_zip_code])
     |> validate_required([:name, :user_id])
     |> validate_length(:name, min: 2, max: 100)
     |> validate_length(:slug, min: 3, max: 50)
@@ -37,6 +38,7 @@ defmodule Shomp.Stores.Store do
     |> validate_number(:pending_balance, greater_than_or_equal_to: 0)
     |> validate_number(:available_balance, greater_than_or_equal_to: 0)
     |> validate_length(:description, max: 1000)
+    |> validate_zip_code_format()
     |> validate_store_username_conflict()
     |> unique_constraint(:slug)
     |> foreign_key_constraint(:user_id)
@@ -98,6 +100,16 @@ defmodule Shomp.Stores.Store do
 
     if us_citizen != true do
       add_error(changeset, :us_citizen_confirmation, "Shomp is only available to US-based sellers and merchants because of our 501c3 nonprofit obligations.")
+    else
+      changeset
+    end
+  end
+
+  defp validate_zip_code_format(changeset) do
+    zip_code = get_change(changeset, :shipping_zip_code) || get_field(changeset, :shipping_zip_code)
+
+    if zip_code && not Regex.match?(~r/^\d{5}(-\d{4})?$/, zip_code) do
+      add_error(changeset, :shipping_zip_code, "must be a valid US ZIP code (12345 or 12345-6789)")
     else
       changeset
     end

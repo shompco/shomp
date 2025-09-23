@@ -90,6 +90,7 @@ defmodule ShompWeb.Router do
       pipe_through :browser
 
       post "/create-payment-intent", PaymentIntentController, :create
+      post "/calculate-shipping", ShippingController, :calculate
     end
 
   # Checkout routes

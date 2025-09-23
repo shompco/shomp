@@ -7,6 +7,8 @@ defmodule ShompWeb.ProductLive.Edit do
   alias Shomp.Categories
   alias Shomp.StoreCategories
 
+  import Phoenix.LiveView.JS
+
   @impl true
   def mount(%{"id" => id}, _session, socket) do
     user = socket.assigns.current_scope.user
@@ -15,6 +17,7 @@ defmodule ShompWeb.ProductLive.Edit do
     # Check if user owns the store
     if product.store.user_id == user.id do
       changeset = Products.change_product(product)
+      changeset = Ecto.Changeset.put_change(changeset, :shipping_zip_code, product.store.shipping_zip_code)
 
       # Load categories based on current product type
       filtered_category_options = if product.type do
@@ -38,6 +41,7 @@ defmodule ShompWeb.ProductLive.Edit do
 
       {:ok, assign(socket,
         product: product,
+        product_type: product.type,
         form: to_form(changeset),
         filtered_category_options: filtered_category_options,
         custom_category_options: custom_category_options
@@ -98,7 +102,7 @@ defmodule ShompWeb.ProductLive.Edit do
           />
 
           <!-- Quantity Available (only for physical products) -->
-          <div id="quantity-section" class={if @product.type == "physical", do: "", else: "hidden"}>
+          <div id="quantity-section" class={if @product_type == "physical", do: "", else: "hidden"}>
             <.input
               field={@form[:quantity]}
               type="number"
@@ -110,7 +114,7 @@ defmodule ShompWeb.ProductLive.Edit do
           </div>
 
           <!-- Shipping Information (only for physical products) -->
-          <div id="shipping-section" class={if @product.type == "physical", do: "", else: "hidden"}>
+          <div id="shipping-section" class={if @product_type == "physical", do: "", else: "hidden"}>
             <div class="space-y-4">
               <h3 class="text-lg font-medium text-gray-900">Shipping Information</h3>
               <p class="text-sm text-gray-600">Required for accurate shipping cost calculation</p>
@@ -155,6 +159,21 @@ defmodule ShompWeb.ProductLive.Edit do
                   min="0.1"
                   required
                 />
+              </div>
+
+              <!-- Shipping ZIP Code -->
+              <div class="mt-4">
+                <.input
+                  field={@form[:shipping_zip_code]}
+                  type="text"
+                  label="Which ZIP will you ship products from? (This is used in shipping cost calculations)"
+                  placeholder="12345"
+                  maxlength="10"
+                  required
+                />
+                <p class="text-sm text-base-content/60 mt-1">
+                  This will be saved as your store's default shipping ZIP code for all products.
+                </p>
               </div>
             </div>
           </div>
@@ -431,17 +450,8 @@ defmodule ShompWeb.ProductLive.Edit do
       Categories.get_main_category_options()
     end
 
-    # Show/hide quantity and shipping sections based on product type
-    js_commands = if product_type == "physical" do
-      JS.show(to: "#quantity-section")
-      |> JS.show(to: "#shipping-section")
-    else
-      JS.hide(to: "#quantity-section")
-      |> JS.hide(to: "#shipping-section")
-    end
-
-    socket = assign(socket, filtered_category_options: filtered_category_options)
-    {:noreply, push_event(socket, "js", %{exec: js_commands})}
+    socket = assign(socket, filtered_category_options: filtered_category_options, product_type: product_type)
+    {:noreply, socket}
   end
 
   def handle_event("cancel-upload", %{"ref" => ref}, socket) do

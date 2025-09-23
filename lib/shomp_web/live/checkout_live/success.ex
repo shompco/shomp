@@ -158,6 +158,13 @@ defmodule ShompWeb.CheckoutLive.Success do
                       </div>
                     <% end %>
 
+                    <%= if @universal_order.shipping_cost && Decimal.gt?(@universal_order.shipping_cost, 0) do %>
+                      <div class="flex justify-between items-center text-sm text-base-content/70">
+                        <span>Shipping (<%= @universal_order.shipping_method_name || @universal_order.carrier || "Standard" %>)</span>
+                        <span>$<%= @universal_order.shipping_cost %></span>
+                      </div>
+                    <% end %>
+
                     <div class="flex justify-between items-center text-sm text-base-content/70 mt-2 pt-2 border-t border-base-300">
                       <span>Total to Store</span>
                       <span>$<%= payment_split.total_amount %></span>
