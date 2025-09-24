@@ -52,18 +52,11 @@ config :shomp, Shomp.Mailer,
   port: 587,
   username: System.get_env("BREVO_SMTP_USERNAME"),
   password: System.get_env("BREVO_SMTP_PASSWORD"),
-  tls: :if_available,
+  ssl: false,
+  tls: :always,
   auth: :always,
   retries: 2,
   no_mx_lookups: false
-
-# Debug: Check if environment variables are loaded
-if System.get_env("BREVO_SMTP_USERNAME") do
-  IO.puts("✓ BREVO_SMTP_USERNAME is set")
-else
-  IO.puts("❌ BREVO_SMTP_USERNAME is not set - falling back to local adapter")
-  config :shomp, Shomp.Mailer, adapter: Swoosh.Adapters.Local
-end
 
 # Configure esbuild (the version is required)
 config :esbuild,
