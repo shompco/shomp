@@ -46,7 +46,16 @@ config :shomp, ShompWeb.Endpoint,
 #
 # For production it's recommended to configure a different adapter
 # at the `config/runtime.exs`.
-config :shomp, Shomp.Mailer, adapter: Swoosh.Adapters.Local
+config :shomp, Shomp.Mailer,
+  adapter: Swoosh.Adapters.SMTP,
+  relay: "smtp-relay.brevo.com",
+  port: 587,
+  username: System.get_env("BREVO_SMTP_USERNAME"),
+  password: System.get_env("BREVO_SMTP_PASSWORD"),
+  tls: :if_available,
+  auth: :always,
+  retries: 2,
+  no_mx_lookups: false
 
 # Configure esbuild (the version is required)
 config :esbuild,
