@@ -87,7 +87,7 @@ config :phoenix_live_view,
   # Enable helpful, but potentially expensive runtime checks
   enable_expensive_runtime_checks: true
 
-# Enable swoosh api client for SMTP adapter
+# Enable swoosh api client for Brevo API adapter
 config :swoosh, :api_client, Swoosh.ApiClient.Req
 
 # Stripe Configuration for Development

@@ -101,15 +101,10 @@ if config_env() == :prod do
 
   # ## Configuring the mailer
   #
-  # Configure Brevo SMTP for production
+  # Configure Brevo API for production
   config :shomp, Shomp.Mailer,
-    adapter: Swoosh.Adapters.SMTP,
-    relay: "smtp-relay.brevo.com",
-    port: 587,
-    username: System.get_env("BREVO_SMTP_USERNAME"),
-    password: System.get_env("BREVO_SMTP_PASSWORD"),
-    tls: :always,
-    auth: :always
+    adapter: Shomp.BrevoAdapter,
+    api_key: System.get_env("BREVO_LIVE_KEY")
 end
 
 # Stripe Configuration - Load from environment variables at runtime
