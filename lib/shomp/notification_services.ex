@@ -21,12 +21,15 @@ defmodule Shomp.NotificationServices do
   @doc """
   Sends an SMS notification via MessageBird if the user has enabled SMS notifications for this type.
   """
-  def send_sms_notification(user_id, notification_type, _message, _opts \\ []) do
+  def send_sms_notification(user_id, notification_type, message, opts \\ []) do
     if NotificationPreferences.wants_sms_notification?(user_id, notification_type) do
-      _user = Accounts.get_user!(user_id)
-      # Note: We'll need to add phone number to user schema later
-      # For now, we'll skip SMS notifications
-      {:ok, :skipped_no_phone}
+      user = Accounts.get_user!(user_id)
+
+      if user.phone_number && user.phone_number != "" do
+        Shomp.MessageBirdService.send_sms(user.phone_number, message, opts)
+      else
+        {:ok, :skipped_no_phone}
+      end
     else
       {:ok, :skipped}
     end
@@ -116,5 +119,19 @@ defmodule Shomp.NotificationServices do
     """
 
     send_notification(user_id, :leave_review_reminder, subject, message)
+  end
+
+  @doc """
+  Convenience function for purchase shipped notifications (simplified version for webhooks).
+  """
+  def notify_purchase_shipped(user_id, subject, message) do
+    send_notification(user_id, :purchase_shipped, subject, message)
+  end
+
+  @doc """
+  Convenience function for purchase delivered notifications (simplified version for webhooks).
+  """
+  def notify_purchase_delivered(user_id, subject, message) do
+    send_notification(user_id, :purchase_delivered, subject, message)
   end
 end

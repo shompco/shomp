@@ -78,11 +78,17 @@ defmodule ShompWeb.Router do
     live "/cancel", PaymentLive.Cancel, :show
   end
 
-  # Webhook route with special pipeline (no CSRF protection)
+  # Webhook routes with special pipeline (no CSRF protection)
   scope "/payments", ShompWeb do
     pipe_through :webhook
 
     post "/webhook", PaymentController, :webhook
+  end
+
+  scope "/shippo", ShompWeb do
+    pipe_through :webhook
+
+    post "/webhook", ShippoController, :webhook
   end
 
     # API routes

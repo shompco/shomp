@@ -45,13 +45,15 @@ defmodule Shomp.MessageBirdService do
       {"Authorization", "AccessKey #{api_key}"}
     ]
 
-    case Finch.build(:post, "#{@base_url}/messages", headers, Jason.encode!(payload)) |> Finch.request(Shomp.Finch) do
-      {:ok, %Finch.Response{status: 201, body: body}} ->
+    case Req.post("#{@base_url}/messages",
+                  json: payload,
+                  headers: headers) do
+      {:ok, %Req.Response{status: 201, body: body}} ->
         Logger.info("SMS sent successfully to #{formatted_phone}")
-        {:ok, Jason.decode!(body)}
+        {:ok, body}
 
-      {:ok, %Finch.Response{status: status_code, body: body}} ->
-        Logger.error("Failed to send SMS to #{formatted_phone}. Status: #{status_code}, Body: #{body}")
+      {:ok, %Req.Response{status: status_code, body: body}} ->
+        Logger.error("Failed to send SMS to #{formatted_phone}. Status: #{status_code}, Body: #{inspect(body)}")
         {:error, {:http_error, status_code, body}}
 
       {:error, reason} ->

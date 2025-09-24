@@ -15,9 +15,9 @@ defmodule ShompWeb.Components.DonationsThermometer do
       <div class="container mx-auto px-4 text-center">
         <div class="max-w-4xl mx-auto">
           <blockquote class="text-lg md:text-xl font-light text-base-content/90 leading-relaxed italic">
-            <span class="text-6xl text-primary/30 leading-none">"</span>
+            <span class="text-2xl text-primary/30 leading-none">"</span>
             Our mission is to advance economic education and entrepreneurship training by providing a fee-free marketplace where creators gain hands-on business experience while accessing free resources in financial literacy and entrepreneurial training. We aim to reduce barriers to entry, foster economic self-sufficiency, and build lasting business skills for individuals and communities.
-            <span class="text-6xl text-primary/30 leading-none">"</span>
+            <span class="text-2xl text-primary/30 leading-none">"</span>
           </blockquote>
         </div>
       </div>

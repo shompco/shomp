@@ -17,6 +17,7 @@ defmodule Shomp.Accounts.User do
     field :authenticated_at, :utc_datetime, virtual: true
     field :trial_ends_at, :utc_datetime
     field :show_purchase_activity, :boolean, default: true
+    field :phone_number, :string
 
     belongs_to :tier, Shomp.Accounts.Tier, type: :binary_id
     has_many :stores, Shomp.Stores.Store
@@ -109,7 +110,7 @@ defmodule Shomp.Accounts.User do
   """
   def profile_changeset(user, attrs, opts \\ []) do
     user
-    |> cast(attrs, [:username, :name, :bio, :location, :website, :show_purchase_activity])
+    |> cast(attrs, [:username, :name, :bio, :location, :website, :show_purchase_activity, :phone_number])
     |> validate_required([:username])
     |> validate_length(:username, min: 3, max: 30)
     |> validate_length(:name, min: 2, max: 100)
@@ -119,6 +120,16 @@ defmodule Shomp.Accounts.User do
     |> validate_format(:website, ~r/^https?:\/\/.+/, message: "must be a valid URL starting with http:// or https://")
     |> validate_username(opts)
     |> maybe_validate_website()
+    |> validate_phone_number()
+  end
+
+  @doc """
+  A user changeset for updating phone number.
+  """
+  def phone_number_changeset(user, attrs) do
+    user
+    |> cast(attrs, [:phone_number])
+    |> validate_phone_number()
   end
 
   defp maybe_validate_website(changeset) do
@@ -126,6 +137,34 @@ defmodule Shomp.Accounts.User do
 
     if website && website != "" do
       validate_format(changeset, :website, ~r/^https?:\/\/.+/, message: "must be a valid URL starting with http:// or https://")
+    else
+      changeset
+    end
+  end
+
+  defp validate_phone_number(changeset) do
+    phone_number = get_change(changeset, :phone_number)
+
+    if phone_number && phone_number != "" do
+      # Basic phone number validation - allow various formats
+      clean_phone = String.replace(phone_number, ~r/[^\d+]/, "")
+      
+      cond do
+        String.length(clean_phone) < 10 ->
+          add_error(changeset, :phone_number, "phone number too short")
+        
+        String.length(clean_phone) > 15 ->
+          add_error(changeset, :phone_number, "phone number too long")
+        
+        String.match?(clean_phone, ~r/^\+\d+$/) ->
+          changeset
+        
+        String.match?(clean_phone, ~r/^\d+$/) ->
+          changeset
+        
+        true ->
+          add_error(changeset, :phone_number, "invalid phone number format")
+      end
     else
       changeset
     end

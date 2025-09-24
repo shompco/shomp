@@ -35,6 +35,14 @@ defmodule Shomp.UniversalOrders do
   end
 
   @doc """
+  Gets a universal order by tracking number.
+  """
+  def get_universal_order_by_tracking_number(tracking_number) do
+    Repo.get_by(UniversalOrder, tracking_number: tracking_number)
+    |> Repo.preload([:universal_order_items, :payment_splits, :refunds, :user, :billing_address, :shipping_address])
+  end
+
+  @doc """
   Lists universal orders by store ID.
   """
   def list_universal_orders_by_store(store_id) do
