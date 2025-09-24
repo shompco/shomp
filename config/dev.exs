@@ -90,9 +90,6 @@ config :phoenix_live_view,
 # Enable swoosh api client for SMTP adapter
 config :swoosh, :api_client, Swoosh.ApiClient.Req
 
-# Disable local mailbox since we're using Brevo SMTP
-config :swoosh, :local, false
-
 # Stripe Configuration for Development
 config :stripity_stripe,
   api_key: System.get_env("STRIPE_SECRET_KEY"),

@@ -52,11 +52,8 @@ config :shomp, Shomp.Mailer,
   port: 587,
   username: System.get_env("BREVO_SMTP_USERNAME"),
   password: System.get_env("BREVO_SMTP_PASSWORD"),
-  ssl: false,
   tls: :always,
-  auth: :always,
-  retries: 2,
-  no_mx_lookups: false
+  auth: :always
 
 # Configure esbuild (the version is required)
 config :esbuild,
