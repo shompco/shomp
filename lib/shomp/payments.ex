@@ -1637,6 +1637,10 @@ defmodule Shomp.Payments do
         {:error, reason} ->
           IO.puts("Failed to create seller notification: #{inspect(reason)}")
       end
+
+      # Send external notifications (email/SMS) based on user preferences
+      alias Shomp.NotificationServices
+      NotificationServices.notify_sale(store.user_id, product.name, buyer_name, amount)
     rescue
       error ->
         IO.puts("Error creating seller notification: #{inspect(error)}")
@@ -1674,6 +1678,10 @@ defmodule Shomp.Payments do
         {:error, reason} ->
           IO.puts("Failed to create seller notification: #{inspect(reason)}")
       end
+
+      # Send external notifications (email/SMS) based on user preferences
+      alias Shomp.NotificationServices
+      NotificationServices.notify_sale(store.user_id, product.name, buyer_name, amount)
     rescue
       error ->
         IO.puts("Error creating seller notification: #{inspect(error)}")

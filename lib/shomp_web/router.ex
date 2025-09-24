@@ -165,6 +165,7 @@ defmodule ShompWeb.Router do
 
       # Notification preferences and inbox
       live "/notification-preferences", UserLive.NotificationPreferences, :index
+      live "/my/notifications", NotificationPreferencesLive.Show, :show
       live "/notifications", UserLive.Notifications, :index
 
       # Admin routes
