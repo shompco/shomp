@@ -3,16 +3,17 @@ defmodule Shomp.Repo.Migrations.GenerateSlugsForExistingProducts do
 
   def up do
     # Generate slugs for products that don't have them
-    execute """
-    UPDATE products
-    SET slug = LOWER(
-      REGEXP_REPLACE(
-        REGEXP_REPLACE(title, '[^a-zA-Z0-9\\s]', '', 'g'),
-        '\\s+', '-', 'g'
-      )
-    )
-    WHERE slug IS NULL OR slug = ''
-    """
+    # Skip for fresh database - no products exist yet
+    # execute """
+    # UPDATE products
+    # SET slug = LOWER(
+    #   REGEXP_REPLACE(
+    #     REGEXP_REPLACE(title, '[^a-zA-Z0-9\\s]', '', 'g'),
+    #     '\\s+', '-', 'g'
+    #   )
+    # )
+    # WHERE slug IS NULL OR slug = ''
+    # """
   end
 
   def down do

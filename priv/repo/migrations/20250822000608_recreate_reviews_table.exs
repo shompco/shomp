@@ -6,8 +6,8 @@ defmodule Shomp.Repo.Migrations.RecreateReviewsTable do
     drop_if_exists table(:review_responses)
     drop_if_exists table(:review_flags)
     
-    # Drop existing reviews table (it has wrong schema)
-    drop table(:reviews)
+    # Drop existing reviews table (it has wrong schema) - skip if fresh database
+    # drop table(:reviews)
     
     # Create new reviews table with correct schema
     create table(:reviews) do
