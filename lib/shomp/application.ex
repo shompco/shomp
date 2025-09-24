@@ -73,6 +73,13 @@ defmodule Shomp.Application do
     IO.puts("API Key: #{if messagebird_api_key, do: String.slice(messagebird_api_key, 0, 20) <> "...", else: "NOT SET"}")
     IO.puts("=================================")
 
+    # Log Brevo configuration
+    brevo_live_key = System.get_env("BREVO_LIVE_KEY")
+
+    IO.puts("=== BREVO CONFIGURATION ===")
+    IO.puts("Live Key: #{if brevo_live_key, do: String.slice(brevo_live_key, 0, 20) <> "...", else: "NOT SET"}")
+    IO.puts("===========================")
+
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: Shomp.Supervisor]
