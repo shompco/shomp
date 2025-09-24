@@ -9,7 +9,7 @@ defmodule Shomp.Accounts.UserNotifier do
     email =
       new()
       |> to(recipient)
-      |> from({"Shomp", "contact@example.com"})
+      |> from({"Shomp", "shomp@shomp.co"})
       |> subject(subject)
       |> text_body(body)
 
