@@ -57,6 +57,14 @@ config :shomp, Shomp.Mailer,
   retries: 2,
   no_mx_lookups: false
 
+# Debug: Check if environment variables are loaded
+if System.get_env("BREVO_SMTP_USERNAME") do
+  IO.puts("✓ BREVO_SMTP_USERNAME is set")
+else
+  IO.puts("❌ BREVO_SMTP_USERNAME is not set - falling back to local adapter")
+  config :shomp, Shomp.Mailer, adapter: Swoosh.Adapters.Local
+end
+
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.25.4",
