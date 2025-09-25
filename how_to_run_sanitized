@@ -1,0 +1,94 @@
+# Shomp Application Setup Guide
+
+## Terminal 1: Stripe Webhook Setup
+```bash
+stripe login
+stripe listen --forward-to localhost:4000/payments/webhook
+export STRIPE_WH_SECRET_KEY=whsec_[YOUR_WEBHOOK_SECRET]
+```
+
+## Database Setup
+```bash
+# Set production environment
+export MIX_ENV=prod
+export DATABASE_URL="ecto://[DB_USER]:[DB_PASSWORD]@localhost/shomp_prod"
+export SECRET_KEY_BASE=[YOUR_SECRET_KEY_BASE]
+export PHX_SERVER=true
+export PORT=4000
+export PHX_HOST=localhost
+
+# Create database
+MIX_ENV=prod mix ecto.create
+
+# Run migrations
+MIX_ENV=prod mix ecto.migrate
+
+# Create database user (if needed)
+CREATE USER [DB_USER] WITH PASSWORD '[DB_PASSWORD]';
+```
+
+## Start Development Server
+```bash
+mix phx.server
+```
+
+## Seed Categories
+```bash
+mix run priv/repo/seeds_categories.exs
+```
+
+## Terminal 2: Production Environment Variables
+```bash
+# Cloudflare R2 Storage
+export R2_BUCKET=[YOUR_BUCKET_NAME]
+export R2_ENDPOINT=[YOUR_R2_ENDPOINT]
+export R2_ACCESS_KEY_ID=[YOUR_R2_ACCESS_KEY]
+export R2_SECRET_ACCESS_KEY=[YOUR_R2_SECRET_KEY]
+export R2_REGION=auto
+
+# Stripe Configuration
+export STRIPE_WH_SECRET_KEY=[YOUR_WEBHOOK_SECRET]
+export STRIPE_SECRET_KEY=[YOUR_STRIPE_SECRET_KEY]
+export STRIPE_PUBLISHABLE_KEY=[YOUR_STRIPE_PUBLISHABLE_KEY]
+
+# Beehiiv Newsletter
+export BEEHIIV_API_KEY=[YOUR_BEEHIIV_API_KEY]
+export BEEHIIV_PUB_ID_V1=[YOUR_BEEHIIV_PUB_ID]
+export BEEHIIV_PUB_ID_V2=[YOUR_BEEHIIV_PUB_ID_V2]
+
+# Shippo Shipping
+export SHIPPO_TEST_KEY=[YOUR_SHIPPO_TEST_KEY]
+export SHIPPO_LIVE_KEY=[YOUR_SHIPPO_LIVE_KEY]
+
+# MessageBird SMS
+export MESSAGEBIRD_API_KEY=[YOUR_MESSAGEBIRD_API_KEY]
+export MESSAGEBIRD_ORIGINATOR=[YOUR_ORIGINATOR_NAME]
+
+# Brevo Email
+export BREVO_LIVE_KEY=[YOUR_BREVO_API_KEY]
+export BREVO_SMTP_USERNAME=[YOUR_EMAIL]
+export BREVO_SMTP_PASSWORD=[YOUR_EMAIL_PASSWORD]
+
+# Production Environment
+export MIX_ENV=prod
+export PHX_SERVER=true
+export PORT=4000
+export PHX_HOST=[YOUR_DOMAIN]
+export DATABASE_URL="ecto://[DB_USER]:[DB_PASSWORD]@localhost/shomp_prod"
+export SECRET_KEY_BASE=[YOUR_SECRET_KEY_BASE]
+```
+
+## Production Release
+```bash
+# Build release
+mix release
+
+# Start production server
+_build/prod/rel/shomp/bin/shomp start
+```
+
+## Notes
+- Replace all bracketed placeholders with your actual credentials
+- Ensure all required services (Stripe, Cloudflare R2, etc.) are configured
+- Run category seeds after database setup to populate product categories
+- Use separate terminals for webhook listening and application running
