@@ -29,7 +29,7 @@ defmodule Shomp.Stores.Store do
   """
   def changeset(store, attrs) do
     store
-    |> cast(attrs, [:name, :slug, :description, :user_id, :merchant_status, :pending_balance, :available_balance, :shipping_zip_code])
+    |> cast(attrs, [:name, :slug, :description, :user_id, :merchant_status, :pending_balance, :available_balance, :shipping_zip_code, :is_default])
     |> validate_required([:name, :user_id])
     |> validate_length(:name, min: 2, max: 100)
     |> validate_length(:slug, min: 3, max: 50)
@@ -39,7 +39,6 @@ defmodule Shomp.Stores.Store do
     |> validate_number(:available_balance, greater_than_or_equal_to: 0)
     |> validate_length(:description, max: 1000)
     |> validate_zip_code_format()
-    |> validate_store_username_conflict()
     |> unique_constraint(:slug)
     |> foreign_key_constraint(:user_id)
   end
