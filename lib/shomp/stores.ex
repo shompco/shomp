@@ -190,12 +190,20 @@ defmodule Shomp.Stores do
     IO.puts("=== CREATING STORE ===")
     IO.puts("Store attributes: #{inspect(attrs)}")
 
-    case %Store{}
-         |> Store.create_changeset(attrs)
-         |> Repo.insert() do
+    changeset = %Store{}
+    |> Store.create_changeset(attrs)
+
+    IO.puts("Changeset valid?: #{changeset.valid?}")
+    IO.puts("Changeset errors: #{inspect(changeset.errors)}")
+    IO.puts("Changeset changes: #{inspect(changeset.changes)}")
+
+    case changeset |> Repo.insert() do
       {:ok, store} = result ->
         IO.puts("✅ Store created successfully: #{store.store_id}")
         IO.puts("Store user ID: #{store.user_id}")
+        IO.puts("Store name: #{store.name}")
+        IO.puts("Store slug: #{store.slug}")
+        IO.puts("Store is_default: #{store.is_default}")
 
         # Always create Stripe Connected Account when store is created
         # This ensures every store has a Stripe account (even if restricted)
@@ -214,7 +222,11 @@ defmodule Shomp.Stores do
           payload: store
         })
         result
-      error -> error
+      {:error, changeset} ->
+        IO.puts("❌ Store creation failed!")
+        IO.puts("Changeset errors: #{inspect(changeset.errors)}")
+        IO.puts("Changeset data: #{inspect(changeset.data)}")
+        {:error, changeset}
     end
   end
 
@@ -335,13 +347,30 @@ defmodule Shomp.Stores do
   This is the main function to use instead of managing multiple stores.
   """
   def get_user_default_store(user) do
+    IO.puts("=== GET_USER_DEFAULT_STORE DEBUG ===")
+    IO.puts("User ID: #{user.id}")
+    IO.puts("User username: #{user.username}")
+
     case get_default_store_by_user(user.id) do
       nil ->
+        IO.puts("No existing default store found, creating new one...")
         case ensure_default_store(user) do
-          {:ok, store} -> store
-          {:error, _} -> nil
+          {:ok, store} ->
+            IO.puts("✅ Successfully created/retrieved default store: #{store.store_id}")
+            IO.puts("Store name: #{store.name}")
+            IO.puts("Store slug: #{store.slug}")
+            IO.puts("Store is_default: #{store.is_default}")
+            store
+          {:error, reason} ->
+            IO.puts("❌ Failed to create default store: #{inspect(reason)}")
+            nil
         end
-      store -> store
+      store ->
+        IO.puts("✅ Found existing default store: #{store.store_id}")
+        IO.puts("Store name: #{store.name}")
+        IO.puts("Store slug: #{store.slug}")
+        IO.puts("Store is_default: #{store.is_default}")
+        store
     end
   end
 
@@ -366,11 +395,20 @@ defmodule Shomp.Stores do
   end
 
   defp get_default_store_by_user(user_id) do
-    from(s in Store, where: s.user_id == ^user_id and s.is_default == true)
+    IO.puts("=== GET_DEFAULT_STORE_BY_USER DEBUG ===")
+    IO.puts("Looking for default store for user_id: #{user_id}")
+
+    result = from(s in Store, where: s.user_id == ^user_id and s.is_default == true)
     |> Repo.one()
+
+    IO.puts("Query result: #{inspect(result)}")
+    result
   end
 
   defp create_default_store(user) do
+    IO.puts("=== CREATE_DEFAULT_STORE DEBUG ===")
+    IO.puts("User: #{inspect(user)}")
+
     store_attrs = %{
       name: user.username || user.name || "My Store",
       slug: user.username,
@@ -379,7 +417,11 @@ defmodule Shomp.Stores do
       is_default: true
     }
 
-    create_store(store_attrs)
+    IO.puts("Store attributes to create: #{inspect(store_attrs)}")
+
+    result = create_store(store_attrs)
+    IO.puts("Create store result: #{inspect(result)}")
+    result
   end
 
   @doc """
