@@ -657,15 +657,20 @@ defmodule ShompWeb.ProductLive.New do
       if upload_entry.ref == entry.ref do
         IO.puts("✅ Found matching entry")
 
-        # Verify file exists before creating temp upload
+        # Read file content BEFORE it gets consumed/deleted
         if File.exists?(meta.path) do
           file_size = File.stat!(meta.path).size
           IO.puts("✅ File verified, size: #{file_size} bytes")
 
+          # Read the file content immediately
+          file_content = File.read!(meta.path)
+          IO.puts("✅ File content read successfully, #{byte_size(file_content)} bytes")
+
           {:ok, %{
             filename: upload_entry.client_name,
             path: meta.path,
-            content_type: upload_entry.client_type
+            content_type: upload_entry.client_type,
+            content: file_content
           }}
         else
           IO.puts("❌ File does not exist at path: #{meta.path}")

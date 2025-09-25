@@ -108,13 +108,26 @@ defmodule Shomp.Uploads do
       original_path = Path.join(base_dir, filename)
       IO.puts("Final file path: #{original_path}")
 
-      # Check if source file exists and copy it
+      # Check if we have content directly or need to read from file
       result = cond do
-        not File.exists?(upload.path) ->
-          IO.puts("❌ Source file does not exist: #{upload.path}")
-          {:error, "Source file not found: #{upload.path}"}
+        # If content is provided directly (from LiveView upload)
+        Map.has_key?(upload, :content) && upload.content ->
+          IO.puts("✅ Using provided content directly, #{byte_size(upload.content)} bytes")
+          File.write!(original_path, upload.content)
+          IO.puts("✅ File written successfully from content")
 
-        true ->
+          # Verify the file was created
+          if File.exists?(original_path) do
+            file_size = File.stat!(original_path).size
+            IO.puts("✅ File stored successfully, size: #{file_size} bytes")
+            {:ok, original_path}
+          else
+            IO.puts("❌ File was not created at destination")
+            {:error, "File was not created at destination"}
+          end
+
+        # If file exists at path, read it
+        File.exists?(upload.path) ->
           IO.puts("✅ Source file exists: #{upload.path}")
           File.cp!(upload.path, original_path)
           IO.puts("✅ File copied successfully")
@@ -128,6 +141,11 @@ defmodule Shomp.Uploads do
             IO.puts("❌ File was not created at destination")
             {:error, "File was not created at destination"}
           end
+
+        # Otherwise, error
+        true ->
+          IO.puts("❌ Cannot read file - no content provided and path does not exist")
+          {:error, "File not found and no content provided"}
       end
 
       case result do
