@@ -109,6 +109,12 @@ defmodule Shomp.Uploads do
       IO.puts("Final file path: #{original_path}")
 
       # Check if we have content directly or need to read from file
+      IO.puts("=== CONTENT CHECK DEBUG ===")
+      IO.puts("Upload keys: #{inspect(Map.keys(upload))}")
+      IO.puts("Has content key: #{Map.has_key?(upload, :content)}")
+      IO.puts("Content exists: #{if Map.has_key?(upload, :content), do: upload.content != nil, else: false}")
+      IO.puts("Path exists: #{File.exists?(upload.path)}")
+
       result = cond do
         # If content is provided directly (from LiveView upload)
         Map.has_key?(upload, :content) && upload.content ->
@@ -145,6 +151,7 @@ defmodule Shomp.Uploads do
         # Otherwise, error
         true ->
           IO.puts("❌ Cannot read file - no content provided and path does not exist")
+          IO.puts("Upload structure: #{inspect(upload)}")
           {:error, "File not found and no content provided"}
       end
 

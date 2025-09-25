@@ -708,7 +708,16 @@ defmodule ShompWeb.ProductLive.New do
     temp_product_id = generate_temp_id()
     IO.puts("Generated temp product ID: #{temp_product_id}")
 
-    result = Shomp.Uploads.store_product_image(temp_upload, temp_product_id)
+    # Ensure we have the content in the upload structure
+    upload_with_content = if Map.has_key?(temp_upload, :content) do
+      IO.puts("✅ Upload already has content: #{byte_size(temp_upload.content)} bytes")
+      temp_upload
+    else
+      IO.puts("❌ Upload missing content, this should not happen")
+      temp_upload
+    end
+
+    result = Shomp.Uploads.store_product_image(upload_with_content, temp_product_id)
     IO.puts("Storage result: #{inspect(result)}")
     result
   end
