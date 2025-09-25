@@ -22,6 +22,16 @@ defmodule ShompWeb.PageController do
     upload_dir = Application.get_env(:shomp, :upload)[:local][:upload_dir]
     file_path = Path.join(upload_dir, path)
 
+    IO.puts("=== SERVE UPLOAD DEBUG ===")
+    IO.puts("Requested path: #{path}")
+    IO.puts("Upload dir: #{upload_dir}")
+    IO.puts("Full file path: #{file_path}")
+    IO.puts("File exists: #{File.exists?(file_path)}")
+    IO.puts("Expanded file path: #{Path.expand(file_path)}")
+    IO.puts("Expanded upload dir: #{Path.expand(upload_dir)}")
+    IO.puts("Path starts with upload dir: #{String.starts_with?(Path.expand(file_path), Path.expand(upload_dir))}")
+    IO.puts("================================")
+
     # Check if file exists and is within the upload directory
     if File.exists?(file_path) and String.starts_with?(Path.expand(file_path), Path.expand(upload_dir)) do
       # Get file info

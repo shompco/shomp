@@ -736,7 +736,9 @@ defmodule ShompWeb.ProductLive.Edit do
       }
 
       # Store the image using our upload system
-      case Shomp.Uploads.store_product_image(temp_upload, socket.assigns.product.id) do
+      # Get store slug from the product's store
+      store_slug = socket.assigns.product.store.slug
+      case Shomp.Uploads.store_product_image(temp_upload, store_slug) do
         {:ok, image_url} ->
           IO.puts("Image stored successfully: #{image_url}")
           image_url  # Return the image URL
