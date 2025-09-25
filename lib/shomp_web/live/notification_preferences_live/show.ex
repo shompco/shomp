@@ -2,6 +2,7 @@ defmodule ShompWeb.NotificationPreferencesLive.Show do
   use ShompWeb, :live_view
 
   alias Shomp.NotificationPreferences
+  alias Shomp.Accounts
 
   @impl true
   def mount(_params, _session, socket) do
@@ -12,6 +13,7 @@ defmodule ShompWeb.NotificationPreferencesLive.Show do
       socket
       |> assign(:preferences, preferences)
       |> assign(:changeset, NotificationPreferences.change_notification_preference(preferences))
+      |> assign(:phone_changeset, Shomp.Accounts.User.phone_number_changeset(user, %{}))
 
     {:ok, socket}
   end
@@ -32,6 +34,25 @@ defmodule ShompWeb.NotificationPreferencesLive.Show do
 
       {:error, changeset} ->
         socket = assign(socket, :changeset, changeset)
+        {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("update_phone", %{"user" => user_params}, socket) do
+    user = socket.assigns.current_scope.user
+
+    case Accounts.update_user_phone_number(user, user_params) do
+      {:ok, updated_user} ->
+        socket =
+          socket
+          |> assign(:phone_changeset, Shomp.Accounts.User.phone_number_changeset(updated_user, %{}))
+          |> put_flash(:info, "Phone number updated successfully!")
+
+        {:noreply, socket}
+
+      {:error, changeset} ->
+        socket = assign(socket, :phone_changeset, changeset)
         {:noreply, socket}
     end
   end
@@ -210,6 +231,48 @@ defmodule ShompWeb.NotificationPreferencesLive.Show do
           </button>
         </div>
       </.form>
+
+      <!-- Phone Number Section -->
+      <div class="mt-8 bg-base-100 rounded-lg border border-base-300 p-6">
+        <h2 class="text-xl font-semibold mb-4 text-base-content">Phone Number</h2>
+        <p class="text-sm text-base-content/70 mb-4">
+          Update your phone number to receive SMS notifications. Your current phone number is shown below.
+        </p>
+
+        <.form for={@phone_changeset} phx-submit="update_phone" class="space-y-4">
+          <div class="flex items-center gap-4">
+            <div class="flex-1">
+              <label class="label">
+                <span class="label-text">Phone Number</span>
+              </label>
+              <input
+                type="tel"
+                name="user[phone_number]"
+                value={@phone_changeset.data.phone_number || ""}
+                placeholder="Enter your phone number (e.g., +1234567890)"
+                class="input input-bordered w-full"
+              />
+              <%= if @phone_changeset.data.phone_number do %>
+                <div class="text-sm text-base-content/70 mt-1">
+                  Current: <%= @phone_changeset.data.phone_number %>
+                </div>
+              <% end %>
+              <%= if @phone_changeset.errors[:phone_number] do %>
+                <div class="label">
+                  <span class="label-text-alt text-error">
+                    <%= Enum.at(@phone_changeset.errors[:phone_number], 0) %>
+                  </span>
+                </div>
+              <% end %>
+            </div>
+            <div class="flex items-end">
+              <button type="submit" class="btn btn-primary">
+                Update Phone
+              </button>
+            </div>
+          </div>
+        </.form>
+      </div>
     </div>
     """
   end

@@ -351,6 +351,26 @@ defmodule Shomp.Accounts do
     |> Repo.update()
   end
 
+  @doc """
+  Updates the user phone number.
+
+  Returns a tuple with the updated user.
+
+  ## Examples
+
+      iex> update_user_phone_number(user, %{phone_number: "+1234567890"})
+      {:ok, %User{}}
+
+      iex> update_user_phone_number(user, %{phone_number: "invalid"})
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def update_user_phone_number(user, attrs) do
+    user
+    |> User.phone_number_changeset(attrs)
+    |> Repo.update()
+  end
+
   ## Session
 
   @doc """

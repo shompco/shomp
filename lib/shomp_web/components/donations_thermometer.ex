@@ -7,9 +7,20 @@ defmodule ShompWeb.Components.DonationsThermometer do
     goal = Donations.get_current_goal()
     donor_count = Donations.get_donor_count()
 
+    # Debug output
+    IO.puts("=== DONATIONS THERMOMETER DEBUG ===")
+    IO.puts("Goal: #{inspect(goal)}")
+    IO.puts("Donor count: #{donor_count}")
+    IO.puts("===================================")
+
     assigns = assign(assigns, goal: goal, donor_count: donor_count)
 
     ~H"""
+    <!-- DEBUG: Component is rendering -->
+    <div class="bg-red-500 text-white p-4 text-center">
+      DEBUG: Donations Thermometer Component is rendering! Goal: <%= if @goal, do: @goal.title, else: "No goal" %>
+    </div>
+
     <!-- Mission Statement -->
     <div class="py-12 bg-base-100">
       <div class="container mx-auto px-4 text-center">

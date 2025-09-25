@@ -17,6 +17,7 @@ defmodule ShompWeb.PageController do
     )
   end
 
+
   def serve_upload(conn, params) do
     IO.puts("=== SERVE UPLOAD DEBUG ===")
     IO.puts("Request URL: #{conn.request_path}")

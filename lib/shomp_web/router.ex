@@ -169,8 +169,6 @@ defmodule ShompWeb.Router do
       live "/support", SupportLive.Index, :index
       live "/support/:ticket_number", SupportLive.Show, :show
 
-      # Email preferences
-      live "/email-preferences", UserLive.EmailPreferences, :index
 
       # Notification preferences and inbox
       live "/notification-preferences", UserLive.NotificationPreferences, :index
