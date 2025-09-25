@@ -108,39 +108,48 @@ defmodule Shomp.Uploads do
       original_path = Path.join(base_dir, filename)
       IO.puts("Final file path: #{original_path}")
 
-      # Check if source file exists
-      if File.exists?(upload.path) do
-        IO.puts("✅ Source file exists: #{upload.path}")
-        File.cp!(upload.path, original_path)
-        IO.puts("✅ File copied successfully")
-      else
-        IO.puts("❌ Source file does not exist: #{upload.path}")
-        return {:error, "Source file not found: #{upload.path}"}
+      # Check if source file exists and copy it
+      result = cond do
+        not File.exists?(upload.path) ->
+          IO.puts("❌ Source file does not exist: #{upload.path}")
+          {:error, "Source file not found: #{upload.path}"}
+
+        true ->
+          IO.puts("✅ Source file exists: #{upload.path}")
+          File.cp!(upload.path, original_path)
+          IO.puts("✅ File copied successfully")
+
+          # Verify the file was created
+          if File.exists?(original_path) do
+            file_size = File.stat!(original_path).size
+            IO.puts("✅ File stored successfully, size: #{file_size} bytes")
+            {:ok, original_path}
+          else
+            IO.puts("❌ File was not created at destination")
+            {:error, "File was not created at destination"}
+          end
       end
 
-      # Verify the file was created
-      if File.exists?(original_path) do
-        file_size = File.stat!(original_path).size
-        IO.puts("✅ File stored successfully, size: #{file_size} bytes")
-      else
-        IO.puts("❌ File was not created at destination")
-        return {:error, "File was not created at destination"}
+      case result do
+        {:ok, _} ->
+          # Broadcast to admin dashboard
+          Phoenix.PubSub.broadcast(Shomp.PubSub, "admin:images", %{
+            event: "image_uploaded",
+            payload: %{
+              product_id: product_id,
+              filename: filename,
+              path: "/uploads/products/#{product_id}/#{filename}"
+            }
+          })
+
+          # Just return the single image path
+          image_url = "/uploads/products/#{product_id}/#{filename}"
+          IO.puts("✅ Returning image URL: #{image_url}")
+          {:ok, image_url}
+
+        {:error, reason} ->
+          {:error, reason}
       end
-
-      # Broadcast to admin dashboard
-      Phoenix.PubSub.broadcast(Shomp.PubSub, "admin:images", %{
-        event: "image_uploaded",
-        payload: %{
-          product_id: product_id,
-          filename: filename,
-          path: "/uploads/products/#{product_id}/#{filename}"
-        }
-      })
-
-      # Just return the single image path
-      image_url = "/uploads/products/#{product_id}/#{filename}"
-      IO.puts("✅ Returning image URL: #{image_url}")
-      {:ok, image_url}
     rescue
       error ->
         IO.puts("❌ LOCAL STORAGE ERROR: #{inspect(error)}")
