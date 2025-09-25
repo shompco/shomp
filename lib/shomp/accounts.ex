@@ -444,14 +444,14 @@ defmodule Shomp.Accounts do
   """
   def deliver_login_instructions(%User{} = user, magic_link_url_fun)
       when is_function(magic_link_url_fun, 1) do
-    require Logger
-    Logger.info("🔑 LOGIN DEBUG: Building token for user: #{user.email}")
+    # require Logger
+    # Logger.info("🔑 LOGIN DEBUG: Building token for user: #{user.email}")
     {encoded_token, user_token} = UserToken.build_email_token(user, "login")
-    Logger.info("💾 LOGIN DEBUG: Inserting token into database...")
+    # Logger.info("💾 LOGIN DEBUG: Inserting token into database...")
     Repo.insert!(user_token)
-    Logger.info("📤 LOGIN DEBUG: Calling UserNotifier.deliver_login_instructions...")
+    # Logger.info("📤 LOGIN DEBUG: Calling UserNotifier.deliver_login_instructions...")
     result = UserNotifier.deliver_login_instructions(user, magic_link_url_fun.(encoded_token))
-    Logger.info("📤 LOGIN DEBUG: UserNotifier result: #{inspect(result)}")
+    # Logger.info("📤 LOGIN DEBUG: UserNotifier result: #{inspect(result)}")
     result
   end
 
