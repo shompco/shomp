@@ -58,7 +58,6 @@ defmodule Shomp.Stores.Store do
     |> validate_format(:slug, ~r/^[a-z0-9-]+$/, message: "must contain only lowercase letters, numbers, and hyphens")
     |> validate_length(:description, max: 1000)
     |> validate_us_citizenship()
-    |> validate_store_username_conflict()
     |> unique_constraint(:slug)
     |> unique_constraint(:store_id)
     |> foreign_key_constraint(:user_id)

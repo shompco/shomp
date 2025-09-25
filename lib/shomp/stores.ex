@@ -414,7 +414,8 @@ defmodule Shomp.Stores do
       slug: user.username,
       description: "Welcome to #{user.username}'s store",
       user_id: user.id,
-      is_default: true
+      is_default: true,
+      us_citizen_confirmation: true
     }
 
     IO.puts("Store attributes to create: #{inspect(store_attrs)}")
