@@ -101,18 +101,27 @@ else
   IO.puts("Feature requests already exist, skipping...")
 end
 
-# Create admin user if it doesn't exist
+# Get or create admin user
 admin_user = case Repo.get_by(User, email: "admin@shomp.co") do
   nil ->
-    %User{}
-    |> User.registration_changeset(%{
-      email: "admin@shomp.co",
-      password: "admin123456789",
-      password_confirmation: "admin123456789",
-      name: "Shomp Admin",
-      username: "admin"
-    })
-    |> Repo.insert!()
+    # Try to get existing user with admin username first
+    case Repo.get_by(User, username: "admin") do
+      nil ->
+        # Create new admin user without password (they can set it later)
+        %User{}
+        |> User.registration_changeset(%{
+          email: "admin@shomp.co",
+          name: "Shomp Admin",
+          username: "admin"
+        }, validate_unique: false)
+        |> Repo.insert!()
+
+      existing_user ->
+        # Update existing user's email if needed
+        existing_user
+        |> Ecto.Changeset.change(%{email: "admin@shomp.co"})
+        |> Repo.update!()
+    end
 
   user -> user
 end
@@ -127,18 +136,27 @@ else
   IO.puts("Admin user already exists with admin role")
 end
 
-# Create additional admin user v1nc3ntpull1ng@gmail.com
+# Get or create Vincent admin user
 vincent_admin = case Repo.get_by(User, email: "v1nc3ntpull1ng@gmail.com") do
   nil ->
-    %User{}
-    |> User.registration_changeset(%{
-      email: "v1nc3ntpull1ng@gmail.com",
-      password: "vincent123456789",
-      password_confirmation: "vincent123456789",
-      name: "Vincent",
-      username: "vincent"
-    })
-    |> Repo.insert!()
+    # Try to get existing user with vincent username first
+    case Repo.get_by(User, username: "vincent") do
+      nil ->
+        # Create new admin user without password (they can set it later)
+        %User{}
+        |> User.registration_changeset(%{
+          email: "v1nc3ntpull1ng@gmail.com",
+          name: "Vincent",
+          username: "vincent"
+        }, validate_unique: false)
+        |> Repo.insert!()
+
+      existing_user ->
+        # Update existing user's email if needed
+        existing_user
+        |> Ecto.Changeset.change(%{email: "v1nc3ntpull1ng@gmail.com"})
+        |> Repo.update!()
+    end
 
   user -> user
 end
