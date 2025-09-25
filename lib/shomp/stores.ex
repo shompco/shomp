@@ -194,11 +194,13 @@ defmodule Shomp.Stores do
         # Always create Stripe Connected Account when store is created
         # This ensures every store has a Stripe account (even if restricted)
         case create_stripe_connected_account_for_new_store(store) do
-          {:ok, stripe_account_id} ->
+          {:ok, _stripe_account_id} ->
             # Successfully created/linked Stripe account
-          {:error, reason} ->
+            :ok
+          {:error, _reason} ->
             # Log this as a critical error since every store needs a Stripe account
             # The store was created but without Stripe integration
+            :ok
         end
 
         # Broadcast to admin dashboard
