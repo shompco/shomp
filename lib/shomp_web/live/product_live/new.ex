@@ -390,19 +390,20 @@ defmodule ShompWeb.ProductLive.New do
 
   @impl true
   def mount(_params, _session, socket) do
-    user = socket.assigns.current_scope.user
+    try do
+      user = socket.assigns.current_scope.user
 
-    # Get or create the user's default store
-    store = Stores.get_user_default_store(user)
+      # Get or create the user's default store
+      store = Stores.get_user_default_store(user)
 
-    if store do
-      # Default to Physical Product and load physical categories
-      changeset = Products.change_product_creation(%Products.Product{})
-      changeset = Ecto.Changeset.put_change(changeset, :store_id, store.store_id)
-      changeset = Ecto.Changeset.put_change(changeset, :type, "physical")
-      changeset = Ecto.Changeset.put_change(changeset, :us_citizen_confirmation, false)
-      changeset = Ecto.Changeset.put_change(changeset, :quantity, 1)
-      changeset = Ecto.Changeset.put_change(changeset, :shipping_zip_code, store.shipping_zip_code)
+      if store do
+        # Default to Physical Product and load physical categories
+        changeset = Products.change_product_creation(%Products.Product{})
+        changeset = Ecto.Changeset.put_change(changeset, :store_id, store.store_id)
+        changeset = Ecto.Changeset.put_change(changeset, :type, "physical")
+        changeset = Ecto.Changeset.put_change(changeset, :us_citizen_confirmation, false)
+        changeset = Ecto.Changeset.put_change(changeset, :quantity, 1)
+        changeset = Ecto.Changeset.put_change(changeset, :shipping_zip_code, store.shipping_zip_code)
 
         # Load physical categories by default
         physical_categories = Categories.get_categories_by_type("physical")
@@ -434,11 +435,17 @@ defmodule ShompWeb.ProductLive.New do
           |> assign(:product_type, "physical")
 
         {:ok, socket}
-    else
-      {:ok,
-       socket
-       |> put_flash(:error, "Unable to create your store. Please try again.")
-       |> push_navigate(to: ~p"/")}
+      else
+        {:ok,
+         socket
+         |> put_flash(:error, "Unable to create your store. Please try again.")
+         |> push_navigate(to: ~p"/")}
+      end
+    rescue
+      error ->
+        IO.puts("ERROR in ProductLive.New mount: #{inspect(error)}")
+        IO.puts("Stacktrace: #{inspect(__STACKTRACE__)}")
+        {:ok, assign(socket, page_title: "Error")}
     end
   end
 
