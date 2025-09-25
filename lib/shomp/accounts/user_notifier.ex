@@ -6,6 +6,9 @@ defmodule Shomp.Accounts.UserNotifier do
 
   # Delivers the email using the application mailer.
   defp deliver(recipient, subject, body) do
+    require Logger
+    Logger.info("Attempting to send email to: #{recipient}")
+
     email =
       new()
       |> to(recipient)
@@ -13,8 +16,13 @@ defmodule Shomp.Accounts.UserNotifier do
       |> subject(subject)
       |> text_body(body)
 
-    with {:ok, _metadata} <- Mailer.deliver(email) do
-      {:ok, email}
+    case Mailer.deliver(email) do
+      {:ok, _metadata} ->
+        Logger.info("Email sent successfully to: #{recipient}")
+        {:ok, email}
+      {:error, reason} ->
+        Logger.error("Failed to send email to #{recipient}: #{inspect(reason)}")
+        {:error, reason}
     end
   end
 
@@ -42,10 +50,21 @@ defmodule Shomp.Accounts.UserNotifier do
   Deliver instructions to log in with a magic link.
   """
   def deliver_login_instructions(user, url) do
-    case user do
-      %User{confirmed_at: nil} -> deliver_confirmation_instructions(user, url)
-      _ -> deliver_magic_link_instructions(user, url)
+    require Logger
+    Logger.info("📧 LOGIN DEBUG: UserNotifier.deliver_login_instructions called for: #{user.email}")
+    Logger.info("📧 LOGIN DEBUG: User confirmed_at: #{inspect(user.confirmed_at)}")
+
+    result = case user do
+      %User{confirmed_at: nil} ->
+        Logger.info("📧 LOGIN DEBUG: User not confirmed, sending confirmation instructions")
+        deliver_confirmation_instructions(user, url)
+      _ ->
+        Logger.info("📧 LOGIN DEBUG: User confirmed, sending magic link instructions")
+        deliver_magic_link_instructions(user, url)
     end
+
+    Logger.info("📧 LOGIN DEBUG: UserNotifier.deliver_login_instructions result: #{inspect(result)}")
+    result
   end
 
   defp deliver_magic_link_instructions(user, url) do

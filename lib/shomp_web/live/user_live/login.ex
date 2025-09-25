@@ -110,12 +110,20 @@ defmodule ShompWeb.UserLive.Login do
   end
 
   def handle_event("submit_magic", %{"user" => %{"email" => email}}, socket) do
+    require Logger
+    Logger.info("🔍 LOGIN DEBUG: Magic login requested for email: #{email}")
+
     if user = Accounts.get_user_by_email(email) do
+      Logger.info("✅ LOGIN DEBUG: User found in database: #{user.email}")
       return_to = socket.assigns.return_to
+      Logger.info("📧 LOGIN DEBUG: Calling deliver_login_instructions...")
       Accounts.deliver_login_instructions(
         user,
         &url(~p"/users/log-in/#{&1}?return_to=#{URI.encode_www_form(return_to)}")
       )
+      Logger.info("📧 LOGIN DEBUG: deliver_login_instructions completed")
+    else
+      Logger.warning("❌ LOGIN DEBUG: User NOT found in database for email: #{email}")
     end
 
     info =
