@@ -12,15 +12,16 @@ defmodule Shomp.Uploads do
   Stores a product image with multiple size variants.
   Returns {:ok, image_paths} or {:error, reason}
   """
-  def store_product_image(upload, product_id) do
+  def store_product_image(upload, store_slug) do
     storage_backend = Application.get_env(:shomp, :upload)[:image_storage_backend] || :local
     IO.puts("=== STORE PRODUCT IMAGE DEBUG ===")
     IO.puts("Using storage backend: #{storage_backend}")
+    IO.puts("Store slug: #{store_slug}")
 
     case storage_backend do
-      :local -> store_local(upload, product_id)
-      :s3 -> store_s3(upload, product_id)
-      :r2 -> store_r2(upload, product_id)
+      :local -> store_local(upload, store_slug)
+      :s3 -> store_s3(upload, store_slug)
+      :r2 -> store_r2(upload, store_slug)
     end
   end
 
@@ -84,17 +85,17 @@ defmodule Shomp.Uploads do
 
   # Local Storage Implementation
 
-  defp store_local(upload, product_id) do
+  defp store_local(upload, store_slug) do
     try do
       IO.puts("=== LOCAL STORAGE DEBUG ===")
       IO.puts("Upload structure: #{inspect(upload)}")
-      IO.puts("Product ID: #{product_id}")
+      IO.puts("Store slug: #{store_slug}")
 
       # Create uploads directory structure
       upload_dir = Application.get_env(:shomp, :upload)[:local][:upload_dir]
       IO.puts("Upload directory: #{upload_dir}")
 
-      base_dir = Path.join(upload_dir, "products/#{product_id}")
+      base_dir = Path.join(upload_dir, "products/#{store_slug}")
       IO.puts("Base directory: #{base_dir}")
 
       # Create directory if it doesn't exist
@@ -102,7 +103,7 @@ defmodule Shomp.Uploads do
       IO.puts("✅ Directory created/verified")
 
       # Store original image with clean filename
-      filename = generate_filename(upload, product_id)
+      filename = generate_filename(upload, store_slug)
       IO.puts("Generated filename: #{filename}")
 
       original_path = Path.join(base_dir, filename)
@@ -158,14 +159,14 @@ defmodule Shomp.Uploads do
           Phoenix.PubSub.broadcast(Shomp.PubSub, "admin:images", %{
             event: "image_uploaded",
             payload: %{
-              product_id: product_id,
+              store_slug: store_slug,
               filename: filename,
-              path: "/uploads/products/#{product_id}/#{filename}"
+              path: "/uploads/products/#{store_slug}/#{filename}"
             }
           })
 
           # Just return the single image path
-          image_url = "/uploads/products/#{product_id}/#{filename}"
+          image_url = "/uploads/products/#{store_slug}/#{filename}"
           {:ok, image_url}
 
         {:error, reason} ->
@@ -222,7 +223,7 @@ defmodule Shomp.Uploads do
     end
   end
 
-  defp generate_filename(upload, product_id) do
+  defp generate_filename(upload, store_slug) do
     # Generate a timestamp-based unique ID for each upload
     upload_id = generate_upload_id()
 
@@ -235,13 +236,15 @@ defmodule Shomp.Uploads do
       ext -> ext
     end
 
-    # Get store name from product_id (assuming product_id contains store info)
-    # For now, we'll use a simple approach - you might want to modify this
-    # to get the actual store name from the database
-    store_name = "store-#{product_id}"
-
     # Create filename: storename-timestamp.jpg
-    "#{store_name}-#{upload_id}#{normalized_ext}"
+    filename = "#{store_slug}-#{upload_id}#{normalized_ext}"
+
+    IO.puts("=== FILENAME GENERATION DEBUG ===")
+    IO.puts("Store slug: #{store_slug}")
+    IO.puts("Generated filename: #{filename}")
+    IO.puts("================================")
+
+    filename
   end
 
   defp generate_upload_id do

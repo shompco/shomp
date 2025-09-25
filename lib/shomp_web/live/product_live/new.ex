@@ -595,7 +595,7 @@ defmodule ShompWeb.ProductLive.New do
     IO.puts("Entry: #{inspect(entry)}")
 
     with {:ok, temp_upload} <- create_temp_upload(entry, socket, :product_images),
-         {:ok, image_url} <- store_image_locally(temp_upload) do
+         {:ok, image_url} <- store_image_locally(temp_upload, socket) do
       IO.puts("✅ Image upload successful: #{image_url}")
 
       current_images = socket.assigns.uploaded_images || []
@@ -699,9 +699,12 @@ defmodule ShompWeb.ProductLive.New do
     end
   end
 
-  defp store_image_locally(temp_upload) do
-    temp_product_id = generate_temp_id()
-    Shomp.Uploads.store_product_image(temp_upload, temp_product_id)
+  defp store_image_locally(temp_upload, socket) do
+    # Get store slug from current user's default store
+    user = socket.assigns.current_scope.user
+    store = Stores.get_user_default_store(user)
+    store_slug = store.slug
+    Shomp.Uploads.store_product_image(temp_upload, store_slug)
   end
 
   defp upload_directly_to_r2(entry, socket) do
@@ -770,7 +773,11 @@ defmodule ShompWeb.ProductLive.New do
   end
 
   defp generate_temp_id do
-    :crypto.strong_rand_bytes(16) |> Base.encode64()
+    # Generate a URL-safe identifier without slashes or special characters
+    :crypto.strong_rand_bytes(16)
+    |> Base.encode64(padding: false)
+    |> String.replace("/", "_")
+    |> String.replace("+", "-")
   end
 
   defp update_product_with_files(product, socket) do
