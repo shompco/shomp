@@ -391,15 +391,11 @@ defmodule ShompWeb.ProductLive.New do
   @impl true
   def mount(_params, _session, socket) do
     user = socket.assigns.current_scope.user
-    IO.puts("=== PRODUCT_LIVE NEW MOUNT DEBUG ===")
-    IO.puts("User: #{inspect(user)}")
 
     # Get or create the user's default store
     store = Stores.get_user_default_store(user)
-    IO.puts("Store result from get_user_default_store: #{inspect(store)}")
 
     if store do
-      IO.puts("✅ Store found, proceeding with product creation setup")
       # Default to Physical Product and load physical categories
       changeset = Products.change_product_creation(%Products.Product{})
       changeset = Ecto.Changeset.put_change(changeset, :store_id, store.store_id)
@@ -439,7 +435,6 @@ defmodule ShompWeb.ProductLive.New do
 
         {:ok, socket}
     else
-      IO.puts("❌ No store found, showing error message and redirecting")
       {:ok,
        socket
        |> put_flash(:error, "Unable to create your store. Please try again.")

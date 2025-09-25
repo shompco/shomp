@@ -46,9 +46,6 @@ defmodule ShompWeb.Endpoint do
   plug Plug.RequestId
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
 
-  # Custom logging plug to debug routing issues
-  plug :log_request
-
   plug ShompWeb.Plugs.RawBody
 
   plug Plug.Parsers,
@@ -60,17 +57,4 @@ defmodule ShompWeb.Endpoint do
   plug Plug.Head
   plug Plug.Session, @session_options
   plug ShompWeb.Router
-
-  def log_request(conn, _opts) do
-    IO.puts("=== ROUTER DEBUG ===")
-    IO.puts("Request method: #{conn.method}")
-    IO.puts("Request path: #{conn.request_path}")
-    IO.puts("Request host: #{conn.host}")
-    IO.puts("Request port: #{conn.port}")
-    IO.puts("Request scheme: #{conn.scheme}")
-    IO.puts("Request query string: #{conn.query_string}")
-    IO.puts("Path info: #{inspect(conn.path_info)}")
-    IO.puts("==================")
-    conn
-  end
 end

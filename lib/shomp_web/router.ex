@@ -130,7 +130,7 @@ defmodule ShompWeb.Router do
   ## Authenticated routes
 
   scope "/", ShompWeb do
-    pipe_through [:browser, :require_authenticated_user, :log_authenticated_scope]
+    pipe_through [:browser, :require_authenticated_user]
 
     live_session :require_authenticated_user,
       on_mount: [{ShompWeb.UserAuth, :require_authenticated}, {ShompWeb.CartHook, :default}, {ShompWeb.NotificationHook, :require_authenticated}] do
@@ -249,16 +249,6 @@ defmodule ShompWeb.Router do
       live_dashboard "/dashboard", metrics: ShompWeb.Telemetry
       forward "/mailbox", Plug.Swoosh.MailboxPreview
     end
-  end
-
-  # Custom plug to log authenticated scope access
-  defp log_authenticated_scope(conn, _opts) do
-    IO.puts("=== AUTHENTICATED SCOPE REACHED ===")
-    IO.puts("Path: #{conn.request_path}")
-    IO.puts("Method: #{conn.method}")
-    IO.puts("Current user: #{inspect(get_in(conn.assigns, [:current_scope, :user]))}")
-    IO.puts("==================================")
-    conn
   end
 
   # Username-based store and product routes - MUST come at the very end after all other routes
