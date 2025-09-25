@@ -251,7 +251,17 @@ defmodule ShompWeb.Router do
     end
   end
 
-  # Username-based store and product routes - must come AFTER all custom shomp routes
+  # Custom plug to log authenticated scope access
+  defp log_authenticated_scope(conn, _opts) do
+    IO.puts("=== AUTHENTICATED SCOPE REACHED ===")
+    IO.puts("Path: #{conn.request_path}")
+    IO.puts("Method: #{conn.method}")
+    IO.puts("Current user: #{inspect(get_in(conn.assigns, [:current_scope, :user]))}")
+    IO.puts("==================================")
+    conn
+  end
+
+  # Username-based store and product routes - MUST come at the very end after all other routes
   scope "/", ShompWeb do
     pipe_through :browser
 
@@ -261,16 +271,6 @@ defmodule ShompWeb.Router do
       live "/:username", UserLive.Store, :show_by_username
       live "/:username/:product_slug", ProductLive.Show, :show_by_username_product
     end
-  end
-
-  # Custom plug to log authenticated scope access
-  defp log_authenticated_scope(conn, _opts) do
-    IO.puts("=== AUTHENTICATED SCOPE REACHED ===")
-    IO.puts("Path: #{conn.request_path}")
-    IO.puts("Method: #{conn.method}")
-    IO.puts("Current user: #{inspect(get_in(conn.assigns, [:current_scope, :user]))}")
-    IO.puts("==================================")
-    conn
   end
 
 end

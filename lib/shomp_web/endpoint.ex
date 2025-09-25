@@ -65,12 +65,11 @@ defmodule ShompWeb.Endpoint do
     IO.puts("=== ROUTER DEBUG ===")
     IO.puts("Request method: #{conn.method}")
     IO.puts("Request path: #{conn.request_path}")
-    IO.puts("Request URI: #{conn.request_uri}")
     IO.puts("Request host: #{conn.host}")
     IO.puts("Request port: #{conn.port}")
     IO.puts("Request scheme: #{conn.scheme}")
     IO.puts("Request query string: #{conn.query_string}")
-    IO.puts("Request headers: #{inspect(conn.req_headers)}")
+    IO.puts("Path info: #{inspect(conn.path_info)}")
     IO.puts("==================")
     conn
   end
