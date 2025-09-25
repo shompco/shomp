@@ -37,6 +37,11 @@ mix phx.server
 mix run priv/repo/seeds_categories.exs
 ```
 
+##Default Donation Goal
+```bash
+mix run priv/repo/seeds_donations.exs
+```
+
 ## Terminal 2: Production Environment Variables
 ```bash
 # Cloudflare R2 Storage
