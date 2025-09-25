@@ -48,12 +48,12 @@ config :shomp, ShompWeb.Endpoint,
 # at the `config/runtime.exs`.
 config :shomp, Shomp.Mailer,
   adapter: Swoosh.Adapters.SMTP,
-  relay: "smtp-relay.sendinblue.com",
+  relay: "smtp-relay.brevo.com",
   port: 587,
   username: System.get_env("BREVO_SMTP_USERNAME"),
   password: System.get_env("BREVO_SMTP_PASSWORD"),
   ssl: false,
-  tls: :always,
+  tls: :if_available,
   auth: :always,
   retries: 2
 
