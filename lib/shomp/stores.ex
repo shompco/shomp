@@ -416,20 +416,35 @@ defmodule Shomp.Stores do
     IO.puts("=== CREATE_DEFAULT_STORE DEBUG ===")
     IO.puts("User: #{inspect(user)}")
 
-    store_attrs = %{
-      name: user.username || user.name || "My Store",
-      slug: user.username,
-      description: "Welcome to #{user.username}'s store",
-      user_id: user.id,
-      is_default: true,
-      us_citizen_confirmation: true
-    }
+    # First, check if there's already a store with this slug
+    existing_store = Repo.get_by(Store, slug: user.username)
+    if existing_store do
+      IO.puts("Found existing store with slug '#{user.username}', updating it to be default")
+      case update_store(existing_store, %{is_default: true}) do
+        {:ok, updated_store} ->
+          IO.puts("✅ Successfully updated existing store to be default: #{updated_store.store_id}")
+          {:ok, updated_store}
+        {:error, changeset} ->
+          IO.puts("❌ Failed to update existing store: #{inspect(changeset.errors)}")
+          {:error, changeset}
+      end
+    else
+      IO.puts("No existing store found, creating new one")
+      store_attrs = %{
+        name: user.username || user.name || "My Store",
+        slug: user.username,
+        description: "Welcome to #{user.username}'s store",
+        user_id: user.id,
+        is_default: true,
+        us_citizen_confirmation: true
+      }
 
-    IO.puts("Store attributes to create: #{inspect(store_attrs)}")
+      IO.puts("Store attributes to create: #{inspect(store_attrs)}")
 
-    result = create_store(store_attrs)
-    IO.puts("Create store result: #{inspect(result)}")
-    result
+      result = create_store(store_attrs)
+      IO.puts("Create store result: #{inspect(result)}")
+      result
+    end
   end
 
   @doc """

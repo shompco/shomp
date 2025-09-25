@@ -49,7 +49,7 @@ defmodule Shomp.Stores.Store do
   """
   def create_changeset(store, attrs) do
     store
-    |> cast(attrs, [:name, :slug, :description, :user_id, :us_citizen_confirmation])
+    |> cast(attrs, [:name, :slug, :description, :user_id, :us_citizen_confirmation, :is_default])
     |> generate_slug()
     |> generate_store_id()
     |> validate_required([:name, :slug, :user_id, :store_id, :us_citizen_confirmation])
