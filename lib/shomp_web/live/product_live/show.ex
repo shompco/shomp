@@ -45,6 +45,19 @@ defmodule ShompWeb.ProductLive.Show do
                |> push_navigate(to: ~p"/#{username}")}
 
             product ->
+              # Debug: Output all image URLs from database
+              IO.puts("=== PRODUCT IMAGE DEBUG ===")
+              IO.puts("Product ID: #{product.id}")
+              IO.puts("Product Title: #{product.title}")
+              IO.puts("image_original: #{inspect(product.image_original)}")
+              IO.puts("image_thumb: #{inspect(product.image_thumb)}")
+              IO.puts("image_medium: #{inspect(product.image_medium)}")
+              IO.puts("image_large: #{inspect(product.image_large)}")
+              IO.puts("image_extra_large: #{inspect(product.image_extra_large)}")
+              IO.puts("image_ultra: #{inspect(product.image_ultra)}")
+              IO.puts("additional_images: #{inspect(product.additional_images)}")
+              IO.puts("================================")
+
               # Subscribe to product quantity changes
               if connected?(socket) do
                 Phoenix.PubSub.subscribe(Shomp.PubSub, "product_quantity:#{product.id}")
@@ -67,6 +80,19 @@ defmodule ShompWeb.ProductLive.Show do
 
   def mount(%{"store_slug" => store_slug, "id" => id} = params, _session, socket) do
     product = Products.get_product_with_store!(id)
+
+    # Debug: Output all image URLs from database
+    IO.puts("=== PRODUCT IMAGE DEBUG (STORE SLUG) ===")
+    IO.puts("Product ID: #{product.id}")
+    IO.puts("Product Title: #{product.title}")
+    IO.puts("image_original: #{inspect(product.image_original)}")
+    IO.puts("image_thumb: #{inspect(product.image_thumb)}")
+    IO.puts("image_medium: #{inspect(product.image_medium)}")
+    IO.puts("image_large: #{inspect(product.image_large)}")
+    IO.puts("image_extra_large: #{inspect(product.image_extra_large)}")
+    IO.puts("image_ultra: #{inspect(product.image_ultra)}")
+    IO.puts("additional_images: #{inspect(product.additional_images)}")
+    IO.puts("================================")
 
     # Subscribe to product quantity changes
     if connected?(socket) do
@@ -704,6 +730,10 @@ defmodule ShompWeb.ProductLive.Show do
 
   # Helper function to check if an image URL is valid and not empty
   defp has_valid_image(image_url) do
+    IO.puts("=== CHECKING IMAGE VALIDITY ===")
+    IO.puts("Image URL: #{inspect(image_url)}")
+    IO.puts("Is valid: #{image_url && image_url != "" && String.trim(image_url) != ""}")
+    IO.puts("================================")
     image_url && image_url != "" && String.trim(image_url) != ""
   end
 end
