@@ -591,14 +591,8 @@ defmodule ShompWeb.ProductLive.New do
   end
 
   defp process_image_upload(entry, socket) do
-    IO.puts("=== PROCESS IMAGE UPLOAD DEBUG ===")
-    IO.puts("Entry: #{inspect(entry)}")
-    IO.puts("Socket assigns: #{inspect(Map.keys(socket.assigns))}")
-
     with {:ok, temp_upload} <- create_temp_upload(entry, socket, :product_images),
          {:ok, image_url} <- store_image_locally(temp_upload) do
-      IO.puts("✅ Image upload successful: #{image_url}")
-
       current_images = socket.assigns.uploaded_images || []
       new_image = %{
         image_url: image_url,
@@ -612,7 +606,6 @@ defmodule ShompWeb.ProductLive.New do
        |> assign(uploaded_images: current_images ++ [new_image])}
     else
       {:error, reason} ->
-        IO.puts("❌ Image upload failed: #{inspect(reason)}")
         {:noreply, put_flash(socket, :error, "Failed to upload image: #{reason}")}
     end
   end
@@ -644,27 +637,12 @@ defmodule ShompWeb.ProductLive.New do
   end
 
   defp create_temp_upload(entry, socket, upload_type) do
-    IO.puts("=== CREATE TEMP UPLOAD DEBUG ===")
-    IO.puts("Entry ref: #{entry.ref}")
-    IO.puts("Upload type: #{upload_type}")
-    IO.puts("Socket assigns keys: #{inspect(Map.keys(socket.assigns))}")
-
     uploaded_files = consume_uploaded_entries(socket, upload_type, fn meta, upload_entry ->
-      IO.puts("Processing upload entry: ref=#{upload_entry.ref}, client_name=#{upload_entry.client_name}")
-      IO.puts("Meta path: #{meta.path}")
-      IO.puts("File exists: #{File.exists?(meta.path)}")
-
       if upload_entry.ref == entry.ref do
-        IO.puts("✅ Found matching entry")
-
         # Read file content BEFORE it gets consumed/deleted
         if File.exists?(meta.path) do
-          file_size = File.stat!(meta.path).size
-          IO.puts("✅ File verified, size: #{file_size} bytes")
-
           # Read the file content immediately
           file_content = File.read!(meta.path)
-          IO.puts("✅ File content read successfully, #{byte_size(file_content)} bytes")
 
           {:ok, %{
             filename: upload_entry.client_name,
@@ -673,53 +651,28 @@ defmodule ShompWeb.ProductLive.New do
             content: file_content
           }}
         else
-          IO.puts("❌ File does not exist at path: #{meta.path}")
           {:error, "File not found: #{meta.path}"}
         end
       else
-        IO.puts("❌ Entry ref mismatch: expected #{entry.ref}, got #{upload_entry.ref}")
         {:error, :not_found}
       end
     end)
 
-    IO.puts("Uploaded files result: #{inspect(uploaded_files)}")
-    IO.puts("================================")
-
     case uploaded_files do
       [temp_upload] when is_map(temp_upload) ->
-        IO.puts("✅ Successfully created temp upload: #{inspect(temp_upload)}")
         {:ok, temp_upload}
       [] ->
-        IO.puts("❌ No uploaded files found")
         {:error, "No uploaded files found"}
       [error_result] ->
-        IO.puts("❌ Upload error: #{inspect(error_result)}")
         {:error, "Upload error: #{inspect(error_result)}"}
       other ->
-        IO.puts("❌ Unexpected result: #{inspect(other)}")
         {:error, "Unexpected upload result: #{inspect(other)}"}
     end
   end
 
   defp store_image_locally(temp_upload) do
-    IO.puts("=== STORE IMAGE LOCALLY DEBUG ===")
-    IO.puts("Temp upload: #{inspect(temp_upload)}")
-
     temp_product_id = generate_temp_id()
-    IO.puts("Generated temp product ID: #{temp_product_id}")
-
-    # Ensure we have the content in the upload structure
-    upload_with_content = if Map.has_key?(temp_upload, :content) do
-      IO.puts("✅ Upload already has content: #{byte_size(temp_upload.content)} bytes")
-      temp_upload
-    else
-      IO.puts("❌ Upload missing content, this should not happen")
-      temp_upload
-    end
-
-    result = Shomp.Uploads.store_product_image(upload_with_content, temp_product_id)
-    IO.puts("Storage result: #{inspect(result)}")
-    result
+    Shomp.Uploads.store_product_image(temp_upload, temp_product_id)
   end
 
   defp upload_directly_to_r2(entry, socket) do

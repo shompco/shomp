@@ -86,72 +86,43 @@ defmodule Shomp.Uploads do
 
   defp store_local(upload, product_id) do
     try do
-      IO.puts("=== LOCAL STORAGE DEBUG ===")
-      IO.puts("Upload info: #{inspect(upload)}")
-      IO.puts("Product ID: #{product_id}")
-
       # Create uploads directory structure
       upload_dir = Application.get_env(:shomp, :upload)[:local][:upload_dir]
-      IO.puts("Upload directory: #{upload_dir}")
-
       base_dir = Path.join(upload_dir, "products/#{product_id}")
-      IO.puts("Base directory: #{base_dir}")
 
       # Create directory if it doesn't exist
       File.mkdir_p!(base_dir)
-      IO.puts("✅ Directory created/verified: #{base_dir}")
 
       # Store original image with clean filename
       filename = generate_filename(upload, product_id)
-      IO.puts("Generated filename: #{filename}")
-
       original_path = Path.join(base_dir, filename)
-      IO.puts("Final file path: #{original_path}")
 
       # Check if we have content directly or need to read from file
-      IO.puts("=== CONTENT CHECK DEBUG ===")
-      IO.puts("Upload keys: #{inspect(Map.keys(upload))}")
-      IO.puts("Has content key: #{Map.has_key?(upload, :content)}")
-      IO.puts("Content exists: #{if Map.has_key?(upload, :content), do: upload.content != nil, else: false}")
-      IO.puts("Path exists: #{File.exists?(upload.path)}")
-
       result = cond do
         # If content is provided directly (from LiveView upload)
         Map.has_key?(upload, :content) && upload.content ->
-          IO.puts("✅ Using provided content directly, #{byte_size(upload.content)} bytes")
           File.write!(original_path, upload.content)
-          IO.puts("✅ File written successfully from content")
 
           # Verify the file was created
           if File.exists?(original_path) do
-            file_size = File.stat!(original_path).size
-            IO.puts("✅ File stored successfully, size: #{file_size} bytes")
             {:ok, original_path}
           else
-            IO.puts("❌ File was not created at destination")
             {:error, "File was not created at destination"}
           end
 
         # If file exists at path, read it
         File.exists?(upload.path) ->
-          IO.puts("✅ Source file exists: #{upload.path}")
           File.cp!(upload.path, original_path)
-          IO.puts("✅ File copied successfully")
 
           # Verify the file was created
           if File.exists?(original_path) do
-            file_size = File.stat!(original_path).size
-            IO.puts("✅ File stored successfully, size: #{file_size} bytes")
             {:ok, original_path}
           else
-            IO.puts("❌ File was not created at destination")
             {:error, "File was not created at destination"}
           end
 
         # Otherwise, error
         true ->
-          IO.puts("❌ Cannot read file - no content provided and path does not exist")
-          IO.puts("Upload structure: #{inspect(upload)}")
           {:error, "File not found and no content provided"}
       end
 
@@ -169,7 +140,6 @@ defmodule Shomp.Uploads do
 
           # Just return the single image path
           image_url = "/uploads/products/#{product_id}/#{filename}"
-          IO.puts("✅ Returning image URL: #{image_url}")
           {:ok, image_url}
 
         {:error, reason} ->
@@ -177,8 +147,6 @@ defmodule Shomp.Uploads do
       end
     rescue
       error ->
-        IO.puts("❌ LOCAL STORAGE ERROR: #{inspect(error)}")
-        IO.puts("Stacktrace: #{inspect(__STACKTRACE__)}")
         {:error, "Failed to store image: #{inspect(error)}"}
     end
   end

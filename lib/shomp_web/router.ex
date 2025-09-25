@@ -46,6 +46,9 @@ defmodule ShompWeb.Router do
     get "/sitemap.xml", SitemapController, :sitemap
     get "/robots.txt", SitemapController, :robots
 
+    # Serve uploaded files
+    get "/uploads/*path", PageController, :serve_upload
+
     live_session :public_with_cart,
       on_mount: [{ShompWeb.UserAuth, :mount_current_scope}, {ShompWeb.CartHook, :default}, {ShompWeb.NotificationHook, :default}] do
       live "/about", AboutLive.Show, :show
