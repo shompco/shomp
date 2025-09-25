@@ -398,10 +398,17 @@ defmodule Shomp.Stores do
     IO.puts("=== GET_DEFAULT_STORE_BY_USER DEBUG ===")
     IO.puts("Looking for default store for user_id: #{user_id}")
 
+    # First, let's see all stores for this user
+    all_user_stores = from(s in Store, where: s.user_id == ^user_id)
+    |> Repo.all()
+
+    IO.puts("All stores for user #{user_id}: #{inspect(all_user_stores)}")
+
+    # Now check for default store specifically
     result = from(s in Store, where: s.user_id == ^user_id and s.is_default == true)
     |> Repo.one()
 
-    IO.puts("Query result: #{inspect(result)}")
+    IO.puts("Default store query result: #{inspect(result)}")
     result
   end
 
