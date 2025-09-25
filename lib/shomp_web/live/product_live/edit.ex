@@ -480,28 +480,46 @@ defmodule ShompWeb.ProductLive.Edit do
   end
 
   defp process_completed_entry(entry, socket) do
-    IO.puts("Processing completed entry: #{entry.client_name}")
+    IO.puts("=== PROCESS COMPLETED ENTRY DEBUG (EDIT) ===")
+    IO.puts("Entry: #{inspect(entry)}")
+    IO.puts("Product ID: #{socket.assigns.product.id}")
 
     # Use consume_uploaded_entries to get the file path
     uploaded_files = consume_uploaded_entries(socket, :product_images, fn meta, upload_entry ->
+      IO.puts("Processing upload entry: ref=#{upload_entry.ref}, client_name=#{upload_entry.client_name}")
+      IO.puts("Meta path: #{meta.path}")
+      IO.puts("File exists: #{File.exists?(meta.path)}")
+
       if upload_entry.ref == entry.ref do
-        # Create a temporary upload structure
-        temp_upload = %{
-          filename: upload_entry.client_name,
-          path: meta.path,
-          content_type: upload_entry.client_type
-        }
+        IO.puts("✅ Found matching entry")
 
-        case Shomp.Uploads.store_product_image(temp_upload, socket.assigns.product.id) do
-          {:ok, image_url} ->
-            IO.puts("Image stored successfully: #{image_url}")
-            image_url
+        # Verify file exists before creating temp upload
+        if File.exists?(meta.path) do
+          file_size = File.stat!(meta.path).size
+          IO.puts("✅ File verified, size: #{file_size} bytes")
 
-          {:error, reason} ->
-            IO.puts("Failed to store image: #{inspect(reason)}")
-            nil
+          # Create a temporary upload structure
+          temp_upload = %{
+            filename: upload_entry.client_name,
+            path: meta.path,
+            content_type: upload_entry.client_type
+          }
+
+          case Shomp.Uploads.store_product_image(temp_upload, socket.assigns.product.id) do
+            {:ok, image_url} ->
+              IO.puts("✅ Image stored successfully: #{image_url}")
+              image_url
+
+            {:error, reason} ->
+              IO.puts("❌ Failed to store image: #{inspect(reason)}")
+              nil
+          end
+        else
+          IO.puts("❌ File does not exist at path: #{meta.path}")
+          nil
         end
       else
+        IO.puts("❌ Entry ref mismatch: expected #{entry.ref}, got #{upload_entry.ref}")
         nil
       end
     end)

@@ -2,8 +2,9 @@ import Config
 
 # Upload Configuration
 config :shomp, :upload,
-  # Storage backend: :local, :s3, or :r2
-  storage_backend: :r2,
+  # Storage backends: :local for images, :r2 for digital files
+  image_storage_backend: :local,
+  digital_storage_backend: :r2,
 
   # Local storage settings
   local: [

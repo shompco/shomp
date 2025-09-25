@@ -591,8 +591,14 @@ defmodule ShompWeb.ProductLive.New do
   end
 
   defp process_image_upload(entry, socket) do
+    IO.puts("=== PROCESS IMAGE UPLOAD DEBUG ===")
+    IO.puts("Entry: #{inspect(entry)}")
+    IO.puts("Socket assigns: #{inspect(Map.keys(socket.assigns))}")
+
     with {:ok, temp_upload} <- create_temp_upload(entry, socket, :product_images),
-         {:ok, image_url} <- store_image_to_r2(temp_upload) do
+         {:ok, image_url} <- store_image_locally(temp_upload) do
+      IO.puts("✅ Image upload successful: #{image_url}")
+
       current_images = socket.assigns.uploaded_images || []
       new_image = %{
         image_url: image_url,
@@ -606,17 +612,19 @@ defmodule ShompWeb.ProductLive.New do
        |> assign(uploaded_images: current_images ++ [new_image])}
     else
       {:error, reason} ->
+        IO.puts("❌ Image upload failed: #{inspect(reason)}")
         {:noreply, put_flash(socket, :error, "Failed to upload image: #{reason}")}
     end
   end
 
   defp process_digital_file_upload(entry, socket) do
-    IO.inspect(entry, label: "Processing digital file entry")
+    IO.puts("=== PROCESS DIGITAL FILE UPLOAD DEBUG ===")
+    IO.puts("Entry: #{inspect(entry)}")
 
     # Upload directly to R2 without temp storage
     case upload_directly_to_r2(entry, socket) do
       {:ok, file_url} ->
-        IO.inspect(file_url, label: "Successfully stored to R2")
+        IO.puts("✅ Digital file stored successfully to R2: #{file_url}")
         file_type = determine_file_type(entry.client_name)
         digital_file = %{
           file_url: file_url,
@@ -630,7 +638,7 @@ defmodule ShompWeb.ProductLive.New do
          |> put_flash(:info, "Digital file '#{entry.client_name}' uploaded successfully!")
          |> assign(uploaded_digital_file: digital_file)}
       {:error, reason} ->
-        IO.inspect(reason, label: "R2 upload failed")
+        IO.puts("❌ R2 upload failed: #{inspect(reason)}")
         {:noreply, put_flash(socket, :error, "Failed to upload digital file: #{inspect(reason)}")}
     end
   end
@@ -643,13 +651,26 @@ defmodule ShompWeb.ProductLive.New do
 
     uploaded_files = consume_uploaded_entries(socket, upload_type, fn meta, upload_entry ->
       IO.puts("Processing upload entry: ref=#{upload_entry.ref}, client_name=#{upload_entry.client_name}")
+      IO.puts("Meta path: #{meta.path}")
+      IO.puts("File exists: #{File.exists?(meta.path)}")
+
       if upload_entry.ref == entry.ref do
         IO.puts("✅ Found matching entry")
-        {:ok, %{
-          filename: upload_entry.client_name,
-          path: meta.path,
-          content_type: upload_entry.client_type
-        }}
+
+        # Verify file exists before creating temp upload
+        if File.exists?(meta.path) do
+          file_size = File.stat!(meta.path).size
+          IO.puts("✅ File verified, size: #{file_size} bytes")
+
+          {:ok, %{
+            filename: upload_entry.client_name,
+            path: meta.path,
+            content_type: upload_entry.client_type
+          }}
+        else
+          IO.puts("❌ File does not exist at path: #{meta.path}")
+          {:error, "File not found: #{meta.path}"}
+        end
       else
         IO.puts("❌ Entry ref mismatch: expected #{entry.ref}, got #{upload_entry.ref}")
         {:error, :not_found}
@@ -675,9 +696,16 @@ defmodule ShompWeb.ProductLive.New do
     end
   end
 
-  defp store_image_to_r2(temp_upload) do
+  defp store_image_locally(temp_upload) do
+    IO.puts("=== STORE IMAGE LOCALLY DEBUG ===")
+    IO.puts("Temp upload: #{inspect(temp_upload)}")
+
     temp_product_id = generate_temp_id()
-    Shomp.Uploads.store_product_image(temp_upload, temp_product_id)
+    IO.puts("Generated temp product ID: #{temp_product_id}")
+
+    result = Shomp.Uploads.store_product_image(temp_upload, temp_product_id)
+    IO.puts("Storage result: #{inspect(result)}")
+    result
   end
 
   defp upload_directly_to_r2(entry, socket) do

@@ -13,7 +13,9 @@ defmodule Shomp.Uploads do
   Returns {:ok, image_paths} or {:error, reason}
   """
   def store_product_image(upload, product_id) do
-    storage_backend = Application.get_env(:shomp, :upload)[:storage_backend] || :r2
+    storage_backend = Application.get_env(:shomp, :upload)[:image_storage_backend] || :local
+    IO.puts("=== STORE PRODUCT IMAGE DEBUG ===")
+    IO.puts("Using storage backend: #{storage_backend}")
 
     case storage_backend do
       :local -> store_local(upload, product_id)
@@ -27,7 +29,9 @@ defmodule Shomp.Uploads do
   Returns {:ok, file_path} or {:error, reason}
   """
   def store_product_file(upload, product_id) do
-    storage_backend = Application.get_env(:shomp, :upload)[:storage_backend] || :r2
+    storage_backend = Application.get_env(:shomp, :upload)[:digital_storage_backend] || :r2
+    IO.puts("=== STORE PRODUCT FILE DEBUG ===")
+    IO.puts("Using storage backend: #{storage_backend}")
 
     case storage_backend do
       :local -> store_file_local(upload, product_id)
@@ -40,8 +44,8 @@ defmodule Shomp.Uploads do
   Stores a digital file (PDF, ZIP, MP4) for a product.
   """
   def store_digital_file(upload, product_id) do
-    storage_backend = Application.get_env(:shomp, :upload)[:storage_backend] || :r2
-    IO.puts("=== STORAGE BACKEND DEBUG ===")
+    storage_backend = Application.get_env(:shomp, :upload)[:digital_storage_backend] || :r2
+    IO.puts("=== STORE DIGITAL FILE DEBUG ===")
     IO.puts("Storage backend: #{inspect(storage_backend)}")
     IO.puts("Upload config: #{inspect(Application.get_env(:shomp, :upload))}")
 
@@ -56,7 +60,7 @@ defmodule Shomp.Uploads do
   Deletes a product image and all its variants.
   """
   def delete_product_image(image_path) do
-    storage_backend = Application.get_env(:shomp, :upload)[:storage_backend] || :r2
+    storage_backend = Application.get_env(:shomp, :upload)[:image_storage_backend] || :local
 
     case storage_backend do
       :local -> delete_local_image(image_path)
@@ -69,7 +73,7 @@ defmodule Shomp.Uploads do
   Deletes a product file.
   """
   def delete_product_file(file_path) do
-    storage_backend = Application.get_env(:shomp, :upload)[:storage_backend] || :r2
+    storage_backend = Application.get_env(:shomp, :upload)[:digital_storage_backend] || :r2
 
     case storage_backend do
       :local -> delete_local_file(file_path)
@@ -82,15 +86,46 @@ defmodule Shomp.Uploads do
 
   defp store_local(upload, product_id) do
     try do
+      IO.puts("=== LOCAL STORAGE DEBUG ===")
+      IO.puts("Upload info: #{inspect(upload)}")
+      IO.puts("Product ID: #{product_id}")
+
       # Create uploads directory structure
       upload_dir = Application.get_env(:shomp, :upload)[:local][:upload_dir]
+      IO.puts("Upload directory: #{upload_dir}")
+
       base_dir = Path.join(upload_dir, "products/#{product_id}")
+      IO.puts("Base directory: #{base_dir}")
+
+      # Create directory if it doesn't exist
       File.mkdir_p!(base_dir)
+      IO.puts("✅ Directory created/verified: #{base_dir}")
 
       # Store original image with clean filename
       filename = generate_filename(upload, product_id)
+      IO.puts("Generated filename: #{filename}")
+
       original_path = Path.join(base_dir, filename)
-      File.cp!(upload.path, original_path)
+      IO.puts("Final file path: #{original_path}")
+
+      # Check if source file exists
+      if File.exists?(upload.path) do
+        IO.puts("✅ Source file exists: #{upload.path}")
+        File.cp!(upload.path, original_path)
+        IO.puts("✅ File copied successfully")
+      else
+        IO.puts("❌ Source file does not exist: #{upload.path}")
+        return {:error, "Source file not found: #{upload.path}"}
+      end
+
+      # Verify the file was created
+      if File.exists?(original_path) do
+        file_size = File.stat!(original_path).size
+        IO.puts("✅ File stored successfully, size: #{file_size} bytes")
+      else
+        IO.puts("❌ File was not created at destination")
+        return {:error, "File was not created at destination"}
+      end
 
       # Broadcast to admin dashboard
       Phoenix.PubSub.broadcast(Shomp.PubSub, "admin:images", %{
@@ -103,9 +138,14 @@ defmodule Shomp.Uploads do
       })
 
       # Just return the single image path
-      {:ok, "/uploads/products/#{product_id}/#{filename}"}
+      image_url = "/uploads/products/#{product_id}/#{filename}"
+      IO.puts("✅ Returning image URL: #{image_url}")
+      {:ok, image_url}
     rescue
-      error -> {:error, "Failed to store image: #{inspect(error)}"}
+      error ->
+        IO.puts("❌ LOCAL STORAGE ERROR: #{inspect(error)}")
+        IO.puts("Stacktrace: #{inspect(__STACKTRACE__)}")
+        {:error, "Failed to store image: #{inspect(error)}"}
     end
   end
 
@@ -157,8 +197,23 @@ defmodule Shomp.Uploads do
   defp generate_filename(upload, product_id) do
     # Generate a timestamp-based unique ID for each upload
     upload_id = generate_upload_id()
-    ext = Path.extname(upload.filename)
-    "#{upload_id}#{ext}"
+
+    # Get the original extension and normalize it
+    original_ext = Path.extname(upload.filename) |> String.downcase()
+
+    # Convert .jpeg to .jpg
+    normalized_ext = case original_ext do
+      ".jpeg" -> ".jpg"
+      ext -> ext
+    end
+
+    # Get store name from product_id (assuming product_id contains store info)
+    # For now, we'll use a simple approach - you might want to modify this
+    # to get the actual store name from the database
+    store_name = "store-#{product_id}"
+
+    # Create filename: storename-timestamp.jpg
+    "#{store_name}-#{upload_id}#{normalized_ext}"
   end
 
   defp generate_upload_id do
@@ -201,32 +256,73 @@ defmodule Shomp.Uploads do
     try do
       # Get R2 configuration
       r2_config = Application.get_env(:shomp, :upload)[:r2]
+      IO.puts("=== R2 IMAGE UPLOAD DEBUG ===")
+      IO.puts("R2 config: #{inspect(r2_config)}")
+      IO.puts("Upload path: #{upload.path}")
+      IO.puts("Upload content_type: #{upload.content_type}")
 
-      # Generate unique filename
-      filename = generate_filename(upload, product_id)
-      key = "products/#{product_id}/#{filename}"
+      # Check if we have content directly or need to read from file
+      file_content = cond do
+        # If content is provided directly (from LiveView upload)
+        Map.has_key?(upload, :content) && upload.content ->
+          IO.puts("Using provided content directly")
+          upload.content
+        # If file exists at path, read it
+        File.exists?(upload.path) ->
+          IO.puts("Reading file from path: #{upload.path}")
+          IO.puts("File size: #{File.stat!(upload.path).size}")
+          File.read!(upload.path)
+        # Otherwise, error
+        true ->
+          IO.puts("❌ Cannot read file - no content provided and path does not exist")
+          {:error, "File not found and no content provided"}
+      end
 
-      # Configure ExAws for R2
-      config = %{
-        access_key_id: r2_config[:access_key_id],
-        secret_access_key: r2_config[:secret_access_key],
-        region: r2_config[:region] || "auto",
-        host: r2_config[:endpoint]
-      }
-
-      # Upload to R2
-      case ExAws.S3.put_object(r2_config[:bucket], key, File.read!(upload.path),
-                               content_type: upload.content_type) |> ExAws.request(config) do
-        {:ok, _} ->
-          # Generate public URL
-          # For R2, construct the full URL with https://
-          url = "https://#{r2_config[:endpoint]}/#{r2_config[:bucket]}/#{key}"
-          {:ok, url}
+      case file_content do
         {:error, reason} ->
-          {:error, "Failed to upload to R2: #{inspect(reason)}"}
+          {:error, reason}
+        content when is_binary(content) ->
+          # Generate unique filename
+          filename = generate_filename(upload, product_id)
+          key = "products/#{product_id}/#{filename}"
+          IO.puts("Generated key: #{key}")
+
+          # Configure ExAws for R2
+          # For R2, we need to use the endpoint as the host without https://
+          endpoint_host = r2_config[:endpoint] |> String.replace("https://", "")
+          config = %{
+            access_key_id: r2_config[:access_key_id],
+            secret_access_key: r2_config[:secret_access_key],
+            region: r2_config[:region] || "auto",
+            host: endpoint_host,
+            scheme: "https://"
+          }
+          IO.puts("ExAws config: #{inspect(config)}")
+
+          # Upload to R2
+          IO.puts("Starting R2 upload...")
+          case ExAws.S3.put_object(r2_config[:bucket], key, content,
+                                   content_type: upload.content_type) |> ExAws.request(config) do
+            {:ok, response} ->
+              IO.puts("✅ R2 upload successful: #{inspect(response)}")
+              # Generate public URL
+              # For R2, the endpoint is already the full domain, so we just need to add the bucket and key
+              IO.puts("=== URL CONSTRUCTION DEBUG ===")
+              IO.puts("Endpoint: #{inspect(r2_config[:endpoint])}")
+              IO.puts("Bucket: #{inspect(r2_config[:bucket])}")
+              IO.puts("Key: #{inspect(key)}")
+              url = "https://#{r2_config[:endpoint]}/#{r2_config[:bucket]}/#{key}"
+              IO.puts("Generated URL: #{url}")
+              {:ok, url}
+            {:error, reason} ->
+              IO.puts("❌ R2 upload failed: #{inspect(reason)}")
+              {:error, "Failed to upload to R2: #{inspect(reason)}"}
+          end
       end
     rescue
-      error -> {:error, "Failed to store image: #{inspect(error)}"}
+      error ->
+        IO.puts("❌ R2 upload exception: #{inspect(error)}")
+        {:error, "Failed to store image: #{inspect(error)}"}
     end
   end
 
