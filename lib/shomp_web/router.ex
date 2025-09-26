@@ -59,6 +59,7 @@ defmodule ShompWeb.Router do
       live "/landing", LandingLive.Show, :show
       live "/categories", CategoryLive.Index, :index
       live "/categories/:slug", CategoryLive.Show, :show
+      live "/tos", TosLive.Show, :show
     end
   end
 
