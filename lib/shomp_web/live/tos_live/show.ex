@@ -33,7 +33,7 @@ defmodule ShompWeb.TosLive.Show do
                 <div class="bg-base-100 p-6 rounded-lg border border-base-300">
                   <h2 class="text-2xl font-semibold text-primary mb-4">1. Overview of Our Services</h2>
                   <p class="text-base-content/80 leading-relaxed">
-                    Shomp is a marketplace that enables creators ("Sellers") to sell digital and physical products directly to customers ("Buyers"). We provide the platform, payment processing, and certain support tools, but we do not own or ship products on behalf of Sellers.
+                    Shomp is a US-focused marketplace that enables US-based creators ("Sellers") to sell digital and physical products directly to customers ("Buyers"). We provide the platform, payment processing, and certain support tools, but we do not own or ship products on behalf of Sellers. Our mission is to advance economic education and entrepreneurship training for US artists and creators through hands-on business experience.
                   </p>
                 </div>
 
@@ -43,6 +43,7 @@ defmodule ShompWeb.TosLive.Show do
                   <ul class="list-disc list-inside space-y-2 text-base-content/80">
                     <li>You must be at least 18 years old (or the age of majority in your jurisdiction) to use Shomp.</li>
                     <li>By registering, you confirm that all information provided is accurate and complete.</li>
+                    <li><strong>Sellers must be US-based residents or entities to use Shomp's marketplace services.</strong> This restriction ensures compliance with our 501(c)(3) nonprofit mission to advance economic education and entrepreneurship training for US creators.</li>
                     <li>Sellers must pass Stripe Connect's identity verification (KYC) before receiving payouts.</li>
                   </ul>
                 </div>
@@ -113,9 +114,9 @@ defmodule ShompWeb.TosLive.Show do
                 <div class="bg-base-100 p-6 rounded-lg border border-base-300">
                   <h2 class="text-2xl font-semibold text-primary mb-4">8. Donations</h2>
                   <ul class="list-disc list-inside space-y-2 text-base-content/80">
-                    <li>Shomp may accept donations to support platform operations.</li>
+                    <li>Shomp may accept donations to support platform operations and our 501(c)(3) nonprofit mission.</li>
                     <li>Donations are voluntary, non-refundable, and not tied to specific products or services.</li>
-                    <li>Shomp is in the process of registering as a nonprofit organization.</li>
+                    <li>Shomp is registering as a 501(c)(3) nonprofit organization focused on advancing economic education and entrepreneurship training for US creators.</li>
                   </ul>
                 </div>
 
