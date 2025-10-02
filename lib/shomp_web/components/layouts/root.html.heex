@@ -102,7 +102,10 @@
     <ul class="menu menu-horizontal w-full relative z-[10000] flex items-center gap-4 px-4 sm:px-6 lg:px-8">
       <li class="mr-auto flex items-center gap-2">
         <div class="flex items-center gap-2">
-          <.link href={~p"/"} class="text-xl font-bold text-primary">Shomp</.link>
+          <.link href={~p"/"} class="flex items-center gap-2">
+            <img src={~p"/images/shomp.png"} alt="Shomp Logo" class="h-8 w-12 object-cover border border-black" />
+            <span class="text-xl font-bold text-primary">Shomp</span>
+          </.link>
           <%= if @current_scope && @current_scope.user.email == "v1nc3ntpull1ng@gmail.com" do %>
             <.link href={~p"/admin"} class="btn btn-xs btn-outline">
               🛠️ Admin

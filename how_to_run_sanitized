@@ -97,3 +97,5 @@ _build/prod/rel/shomp/bin/shomp start
 - Ensure all required services (Stripe, Cloudflare R2, etc.) are configured
 - Run category seeds after database setup to populate product categories
 - Use separate terminals for webhook listening and application running
+
+
